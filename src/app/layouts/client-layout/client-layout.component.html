@@ -42,7 +42,7 @@
                 <div class="avatar-container" [class.mb-2]="sidebarCollapsed">
                     <div
                         class="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-medium">
-                        {{ userInfo.name?.charAt(0) || 'U' }}
+                        {{ userInfo.name.charAt(0) || 'U' }}
                     </div>
                 </div>
                 <div *ngIf="!sidebarCollapsed" class="ml-3">

@@ -1,0 +1,314 @@
+<!-- Page header -->
+<div class="bg-white rounded-lg shadow p-6 mb-6">
+    <div class="flex justify-between items-center">
+        <div>
+            <h2 class="text-2xl font-bold text-gray-800">Mon Profil</h2>
+            <p class="text-gray-600">Gérez vos informations personnelles et vos
+                préférences</p>
+        </div>
+    </div>
+</div>
+
+<!-- Content grid -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Left column: Profile info and update form -->
+    <div class="lg:col-span-2 space-y-6">
+        <!-- Profile card -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex justify-between items-start mb-6">
+                <h3 class="text-lg font-bold text-gray-800">Informations
+                    Personnelles</h3>
+                <button
+                    (click)="toggleEditProfile()"
+                    class="text-teal-600 hover:text-teal-800 font-medium text-sm flex items-center">
+                    <i
+                        [class]="isEditing ? 'fa-solid fa-times mr-2' : 'fa-solid fa-pen mr-2'"></i>
+                    {{ isEditing ? 'Annuler' : 'Modifier' }}
+                </button>
+            </div>
+
+            <!-- Success message -->
+            <div *ngIf="showSaveSuccess"
+                class="mb-6 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded relative flex items-center"
+                role="alert">
+                <i class="fa-solid fa-circle-check mr-2"></i>
+                <span>Profil mis à jour avec succès!</span>
+            </div>
+
+            <!-- View mode -->
+            <div *ngIf="!isEditing" class="space-y-4">
+                <div class="flex items-center">
+                    <div
+                        class="w-20 h-20 bg-teal-100 rounded-full flex items-center justify-center mr-6">
+                        <span class="text-2xl font-bold text-teal-700">{{
+                            agent.name.charAt(0) }}</span>
+                    </div>
+                    <div>
+                        <h4 class="text-xl font-semibold text-gray-800">{{
+                            agent.name }}</h4>
+                        <p class="text-gray-600">{{ agent.role }} • {{
+                            agent.branch }}</p>
+                        <p class="text-sm text-gray-500">ID: {{ agent.id }} •
+                            Depuis {{ formatDate(agent.joinDate) }}</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+                    <div>
+                        <h5 class="text-sm font-medium text-gray-500">Email</h5>
+                        <p>{{ agent.email }}</p>
+                    </div>
+                    <div>
+                        <h5
+                            class="text-sm font-medium text-gray-500">Téléphone</h5>
+                        <p>{{ agent.phone }}</p>
+                    </div>
+                    <div>
+                        <h5 class="text-sm font-medium text-gray-500">ID
+                            Employé</h5>
+                        <p>{{ agent.employeeId }}</p>
+                    </div>
+                    <div>
+                        <h5
+                            class="text-sm font-medium text-gray-500">Responsable</h5>
+                        <p>{{ agent.manager }}</p>
+                    </div>
+                    <div class="md:col-span-2">
+                        <h5
+                            class="text-sm font-medium text-gray-500">Spécialisation</h5>
+                        <p>{{ agent.specialization }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Edit mode -->
+            <div *ngIf="isEditing">
+                <form [formGroup]="profileForm" (ngSubmit)="saveProfile()">
+                    <div class="space-y-4">
+                        <!-- Name -->
+                        <div>
+                            <label for="name"
+                                class="block text-sm font-medium text-gray-700 mb-1">Nom
+                                complet</label>
+                            <input
+                                type="text"
+                                id="name"
+                                formControlName="name"
+                                class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-teal-500 focus:border-teal-500">
+                            <p
+                                *ngIf="profileForm.get('name')?.invalid && profileForm.get('name')?.touched"
+                                class="mt-1 text-sm text-red-600">
+                                Nom complet requis
+                            </p>
+                        </div>
+
+                        <!-- Email -->
+                        <div>
+                            <label for="email"
+                                class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                            <input
+                                type="email"
+                                id="email"
+                                formControlName="email"
+                                class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-teal-500 focus:border-teal-500">
+                            <p
+                                *ngIf="profileForm.get('email')?.invalid && profileForm.get('email')?.touched"
+                                class="mt-1 text-sm text-red-600">
+                                Email valide requis
+                            </p>
+                        </div>
+
+                        <!-- Phone -->
+                        <div>
+                            <label for="phone"
+                                class="block text-sm font-medium text-gray-700 mb-1">Téléphone</label>
+                            <input
+                                type="tel"
+                                id="phone"
+                                formControlName="phone"
+                                class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-teal-500 focus:border-teal-500">
+                            <p
+                                *ngIf="profileForm.get('phone')?.invalid && profileForm.get('phone')?.touched"
+                                class="mt-1 text-sm text-red-600">
+                                Numéro de téléphone valide requis (format:
+                                06XXXXXXXX ou 07XXXXXXXX)
+                            </p>
+                        </div>
+
+                        <!-- Submit button -->
+                        <div class="flex justify-end space-x-3">
+                            <button
+                                type="button"
+                                (click)="toggleEditProfile()"
+                                class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none">
+                                Annuler
+                            </button>
+                            <button
+                                type="submit"
+                                [disabled]="profileForm.invalid"
+                                class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500"
+                                [ngClass]="{'opacity-50 cursor-not-allowed': profileForm.invalid}">
+                                Enregistrer
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Password change card -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-bold text-gray-800 mb-6">Changer le mot de
+                passe</h3>
+
+            <!-- Success message -->
+            <div *ngIf="showPasswordSuccess"
+                class="mb-6 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded relative flex items-center"
+                role="alert">
+                <i class="fa-solid fa-circle-check mr-2"></i>
+                <span>Mot de passe modifié avec succès!</span>
+            </div>
+
+            <form [formGroup]="passwordForm" (ngSubmit)="changePassword()">
+                <div class="space-y-4">
+                    <!-- Current password -->
+                    <div>
+                        <label for="currentPassword"
+                            class="block text-sm font-medium text-gray-700 mb-1">Mot
+                            de passe actuel</label>
+                        <input
+                            type="password"
+                            id="currentPassword"
+                            formControlName="currentPassword"
+                            class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-teal-500 focus:border-teal-500">
+                        <p
+                            *ngIf="passwordForm.get('currentPassword')?.invalid && passwordForm.get('currentPassword')?.touched"
+                            class="mt-1 text-sm text-red-600">
+                            Mot de passe actuel requis
+                        </p>
+                    </div>
+
+                    <!-- New password -->
+                    <div>
+                        <label for="newPassword"
+                            class="block text-sm font-medium text-gray-700 mb-1">Nouveau
+                            mot de passe</label>
+                        <input
+                            type="password"
+                            id="newPassword"
+                            formControlName="newPassword"
+                            class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-teal-500 focus:border-teal-500">
+                        <p
+                            *ngIf="passwordForm.get('newPassword')?.invalid && passwordForm.get('newPassword')?.touched"
+                            class="mt-1 text-sm text-red-600">
+                            Le nouveau mot de passe doit contenir au moins 8
+                            caractères
+                        </p>
+                    </div>
+
+                    <!-- Confirm password -->
+                    <div>
+                        <label for="confirmPassword"
+                            class="block text-sm font-medium text-gray-700 mb-1">Confirmer
+                            le mot de passe</label>
+                        <input
+                            type="password"
+                            id="confirmPassword"
+                            formControlName="confirmPassword"
+                            class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-teal-500 focus:border-teal-500">
+                        <p
+                            *ngIf="passwordForm.get('confirmPassword')?.errors?.['passwordMismatch'] && passwordForm.get('confirmPassword')?.touched"
+                            class="mt-1 text-sm text-red-600">
+                            Les mots de passe ne correspondent pas
+                        </p>
+                    </div>
+
+                    <!-- Submit button -->
+                    <div class="flex justify-end">
+                        <button
+                            type="submit"
+                            [disabled]="passwordForm.invalid"
+                            class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500"
+                            [ngClass]="{'opacity-50 cursor-not-allowed': passwordForm.invalid}">
+                            Changer le mot de passe
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Right column: Performance stats and recent activity -->
+    <div class="space-y-6">
+        <!-- Performance stats -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-bold text-gray-800 mb-6">Performance</h3>
+
+            <div class="space-y-4">
+                <!-- Current month performance -->
+                <div>
+                    <div class="flex justify-between mb-1">
+                        <span class="text-sm font-medium">Mois en cours</span>
+                        <span class="text-sm font-medium">{{
+                            agent.performance.currentMonth }}%</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2">
+                        <div class="bg-teal-600 h-2 rounded-full"
+                            [style.width.%]="agent.performance.currentMonth"></div>
+                    </div>
+                </div>
+
+                <!-- Last month performance -->
+                <div>
+                    <div class="flex justify-between mb-1">
+                        <span class="text-sm font-medium">Mois précédent</span>
+                        <span class="text-sm font-medium">{{
+                            agent.performance.lastMonth }}%</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2">
+                        <div class="bg-blue-600 h-2 rounded-full"
+                            [style.width.%]="agent.performance.lastMonth"></div>
+                    </div>
+                </div>
+
+                <!-- Stats summary -->
+                <div class="grid grid-cols-2 gap-4 mt-4 pt-4 border-t">
+                    <div class="text-center">
+                        <p class="text-2xl font-bold text-teal-600">{{
+                            agent.performance.clients }}</p>
+                        <p class="text-sm text-gray-600">Clients servis</p>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-2xl font-bold text-teal-600">{{
+                            agent.performance.transactions }}</p>
+                        <p class="text-sm text-gray-600">Transactions
+                            vérifiées</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent activity -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-bold text-gray-800 mb-6">Activité
+                Récente</h3>
+
+            <div class="space-y-4">
+                <div *ngFor="let activity of recentActivity"
+                    class="border-l-4 border-teal-400 pl-4 py-2">
+                    <p class="font-medium">{{ activity.action }}</p>
+                    <p class="text-sm text-gray-600">{{ activity.details }}</p>
+                    <p class="text-xs text-gray-500 mt-1">{{
+                        formatDateTime(activity.timestamp) }}</p>
+                </div>
+
+                <div class="flex justify-center mt-2">
+                    <button
+                        class="text-teal-600 hover:text-teal-800 text-sm font-medium">
+                        Voir tout l'historique
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

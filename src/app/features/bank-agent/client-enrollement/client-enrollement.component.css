@@ -1,0 +1,19 @@
+/* Form focus animations */
+input:focus, select:focus, textarea:focus {
+  transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+/* Table row transition */
+tr {
+  transition: background-color 0.15s ease-in-out;
+}
+
+/* Button transitions */
+button {
+  transition: all 0.2s ease;
+}
+
+/* Status badge animations */
+.bg-green-100, .bg-red-100 {
+  transition: all 0.3s ease;
+}

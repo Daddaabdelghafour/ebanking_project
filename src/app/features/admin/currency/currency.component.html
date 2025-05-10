@@ -1,0 +1,212 @@
+<!-- Welcome section -->
+<div class="bg-white rounded-lg shadow p-6 mb-6">
+    <div class="flex items-center justify-between">
+        <div>
+            <h2 class="text-2xl font-bold text-gray-800">Gestion des
+                Devises</h2>
+            <p class="text-gray-600">Gérer les taux de change et les devises
+                supportées</p>
+        </div>
+        <button (click)="exportData()"
+            class="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center">
+            <i class="fa-solid fa-file-export mr-2"></i>
+            Exporter
+        </button>
+    </div>
+</div>
+
+<!-- Currency Management -->
+<div class="bg-white shadow rounded-lg p-6">
+    <div class="flex justify-between items-center mb-6">
+        <h3 class="text-xl font-semibold text-gray-800">Devises</h3>
+        <button (click)="openAddModal()"
+            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center">
+            <i class="fa-solid fa-plus mr-2"></i>
+            Ajouter Devise
+        </button>
+    </div>
+
+    <!-- Currency Table -->
+    <div class="overflow-x-auto">
+        <table class="min-w-full bg-white">
+            <thead>
+                <tr class="bg-gray-50 text-gray-600 uppercase text-xs">
+                    <th class="py-3 px-4 text-left">Code</th>
+                    <th class="py-3 px-4 text-left">Nom</th>
+                    <th class="py-3 px-4 text-left">Symbole</th>
+                    <th class="py-3 px-4 text-right">Taux de Change</th>
+                    <th class="py-3 px-4 text-center">Statut</th>
+                    <th class="py-3 px-4 text-center">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200">
+                <tr *ngFor="let currency of currencies"
+                    class="hover:bg-gray-50">
+                    <td class="py-3 px-4">
+                        <span class="font-medium">{{ currency.code }}</span>
+                    </td>
+                    <td class="py-3 px-4">{{ currency.name }}</td>
+                    <td class="py-3 px-4">{{ currency.symbol }}</td>
+                    <td class="py-3 px-4 text-right">{{ currency.rate |
+                        number:'1.4-4' }}</td>
+                    <td class="py-3 px-4 text-center">
+                        <span class="px-2 py-1 text-xs rounded-full"
+                            [ngClass]="getStatusClass(currency.isActive)">
+                            {{ currency.isActive ? 'Active' : 'Inactive' }}
+                        </span>
+                    </td>
+                    <td class="py-3 px-4 text-center">
+                        <div class="flex justify-center gap-2">
+                            <button (click)="openEditModal(currency)"
+                                class="p-1 bg-blue-100 text-blue-600 rounded hover:bg-blue-200">
+                                <i class="fa-solid fa-pen-to-square"></i>
+                            </button>
+                            <button (click)="deleteCurrency(currency.id)"
+                                class="p-1 bg-red-100 text-red-600 rounded hover:bg-red-200">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Information Card -->
+    <div class="mt-8 bg-blue-50 border border-blue-100 rounded-lg p-4">
+        <div class="flex items-start">
+            <div class="flex-shrink-0">
+                <i class="fa-solid fa-circle-info text-blue-500"></i>
+            </div>
+            <div class="ml-3">
+                <h3 class="text-sm font-medium text-blue-800">À propos des taux
+                    de change</h3>
+                <div class="mt-2 text-sm text-blue-700">
+                    <p>Les taux de change sont mis à jour quotidiennement à
+                        partir de sources financières fiables. Tous les taux
+                        sont exprimés par rapport au dollar américain (USD).</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Currency Add/Edit Modal -->
+<div *ngIf="showModal"
+    class="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4"
+        (click)="$event.stopPropagation()">
+        <!-- Modal Header -->
+        <div class="border-b px-6 py-4">
+            <div class="flex items-center justify-between">
+                <h3 class="text-lg font-medium text-gray-900">{{ isEditing ?
+                    'Modifier' : 'Ajouter' }} Devise</h3>
+                <button (click)="closeModal()"
+                    class="text-gray-400 hover:text-gray-500">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Modal Content -->
+        <form [formGroup]="currencyForm" (ngSubmit)="saveCurrency()"
+            class="px-6 py-4 space-y-4">
+            <!-- Code -->
+            <div>
+                <label for="code"
+                    class="block text-sm font-medium text-gray-700 mb-1">Code
+                    Devise</label>
+                <input
+                    type="text"
+                    id="code"
+                    formControlName="code"
+                    [readonly]="isEditing"
+                    class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="USD"
+                    maxlength="3">
+                <p *ngIf="showValidationError('code')"
+                    class="mt-1 text-sm text-red-600">
+                    Code devise requis (3 caractères max)
+                </p>
+            </div>
+
+            <!-- Name -->
+            <div>
+                <label for="name"
+                    class="block text-sm font-medium text-gray-700 mb-1">Nom
+                    Devise</label>
+                <input
+                    type="text"
+                    id="name"
+                    formControlName="name"
+                    class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="US Dollar">
+                <p *ngIf="showValidationError('name')"
+                    class="mt-1 text-sm text-red-600">
+                    Nom devise requis
+                </p>
+            </div>
+
+            <!-- Symbol -->
+            <div>
+                <label for="symbol"
+                    class="block text-sm font-medium text-gray-700 mb-1">Symbole</label>
+                <input
+                    type="text"
+                    id="symbol"
+                    formControlName="symbol"
+                    class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="$">
+                <p *ngIf="showValidationError('symbol')"
+                    class="mt-1 text-sm text-red-600">
+                    Symbole requis
+                </p>
+            </div>
+
+            <!-- Rate -->
+            <div>
+                <label for="rate"
+                    class="block text-sm font-medium text-gray-700 mb-1">Taux de
+                    Change</label>
+                <input
+                    type="number"
+                    id="rate"
+                    formControlName="rate"
+                    class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="1.0000"
+                    step="0.0001">
+                <p *ngIf="showValidationError('rate')"
+                    class="mt-1 text-sm text-red-600">
+                    Taux de change valide requis
+                </p>
+            </div>
+
+            <!-- Status -->
+            <div class="flex items-center">
+                <input
+                    type="checkbox"
+                    id="isActive"
+                    formControlName="isActive"
+                    class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                <label for="isActive"
+                    class="ml-2 block text-sm text-gray-900">Actif</label>
+            </div>
+        </form>
+
+        <!-- Modal Footer -->
+        <div class="border-t px-6 py-4 flex justify-end space-x-3">
+            <button
+                (click)="closeModal()"
+                class="px-4 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                Annuler
+            </button>
+            <button
+                (click)="saveCurrency()"
+                [disabled]="currencyForm.invalid"
+                class="px-4 py-2 bg-blue-600 border border-transparent rounded-md shadow-sm text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                [ngClass]="{'opacity-50 cursor-not-allowed': currencyForm.invalid}">
+                {{ isEditing ? 'Mettre à jour' : 'Enregistrer' }}
+            </button>
+        </div>
+    </div>
+</div>

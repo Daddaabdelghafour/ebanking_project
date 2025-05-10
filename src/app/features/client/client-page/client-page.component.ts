@@ -1,19 +1,12 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { CardComponent } from '../../../shared/ui/card/card.component';
-import { BadgeComponent } from '../../../shared/ui/badge/badge.component';
-import { ChartComponent } from '../../../shared/ui/chart/chart.component';
-import { DropdownComponent } from '../../../shared/ui/dropdown/dropdown.component';
+
 
 @Component({
   selector: 'app-client-page',
   standalone: true,
   imports: [
     CommonModule, 
-    CardComponent, 
-    BadgeComponent, 
-    ChartComponent, 
-    DropdownComponent
   ],
   templateUrl: './client-page.component.html',
   styleUrls: ['./client-page.component.css']

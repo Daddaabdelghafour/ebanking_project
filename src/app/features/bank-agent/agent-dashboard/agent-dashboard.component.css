@@ -1,0 +1,23 @@
+/* Card hover effect */
+.hover\:shadow-lg {
+  transition: all 0.2s ease;
+}
+
+.hover\:shadow-lg:hover {
+  transform: translateY(-2px);
+}
+
+/* Progress bar animation */
+@keyframes progress {
+  from { width: 0%; }
+  to { width: var(--progress-width); }
+}
+
+.h-2.bg-teal-600 {
+  animation: progress 1s ease-out forwards;
+}
+
+/* Task card hover effect */
+.border.border-gray-200:hover {
+  border-color: #14b8a6;
+}

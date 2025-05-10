@@ -1,0 +1,351 @@
+<!-- Page header section -->
+<div class="bg-white rounded-lg shadow p-6 mb-6">
+    <div class="flex justify-between items-center">
+        <div>
+            <h2 class="text-2xl font-bold text-gray-800">Vérification des
+                Transactions</h2>
+            <p class="text-gray-600">Gérer et vérifier les transactions des
+                clients</p>
+        </div>
+        <button (click)="exportData()"
+            class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center transition-all">
+            <i class="fa-solid fa-file-export mr-2"></i>
+            Exporter
+        </button>
+    </div>
+</div>
+
+<!-- Filters section -->
+<div class="bg-white rounded-lg shadow p-6 mb-6">
+    <form [formGroup]="filterForm" class="space-y-4">
+        <div class="flex flex-col md:flex-row gap-4 items-end">
+            <!-- Search bar -->
+            <div class="flex-1">
+                <label for="searchTerm"
+                    class="block text-sm font-medium text-gray-700 mb-1">Recherche</label>
+                <div class="relative">
+                    <div
+                        class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <i
+                            class="fa-solid fa-magnifying-glass text-gray-400"></i>
+                    </div>
+                    <input
+                        type="text"
+                        id="searchTerm"
+                        formControlName="searchTerm"
+                        placeholder="Rechercher par ID, client, référence..."
+                        class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                </div>
+            </div>
+
+            <!-- Status filter -->
+            <div class="w-full md:w-48">
+                <label for="status"
+                    class="block text-sm font-medium text-gray-700 mb-1">Statut</label>
+                <select
+                    id="status"
+                    formControlName="status"
+                    class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    <option *ngFor="let status of statuses"
+                        [value]="status.value">{{ status.label }}</option>
+                </select>
+            </div>
+
+            <!-- Type filter -->
+            <div class="w-full md:w-48">
+                <label for="type"
+                    class="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                <select
+                    id="type"
+                    formControlName="type"
+                    class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    <option *ngFor="let type of transactionTypes"
+                        [value]="type.value">{{ type.label }}</option>
+                </select>
+            </div>
+
+            <!-- Reset button -->
+            <button
+                type="button"
+                (click)="resetFilters()"
+                class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg flex items-center transition-all h-10">
+                <i class="fa-solid fa-xmark mr-2"></i>
+                Réinitialiser
+            </button>
+        </div>
+
+        <div class="flex flex-col md:flex-row gap-4">
+            <!-- Date range filters -->
+            <div class="w-full md:w-1/4">
+                <label for="dateFrom"
+                    class="block text-sm font-medium text-gray-700 mb-1">Date
+                    début</label>
+                <input
+                    type="date"
+                    id="dateFrom"
+                    formControlName="dateFrom"
+                    class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+            </div>
+            <div class="w-full md:w-1/4">
+                <label for="dateTo"
+                    class="block text-sm font-medium text-gray-700 mb-1">Date
+                    fin</label>
+                <input
+                    type="date"
+                    id="dateTo"
+                    formControlName="dateTo"
+                    class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+            </div>
+
+            <!-- Amount range filters -->
+            <div class="w-full md:w-1/4">
+                <label for="amountMin"
+                    class="block text-sm font-medium text-gray-700 mb-1">Montant
+                    min.</label>
+                <input
+                    type="number"
+                    id="amountMin"
+                    formControlName="amountMin"
+                    placeholder="0"
+                    class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+            </div>
+            <div class="w-full md:w-1/4">
+                <label for="amountMax"
+                    class="block text-sm font-medium text-gray-700 mb-1">Montant
+                    max.</label>
+                <input
+                    type="number"
+                    id="amountMax"
+                    formControlName="amountMax"
+                    placeholder="10000"
+                    class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Results section -->
+<div class="bg-white rounded-lg shadow p-6">
+    <div class="flex justify-between items-center mb-6">
+        <h3 class="text-lg font-semibold text-gray-800">Résultats ({{
+            filteredTransactions.length }})</h3>
+    </div>
+
+    <!-- Transactions table -->
+    <div class="overflow-x-auto">
+        <table class="min-w-full bg-white">
+            <thead>
+                <tr
+                    class="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th class="py-3 px-4 border-b">ID</th>
+                    <th class="py-3 px-4 border-b">Date</th>
+                    <th class="py-3 px-4 border-b">Type</th>
+                    <th class="py-3 px-4 border-b">Client</th>
+                    <th class="py-3 px-4 border-b text-right">Montant</th>
+                    <th class="py-3 px-4 border-b text-center">Statut</th>
+                    <th class="py-3 px-4 border-b text-center">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200">
+                <tr *ngFor="let transaction of filteredTransactions"
+                    class="hover:bg-gray-50">
+                    <td class="py-3 px-4">
+                        <span class="font-medium">{{ transaction.id }}</span>
+                    </td>
+                    <td class="py-3 px-4">
+                        <div>{{ formatDate(transaction.date) }}</div>
+                        <div class="text-xs text-gray-500">{{
+                            formatTime(transaction.date) }}</div>
+                    </td>
+                    <td class="py-3 px-4">
+                        <div class="flex items-center">
+                            <i [class]="getTypeIcon(transaction.type)"
+                                class="mr-2 text-gray-600"></i>
+                            <span>{{ transaction.typeLabel }}</span>
+                        </div>
+                    </td>
+                    <td class="py-3 px-4">
+                        <div>{{ transaction.clientName }}</div>
+                        <div class="text-xs text-gray-500">{{
+                            transaction.accountNumber }}</div>
+                    </td>
+                    <td class="py-3 px-4 text-right font-medium">
+                        {{ transaction.amount |
+                        currency:transaction.currency:'symbol':'1.2-2' }}
+                    </td>
+                    <td class="py-3 px-4 text-center">
+                        <span [ngClass]="getStatusClass(transaction.status)"
+                            class="px-2 py-1 text-xs rounded-full">
+                            {{ getStatusLabel(transaction.status) }}
+                        </span>
+                    </td>
+                    <td class="py-3 px-4 text-center">
+                        <button
+                            (click)="viewTransactionDetails(transaction)"
+                            class="bg-blue-100 text-blue-700 hover:bg-blue-200 px-3 py-1 rounded text-xs font-medium transition-all">
+                            Détails
+                        </button>
+                    </td>
+                </tr>
+
+                <!-- Empty state -->
+                <tr *ngIf="filteredTransactions.length === 0">
+                    <td colspan="7" class="py-8 text-center text-gray-500">
+                        <div class="flex flex-col items-center">
+                            <i class="fa-solid fa-search text-3xl mb-2"></i>
+                            <p>Aucune transaction ne correspond à vos critères
+                                de recherche.</p>
+                            <button
+                                (click)="resetFilters()"
+                                class="mt-2 text-blue-600 hover:text-blue-800 underline text-sm">
+                                Réinitialiser les filtres
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Transaction Details Modal -->
+<div *ngIf="showDetailsModal"
+    class="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4"
+        (click)="$event.stopPropagation()">
+        <!-- Modal Header -->
+        <div class="border-b px-6 py-4">
+            <div class="flex items-center justify-between">
+                <h3 class="text-lg font-medium text-gray-900">Détails de la
+                    Transaction</h3>
+                <button (click)="closeDetailsModal()"
+                    class="text-gray-400 hover:text-gray-500">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Modal Content -->
+        <div class="px-6 py-4" *ngIf="selectedTransaction">
+            <!-- Transaction header info -->
+            <div
+                class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 pb-4 border-b">
+                <div>
+                    <h4 class="font-bold text-xl">{{ selectedTransaction.id
+                        }}</h4>
+                    <p class="text-gray-500">{{
+                        formatDateTime(selectedTransaction.date) }}</p>
+                </div>
+                <div>
+                    <span [ngClass]="getStatusClass(selectedTransaction.status)"
+                        class="px-2 py-1 rounded-full text-sm font-medium">
+                        {{ getStatusLabel(selectedTransaction.status) }}
+                    </span>
+                </div>
+            </div>
+
+            <!-- Transaction details -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                    <h5 class="text-sm font-medium text-gray-500 mb-1">Type</h5>
+                    <p class="font-medium">{{ selectedTransaction.typeLabel
+                        }}</p>
+                </div>
+                <div>
+                    <h5
+                        class="text-sm font-medium text-gray-500 mb-1">Montant</h5>
+                    <p class="font-medium">{{ selectedTransaction.amount |
+                        currency:selectedTransaction.currency:'symbol':'1.2-2'
+                        }}</p>
+                </div>
+                <div>
+                    <h5
+                        class="text-sm font-medium text-gray-500 mb-1">Client</h5>
+                    <p class="font-medium">{{ selectedTransaction.clientName
+                        }}</p>
+                </div>
+                <div>
+                    <h5
+                        class="text-sm font-medium text-gray-500 mb-1">Compte</h5>
+                    <p class="font-medium">{{ selectedTransaction.accountNumber
+                        }}</p>
+                </div>
+                <div *ngIf="selectedTransaction.recipient">
+                    <h5
+                        class="text-sm font-medium text-gray-500 mb-1">Bénéficiaire</h5>
+                    <p class="font-medium">{{ selectedTransaction.recipient
+                        }}</p>
+                </div>
+                <div *ngIf="selectedTransaction.recipientAccount">
+                    <h5 class="text-sm font-medium text-gray-500 mb-1">Compte
+                        Bénéficiaire</h5>
+                    <p class="font-medium">{{
+                        selectedTransaction.recipientAccount }}</p>
+                </div>
+                <div *ngIf="selectedTransaction.description">
+                    <h5
+                        class="text-sm font-medium text-gray-500 mb-1">Description</h5>
+                    <p>{{ selectedTransaction.description }}</p>
+                </div>
+                <div *ngIf="selectedTransaction.reference">
+                    <h5
+                        class="text-sm font-medium text-gray-500 mb-1">Référence</h5>
+                    <p>{{ selectedTransaction.reference }}</p>
+                </div>
+            </div>
+
+            <!-- Verification information -->
+            <div class="bg-gray-50 p-3 rounded-lg mb-4">
+                <h5 class="text-sm font-medium text-gray-500 mb-2">Informations
+                    de vérification</h5>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <h6 class="text-xs text-gray-500">Vérifié par</h6>
+                        <p>{{ selectedTransaction.verifier || 'Non vérifié'
+                            }}</p>
+                    </div>
+                    <div *ngIf="selectedTransaction.flaggedReason">
+                        <h6 class="text-xs text-gray-500">Raison du
+                            signalement</h6>
+                        <p class="text-orange-700">{{
+                            selectedTransaction.flaggedReason }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal Footer with action buttons -->
+        <div class="border-t px-6 py-4 flex justify-end space-x-3"
+            *ngIf="selectedTransaction">
+            <!-- Show different actions based on status -->
+            <ng-container
+                *ngIf="selectedTransaction.status === 'pending' || selectedTransaction.status === 'flagged'">
+                <button
+                    (click)="approveTransaction(selectedTransaction.id)"
+                    class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors">
+                    Approuver
+                </button>
+                <button
+                    (click)="rejectTransaction(selectedTransaction.id)"
+                    class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors">
+                    Rejeter
+                </button>
+            </ng-container>
+
+            <ng-container
+                *ngIf="selectedTransaction.status === 'success' && !selectedTransaction.flaggedReason">
+                <button
+                    (click)="flagTransaction(selectedTransaction.id, 'Transaction suspecte')"
+                    class="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 transition-colors">
+                    Signaler
+                </button>
+            </ng-container>
+
+            <button
+                (click)="closeDetailsModal()"
+                class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 transition-colors">
+                Fermer
+            </button>
+        </div>
+    </div>
+</div>

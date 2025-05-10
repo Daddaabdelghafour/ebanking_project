@@ -1,0 +1,18 @@
+/* Progress bar animation */
+@keyframes progress {
+  from { width: 0%; }
+  to { width: var(--progress-width); }
+}
+
+.bg-teal-600, .bg-blue-600 {
+  animation: progress 1s ease-out forwards;
+}
+
+/* Activity item hover effect */
+.border-l-4 {
+  transition: all 0.2s ease;
+}
+
+.border-l-4:hover {
+  background-color: rgba(20, 184, 166, 0.05);
+}

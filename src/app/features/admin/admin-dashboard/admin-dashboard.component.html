@@ -1,0 +1,319 @@
+<!-- Welcome section -->
+<div class="bg-white rounded-lg shadow p-6 mb-6">
+    <div class="flex items-center justify-between">
+        <div>
+            <h2 class="text-2xl font-bold text-gray-800">Bonjour,
+                {{currentAdminName}}!</h2>
+            <p class="text-gray-600">Tableau de bord administrateur - {{
+                formatDate(currentDate) }}</p>
+        </div>
+        <button (click)="exportData()"
+            class="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center">
+            <i class="fa-solid fa-file-export mr-2"></i>
+            Exporter Rapport
+        </button>
+    </div>
+</div>
+
+<!-- Stats summary -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+    <!-- Total Users -->
+    <div class="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-all">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-gray-500 font-medium">Utilisateurs Totaux</h3>
+            <div class="bg-blue-100 p-2 rounded-full">
+                <i class="fa-solid fa-users text-blue-600"></i>
+            </div>
+        </div>
+        <div class="text-2xl font-bold">{{ systemStats.totalUsers }}</div>
+        <div class="flex items-center mt-1">
+            <div
+                class="flex items-center bg-green-100 text-green-800 rounded-full px-2 py-0.5 text-xs">
+                <i class="fa-solid fa-arrow-up mr-1 text-xs"></i>
+                <span>+{{ systemStats.userGrowth }}% ce mois</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Active Users -->
+    <div class="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-all">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-gray-500 font-medium">Utilisateurs Actifs</h3>
+            <div class="bg-green-100 p-2 rounded-full">
+                <i class="fa-solid fa-user-check text-green-600"></i>
+            </div>
+        </div>
+        <div class="text-2xl font-bold">{{ systemStats.activeUsers }}</div>
+        <div class="flex items-center mt-1">
+            <div
+                class="flex items-center bg-blue-100 text-blue-800 rounded-full px-2 py-0.5 text-xs">
+                <i class="fa-solid fa-circle-info mr-1 text-xs"></i>
+                <span>{{ (systemStats.activeUsers / systemStats.totalUsers *
+                    100).toFixed(1) }}% du total</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Transaction Volume -->
+    <div class="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-all">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-gray-500 font-medium">Volume Transactions</h3>
+            <div class="bg-purple-100 p-2 rounded-full">
+                <i class="fa-solid fa-money-bill-transfer text-purple-600"></i>
+            </div>
+        </div>
+        <div class="text-2xl font-bold">{{ systemStats.transactionVolume |
+            currency:'EUR':'symbol':'1.2-2' }}</div>
+        <div class="flex items-center mt-1">
+            <div
+                class="flex items-center bg-green-100 text-green-800 rounded-full px-2 py-0.5 text-xs">
+                <i class="fa-solid fa-arrow-up mr-1 text-xs"></i>
+                <span>+{{ systemStats.volumeChange }}% ce mois</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Status -->
+    <div class="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-all">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-gray-500 font-medium">État du Système</h3>
+            <div class="bg-blue-100 p-2 rounded-full">
+                <i class="fa-solid fa-server text-blue-600"></i>
+            </div>
+        </div>
+        <div class="text-2xl font-bold">{{ systemStats.systemUptime }}%
+            uptime</div>
+        <div class="flex items-center mt-1">
+            <div class="flex items-center"
+                [ngClass]="systemStats.alertsCount > 0 ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'"
+                class="rounded-full px-2 py-0.5 text-xs">
+                <i class="fa-solid"
+                    [ngClass]="systemStats.alertsCount > 0 ? 'fa-triangle-exclamation' : 'fa-check'"
+                    class="mr-1 text-xs"></i>
+                <span>{{ systemStats.alertsCount }} alertes actives</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Pending approvals and activity charts -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+    <!-- Pending approvals -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-bold text-gray-800">Approbations en
+                Attente</h3>
+            <a href="#" class="text-blue-600 text-sm hover:underline">Voir
+                tous</a>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="min-w-full">
+                <thead>
+                    <tr
+                        class="border-b text-left text-xs font-medium text-gray-500 uppercase">
+                        <th class="py-3 px-4">ID</th>
+                        <th class="py-3 px-4">Type</th>
+                        <th class="py-3 px-4">Demandeur</th>
+                        <th class="py-3 px-4">Date</th>
+                        <th class="py-3 px-4">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    <tr *ngFor="let approval of pendingApprovals"
+                        class="hover:bg-gray-50">
+                        <td class="py-3 px-4 font-medium">{{ approval.id }}</td>
+                        <td class="py-3 px-4">{{ approval.type }}</td>
+                        <td class="py-3 px-4">{{ approval.requester }}</td>
+                        <td class="py-3 px-4 text-gray-500">{{ approval.date |
+                            date:'dd MMM, yyyy' }}</td>
+                        <td class="py-3 px-4">
+                            <div class="flex space-x-2">
+                                <button (click)="approveRequest(approval.id)"
+                                    class="bg-green-100 hover:bg-green-200 text-green-800 px-2 py-1 rounded text-xs">
+                                    Approuver
+                                </button>
+                                <button (click)="rejectRequest(approval.id)"
+                                    class="bg-red-100 hover:bg-red-200 text-red-800 px-2 py-1 rounded text-xs">
+                                    Rejeter
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Simple Chart Representation -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-bold text-gray-800">Croissance des
+                Utilisateurs</h3>
+            <div class="relative">
+                <select
+                    class="appearance-none bg-white border border-gray-300 text-gray-700 py-1 px-4 pr-8 rounded leading-tight focus:outline-none focus:bg-white focus:border-gray-500">
+                    <option>Ce mois</option>
+                    <option>Ce trimestre</option>
+                    <option>Cette année</option>
+                </select>
+                <div
+                    class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+                    <i class="fa-solid fa-chevron-down"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chart placeholder - in a real app you'd use Chart.js or similar -->
+        <div
+            class="h-64 w-full bg-gray-50 rounded-lg flex items-center justify-center">
+            <div class="text-center">
+                <div class="mb-2">User Growth Graph Placeholder</div>
+                <div class="flex items-center justify-center space-x-4">
+                    <div class="flex items-center">
+                        <span
+                            class="w-3 h-3 bg-blue-600 rounded-full mr-2"></span>
+                        <span class="text-sm">New Users: 43 this month</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent activities and transaction chart -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+    <!-- Recent activities -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-bold text-gray-800">Activités Récentes</h3>
+            <a href="#" class="text-blue-600 text-sm hover:underline">Voir
+                tous</a>
+        </div>
+
+        <div class="space-y-4">
+            <div *ngFor="let activity of recentActivities"
+                class="border-b border-gray-100 last:border-0 pb-3 last:pb-0">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <div
+                            class="w-8 h-8 rounded-full flex items-center justify-center mr-3"
+                            [ngClass]="{
+                'bg-yellow-100': activity.icon.includes('key'),
+                'bg-green-100': activity.icon.includes('user-plus'),
+                'bg-red-100': activity.icon.includes('triangle'),
+                'bg-blue-100': activity.icon.includes('pen')
+              }">
+                            <i [class]="activity.icon"
+                                [ngClass]="getIconClass(activity.icon)"></i>
+                        </div>
+                        <div>
+                            <p class="font-medium">{{ activity.user }}</p>
+                            <p class="text-xs text-gray-500">{{ activity.action
+                                }}</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-xs text-gray-500">{{ activity.date |
+                            date:'dd MMM, HH:mm' }}</p>
+                        <span
+                            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium mt-1"
+                            [ngClass]="getStatusClass(activity.status)">
+                            {{ activity.status }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Transaction volume chart -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-bold text-gray-800">Volume des
+                Transactions</h3>
+            <div class="relative">
+                <select
+                    class="appearance-none bg-white border border-gray-300 text-gray-700 py-1 px-4 pr-8 rounded leading-tight focus:outline-none focus:bg-white focus:border-gray-500">
+                    <option>Ce mois</option>
+                    <option>Ce trimestre</option>
+                    <option>Cette année</option>
+                </select>
+                <div
+                    class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+                    <i class="fa-solid fa-chevron-down"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chart placeholder -->
+        <div
+            class="h-64 w-full bg-gray-50 rounded-lg flex items-center justify-center">
+            <div class="text-center">
+                <div class="mb-2">Transaction Volume Graph Placeholder</div>
+                <div class="flex items-center justify-center space-x-4">
+                    <div class="flex items-center">
+                        <span
+                            class="w-3 h-3 bg-green-600 rounded-full mr-2"></span>
+                        <span class="text-sm">Monthly volume: €532,400</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick action buttons -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+    <div
+        class="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-all cursor-pointer">
+        <div class="flex items-center">
+            <div class="bg-blue-100 p-3 rounded-full mr-4">
+                <i class="fa-solid fa-user-plus text-blue-600"></i>
+            </div>
+            <div>
+                <h3 class="font-bold text-gray-800">Nouvel Utilisateur</h3>
+                <p class="text-sm text-gray-600">Ajouter un utilisateur</p>
+            </div>
+        </div>
+    </div>
+
+    <div
+        class="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-all cursor-pointer">
+        <div class="flex items-center">
+            <div class="bg-purple-100 p-3 rounded-full mr-4">
+                <i class="fa-solid fa-money-bill-transfer text-purple-600"></i>
+            </div>
+            <div>
+                <h3 class="font-bold text-gray-800">Devises</h3>
+                <p class="text-sm text-gray-600">Gérer les taux de change</p>
+            </div>
+        </div>
+    </div>
+
+    <div
+        class="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-all cursor-pointer">
+        <div class="flex items-center">
+            <div class="bg-green-100 p-3 rounded-full mr-4">
+                <i class="fa-solid fa-chart-line text-green-600"></i>
+            </div>
+            <div>
+                <h3 class="font-bold text-gray-800">Rapports</h3>
+                <p class="text-sm text-gray-600">Générer des rapports</p>
+            </div>
+        </div>
+    </div>
+
+    <div
+        class="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-all cursor-pointer">
+        <div class="flex items-center">
+            <div class="bg-red-100 p-3 rounded-full mr-4">
+                <i class="fa-solid fa-shield-halved text-red-600"></i>
+            </div>
+            <div>
+                <h3 class="font-bold text-gray-800">Sécurité</h3>
+                <p class="text-sm text-gray-600">Paramètres de sécurité</p>
+            </div>
+        </div>
+    </div>
+</div>

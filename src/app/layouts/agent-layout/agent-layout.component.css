@@ -1,8 +1,31 @@
+/* Animation for notifications */
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.notification-alert {
+  animation: pulse 2s infinite;
+}
+
 /* Transitions for sidebar */
 .transition-all {
   transition-property: all;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 300ms;
+}
+
+/* Active route styling */
+.router-link-active {
+  background-color: rgba(20, 83, 45, 1);
+  font-weight: 500;
 }
 
 /* Custom scrollbar for better UX */
@@ -22,27 +45,4 @@
 
 ::-webkit-scrollbar-thumb:hover {
   background: #a8a8a8;
-}
-
-/* Active route styling */
-.router-link-active {
-  background-color: rgb(30, 64, 175);
-  font-weight: 500;
-}
-
-/* Animation for notifications */
-@keyframes pulse {
-  0% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.1);
-  }
-  100% {
-    transform: scale(1);
-  }
-}
-
-.notification-alert {
-  animation: pulse 2s infinite;
 }

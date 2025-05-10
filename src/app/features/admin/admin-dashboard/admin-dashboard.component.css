@@ -1,0 +1,28 @@
+/* Animation for notifications */
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.alert-pulse {
+  animation: pulse 2s infinite;
+}
+
+/* Card hover transition */
+.hover\:shadow-lg {
+  transition: all 0.3s ease;
+}
+
+/* Chart container */
+.chart-container {
+  position: relative;
+  height: 100%;
+  width: 100%;
+}
