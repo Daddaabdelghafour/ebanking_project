@@ -1,146 +1,147 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { CardComponent } from '../../../shared/ui/card/card.component';
+import { BadgeComponent } from '../../../shared/ui/badge/badge.component';
+import { ChartComponent } from '../../../shared/ui/chart/chart.component';
+import { DropdownComponent } from '../../../shared/ui/dropdown/dropdown.component';
+
 @Component({
   selector: 'app-client-page',
+  standalone: true,
+  imports: [
+    CommonModule, 
+    CardComponent, 
+    BadgeComponent, 
+    ChartComponent, 
+    DropdownComponent
+  ],
   templateUrl: './client-page.component.html',
-  styleUrl: './client-page.component.css',
-  imports: [CommonModule]
+  styleUrls: ['./client-page.component.css']
 })
 export class ClientPageComponent {
   currentDate = new Date();
-  timeRange = 'Daily';
   currentName = 'Nick';
+  
+  // Bank cards (using your existing data)
+  bankCards = [
+    {
+      cardNumber: '4242 4242 4242 4242',
+      cardHolder: 'Nick Karam',
+      expiryDate: '09/25',
+      cardType: 'visa',
+      cardBackground: 'bg-gradient-to-r from-blue-700 to-blue-400',
+      balance: 5432.21,
+      currency: 'EUR'
+    },
+    {
+      cardNumber: '5353 2345 6789 4321',
+      cardHolder: 'Nick Karam',
+      expiryDate: '12/26',
+      cardType: 'mastercard',
+      cardBackground: 'bg-gradient-to-r from-red-700 to-red-400',
+      balance: 2789.54,
+      currency: 'EUR'
+    }
+  ];
+  
+  // Financial summary (using your existing data)
   financialSummary = {
-    totalBalance: 12645.00,
-    totalBalanceChange: 12,
-    monthlyIncome: 2645.00,
-    monthlyIncomeChange: 12,
-    monthlyExpenses: 1895.00,
-    monthlyExpensesChange: 8,
-    cardBalance: 7328.00,
-    cardLimit: 20000,
-    cardUsedPercentage: 36
+    totalBalance: 8221.75,
+    totalBalanceChange: 3.2,
+    monthlyIncome: 3500,
+    monthlyIncomeChange: 5.1,
+    monthlyExpenses: 2100.5,
+    monthlyExpensesChange: 2.4
   };
   
+  // Transactions (using your existing data)
   transactions = [
-    { 
-      id: 1, 
-      name: 'Dribbble', 
-      type: 'Subscription', 
+    {
+      name: 'Shopify Subscription',
+      type: 'Automatic Payment',
+      date: new Date(2023, 4, 12),
       category: 'Software',
-      date: '2025-05-04',
-      amount: -440.00,
+      amount: -29.99,
       status: 'Completed',
       icon: 'briefcase'
     },
-    { 
-      id: 2, 
-      name: 'Jaxson Dorwart', 
-      type: 'Transfer',
+    {
+      name: 'Salary Payment',
+      type: 'Direct Deposit',
+      date: new Date(2023, 4, 10),
       category: 'Transfer',
-      date: '2025-05-01',
-      amount: 840.00,
+      amount: 3500,
       status: 'Completed',
       icon: 'mail'
     },
-    { 
-      id: 3, 
-      name: 'Hanna Bergson', 
+    {
+      name: 'Investment Dividend',
       type: 'Transfer',
+      date: new Date(2023, 4, 8),
       category: 'Finance',
-      date: '2025-04-28',
-      amount: 1200.00,
-      status: 'Completed',
+      amount: 89.45,
+      status: 'Pending',
       icon: 'currency-dollar'
     }
   ];
   
-  financialGoals = [
-    {
-      name: 'Home Down Payment',
-      targetDate: 'December 2026',
-      current: 18500,
-      target: 50000,
-      percentage: 37,
-      icon: 'home'
-    },
-    {
-      name: 'College Fund',
-      targetDate: 'September 2028',
-      current: 12750,
-      target: 25000,
-      percentage: 51,
-      icon: 'book-open'
-    },
-    {
-      name: 'Vacation',
-      targetDate: 'July 2025',
-      current: 3800,
-      target: 5000,
-      percentage: 76,
-      icon: 'globe'
-    }
-  ];
+  // Chart data
+  spendingChartData = {
+    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May'],
+    datasets: [
+      {
+        label: 'Income',
+        data: [3200, 3500, 3200, 3400, 3500],
+        borderColor: '#4F46E5',
+        backgroundColor: 'rgba(79, 70, 229, 0.2)'
+      },
+      {
+        label: 'Expenses',
+        data: [2200, 2300, 1900, 2100, 2200],
+        borderColor: '#EF4444',
+        backgroundColor: 'rgba(239, 68, 68, 0.2)'
+      }
+    ]
+  };
   
-  expenseCategories = [
-    { name: 'Food & Health', amount: 863, percentage: 28, color: 'primary' },
-    { name: 'Entertainment', amount: 548, percentage: 18, color: 'secondary' },
-    { name: 'Shopping', amount: 1024, percentage: 34, color: 'purple-500' },
-    { name: 'Investment', amount: 625, percentage: 20, color: 'green-500' }
-  ];
-  
-  // Données pour le graphique mensuel
-  monthlyData = [
-    { month: 'Jan', income: 400, expense: 300 },
-    { month: 'Feb', income: 600, expense: 500 },
-    { month: 'Mar', income: 800, expense: 600 },
-    { month: 'Apr', income: 1200, expense: 900 },
-    { month: 'May', income: 1300, expense: 1000 },
-    { month: 'Jun', income: 900, expense: 800 },
-    { month: 'Jul', income: 500, expense: 400 },
-    { month: 'Aug', income: 1000, expense: 700 },
-    { month: 'Sep', income: 600, expense: 500 },
-    { month: 'Oct', income: 800, expense: 600 },
-    { month: 'Nov', income: 400, expense: 300 },
-    { month: 'Dec', income: 700, expense: 600 }
-  ];
-
-  constructor() { }
-
-  changeTimeRange(range: string): void {
-    this.timeRange = range;
-    // Ici, vous appelleriez normalement votre service pour charger les données selon la plage de temps
-  }
-
   formatDate(date: Date): string {
-    return new Intl.DateTimeFormat('fr-FR', {
-      day: 'numeric',
+    const options: Intl.DateTimeFormatOptions = {
+      weekday: 'long',
+      year: 'numeric',
       month: 'long',
-      year: 'numeric'
-    }).format(date);
+      day: 'numeric'
+    };
+    return date.toLocaleDateString('fr-FR', options);
   }
-
+  
   getTransactionIconClass(icon: string): string {
-    const baseClasses = 'h-4 w-4';
     switch (icon) {
-      case 'briefcase': return `${baseClasses} text-blue-600`;
-      case 'mail': return `${baseClasses} text-green-600`;
-      case 'currency-dollar': return `${baseClasses} text-purple-600`;
-      default: return baseClasses;
+      case 'briefcase':
+        return 'text-blue-600';
+      case 'mail':
+        return 'text-green-600';
+      case 'currency-dollar':
+        return 'text-purple-600';
+      default:
+        return 'text-gray-600';
     }
   }
-
+  
   getTransactionStatusClass(status: string): string {
     switch (status) {
-      case 'Completed': return 'bg-green-100 text-green-800';
-      case 'Pending': return 'bg-yellow-100 text-yellow-800';
-      case 'Failed': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'Completed':
+        return 'bg-green-100 text-green-800';
+      case 'Pending':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'Failed':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
     }
   }
-
-  exportData(): void {
-    console.log('Exporting data...');
-    // Implémentez la logique d'exportation ici
+  
+  exportData() {
+    alert('Exporting data...');
+    // Implement export functionality
   }
 }

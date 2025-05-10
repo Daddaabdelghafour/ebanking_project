@@ -1,0 +1,47 @@
+.progress-container {
+  position: relative;
+}
+
+.progress-bar {
+  height: 100%;
+}
+
+/* Striped effect */
+.progress-bar-striped {
+  background-image: linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.15) 25%,
+    transparent 25%,
+    transparent 50%,
+    rgba(255, 255, 255, 0.15) 50%,
+    rgba(255, 255, 255, 0.15) 75%,
+    transparent 75%,
+    transparent
+  );
+  background-size: 1rem 1rem;
+}
+
+/* Animation for the striped bar */
+.progress-bar-animated {
+  animation: progress-bar-stripes 1s linear infinite;
+}
+
+@keyframes progress-bar-stripes {
+  from {
+    background-position: 1rem 0;
+  }
+  to {
+    background-position: 0 0;
+  }
+}
+
+/* Smooth transition for value changes */
+.progress-bar {
+  transition: width 0.3s ease;
+}
+
+/* Label styling for inside position */
+.progress-label {
+  white-space: nowrap;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}

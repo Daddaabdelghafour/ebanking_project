@@ -1,1 +1,47 @@
-<p>progress-bar works!</p>
+<div class="progress-bar-wrapper">
+    <!-- Top positioned label -->
+    <div *ngIf="showLabel && labelPosition === 'top'"
+        class="flex justify-between mb-1">
+        <span class="text-sm font-medium text-gray-700">
+            <ng-content></ng-content>
+        </span>
+
+        <span *ngIf="showValue" class="text-sm font-medium text-gray-700">
+            {{ formattedValue }}
+        </span>
+    </div>
+
+    <!-- Progress bar with right label -->
+    <div [ngClass]="{'flex items-center': labelPosition === 'right'}">
+        <div class="progress-container relative w-full"
+            [ngClass]="containerClasses" [ngStyle]="containerStyles">
+            <!-- Progress bar -->
+            <div
+                class="progress-bar"
+                [ngClass]="barClasses"
+                [ngStyle]="barStyles"
+                [attr.aria-valuenow]="value"
+                [attr.aria-valuemin]="min"
+                [attr.aria-valuemax]="max"
+                role="progressbar">
+
+                <!-- Inside label -->
+                <span
+                    *ngIf="showLabel && labelPosition === 'inside' && percentage > 10"
+                    class="progress-label"
+                    [ngClass]="labelClass">
+                    <ng-content></ng-content>
+                    <span *ngIf="showValue" class="ml-1">{{ formattedValue
+                        }}</span>
+                </span>
+            </div>
+        </div>
+
+        <!-- Right positioned label -->
+        <div *ngIf="showLabel && labelPosition === 'right'"
+            [ngClass]="labelClass">
+            <ng-content></ng-content>
+            <span *ngIf="showValue" class="ml-1">{{ formattedValue }}</span>
+        </div>
+    </div>
+</div>

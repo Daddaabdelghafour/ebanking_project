@@ -1,1 +1,167 @@
-<p>client-layout works!</p>
+<div class="flex h-screen bg-gray-100">
+    <!-- Sidebar - Inline implementation instead of using app-sidebar -->
+    <div class="bg-white shadow-lg transition-all duration-300 border-r"
+        [class.w-64]="!sidebarCollapsed"
+        [class.w-20]="sidebarCollapsed">
+
+        <!-- Sidebar Header -->
+        <div class="h-16 flex items-center px-4 border-b">
+            <div class="flex items-center justify-between w-full">
+                <div class="flex items-center">
+                    <!-- Logo/Brand -->
+                    <div
+                        class="w-8 h-8 rounded-md bg-blue-600 flex items-center justify-center text-white">
+                        F
+                    </div>
+                    <!-- App Name (hidden when collapsed) -->
+                    <span
+                        class="ml-3 text-xl font-bold text-gray-800 transition-opacity duration-300"
+                        [class.opacity-0]="sidebarCollapsed"
+                        [class.w-0]="sidebarCollapsed"
+                        [class.hidden]="sidebarCollapsed">
+                        FinDash
+                    </span>
+                </div>
+
+                <!-- Toggle Button -->
+                <button (click)="toggleSidebar()"
+                    class="p-1 rounded-md text-gray-500 hover:bg-gray-100">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6"
+                        fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            stroke-width="2" d="M4 6h16M4 12h16M4 18h7" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- User Info -->
+        <div class="px-4 py-4 border-b flex"
+            [class.justify-center]="sidebarCollapsed">
+            <div class="flex items-center" [class.flex-col]="sidebarCollapsed">
+                <div class="avatar-container" [class.mb-2]="sidebarCollapsed">
+                    <div
+                        class="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-medium">
+                        {{ userInfo.name?.charAt(0) || 'U' }}
+                    </div>
+                </div>
+                <div *ngIf="!sidebarCollapsed" class="ml-3">
+                    <p class="font-medium truncate">{{ userInfo.name }}</p>
+                    <p class="text-sm opacity-70 truncate">{{ userInfo.email
+                        }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation Items -->
+        <nav class="mt-4">
+            <ul class="px-2 space-y-1">
+                <ng-container *ngFor="let item of sidebarItems">
+                    <!-- Divider -->
+                    <li *ngIf="item.divider"
+                        class="my-3 border-t border-gray-200 mx-4"></li>
+
+                    <!-- Nav Item -->
+                    <li *ngIf="!item.divider">
+                        <a [routerLink]="item.route"
+                            routerLinkActive="bg-blue-50 text-blue-600"
+                            class="flex items-center px-3 py-2.5 rounded-md text-gray-700 hover:bg-gray-100 transition-colors duration-200"
+                            [class.justify-center]="sidebarCollapsed">
+                            <!-- Icon -->
+                            <i [class]="item.icon" class="h-5 w-5"
+                                aria-hidden="true"></i>
+
+                            <!-- Label (hidden when collapsed) -->
+                            <span *ngIf="!sidebarCollapsed"
+                                class="ml-3 truncate">
+                                {{ item.label }}
+                            </span>
+
+                            <!-- Badge (if applicable and not collapsed) -->
+                            <span *ngIf="item.badge && !sidebarCollapsed"
+                                class="ml-auto bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded-full text-xs">
+                                {{ item.badge }}
+                            </span>
+                        </a>
+                    </li>
+                </ng-container>
+            </ul>
+        </nav>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="flex flex-col flex-1 overflow-hidden">
+        <!-- Header - Inline implementation instead of using app-header -->
+        <header class="bg-white h-16 border-b shadow-sm flex items-center px-4">
+            <div class="flex items-center justify-between w-full">
+                <div class="flex items-center">
+                    <!-- Sidebar Toggle Button (Mobile) -->
+                    <button
+                        class="p-1 mr-3 rounded-md text-gray-500 hover:bg-gray-100"
+                        (click)="toggleSidebar()">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6"
+                            fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                stroke-width="2" d="M4 6h16M4 12h16M4 18h7" />
+                        </svg>
+                    </button>
+
+                    <!-- Page Title (can be dynamically set based on route) -->
+                    <h1 class="text-lg font-semibold text-gray-800">FinDash</h1>
+                </div>
+
+                <!-- Right Header Items -->
+                <div class="flex items-center space-x-3">
+                    <!-- Notifications -->
+                    <div class="relative">
+                        <button
+                            class="p-1 rounded-full text-gray-500 hover:bg-gray-100"
+                            (click)="handleNotificationClick()">
+                            <svg xmlns="http://www.w3.org/2000/svg"
+                                class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor">
+                                <path stroke-linecap="round"
+                                    stroke-linejoin="round" stroke-width="2"
+                                    d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                            </svg>
+                            <div
+                                *ngIf="notifications && notifications.length > 0"
+                                class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-xs">
+                                {{ notifications.length }}
+                            </div>
+                        </button>
+                    </div>
+
+                    <!-- User Menu -->
+                    <div class="relative">
+                        <button
+                            class="flex items-center text-gray-700 hover:text-gray-900 focus:outline-none">
+                            <div
+                                class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-medium">
+                                {{ userInfo.name?.charAt(0) || 'U' }}
+                            </div>
+                            <span
+                                class="ml-1 text-sm font-medium hidden md:block">{{
+                                userInfo.name }}</span>
+                            <svg class="w-4 h-4 ml-1" fill="none"
+                                stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round"
+                                    stroke-linejoin="round" stroke-width="2"
+                                    d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content with Page Transition Animation -->
+        <main class="flex-1 overflow-y-auto p-4 transition-all duration-300">
+            <div class="max-w-7xl mx-auto">
+                <!-- This is where your page content will be rendered via router outlet -->
+                <router-outlet></router-outlet>
+            </div>
+        </main>
+    </div>
+</div>

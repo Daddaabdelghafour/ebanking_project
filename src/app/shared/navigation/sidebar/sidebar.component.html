@@ -1,1 +1,182 @@
-<p>sidebar works!</p>
+<!-- Mobile overlay -->
+<div *ngIf="mobile" [ngClass]="overlayClass" (click)="mobileClose.emit()"></div>
+
+<div [ngClass]="[sidebarClass, sidebarWidth]" class="flex flex-col shadow-lg">
+    <!-- Sidebar header with logo -->
+    <div class="sidebar-header p-4 flex items-center justify-between border-b"
+        [ngClass]="theme === 'dark' ? 'border-gray-700' : 'border-gray-200'">
+        <div class="flex items-center space-x-3"
+            [ngClass]="{'justify-center': collapsed && !logo}">
+            <img *ngIf="collapsed ? logoCollapsed : logo"
+                [src]="collapsed ? logoCollapsed : logo"
+                alt="Logo"
+                class="h-8" />
+
+            <h1 *ngIf="!collapsed" class="font-bold text-lg truncate">{{ appName
+                }}</h1>
+        </div>
+
+        <button *ngIf="showToggle && !mobile"
+            (click)="toggle()"
+            class="sidebar-toggle p-1 rounded-md hover:bg-opacity-10"
+            [ngClass]="theme === 'dark' ? 'hover:bg-white' : 'hover:bg-gray-200'">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5"
+                viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd"
+                    d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z"
+                    clip-rule="evenodd"
+                    [attr.transform]="collapsed ? 'rotate(180 10 10)' : ''" />
+            </svg>
+        </button>
+
+        <button *ngIf="mobile"
+            (click)="mobileClose.emit()"
+            class="p-1 rounded-md hover:bg-opacity-10"
+            [ngClass]="theme === 'dark' ? 'hover:bg-white' : 'hover:bg-gray-200'">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5"
+                viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd"
+                    d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                    clip-rule="evenodd" />
+            </svg>
+        </button>
+    </div>
+
+    <!-- User info -->
+    <div *ngIf="userInfo"
+        class="user-info px-4 py-3 border-b flex items-center"
+        [ngClass]="{'justify-center': collapsed, theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}">
+
+        <div class="flex items-center" [ngClass]="{'flex-col': collapsed}">
+            <div class="avatar-container" [ngClass]="{'mb-2': collapsed}">
+                <div
+                    class="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center overflow-hidden">
+                    <img *ngIf="userInfo.avatar" [src]="userInfo.avatar"
+                        alt="User avatar" class="h-full w-full object-cover" />
+                    <span *ngIf="!userInfo.avatar" class="font-medium text-lg">
+                        {{ userInfo.name?.charAt(0).toUpperCase() }}
+                    </span>
+                </div>
+            </div>
+
+            <div *ngIf="!collapsed" class="ml-3">
+                <p class="font-medium truncate">{{ userInfo.name }}</p>
+                <p class="text-sm opacity-70 truncate">{{ userInfo.email }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation menu -->
+    <div class="sidebar-content flex-1 overflow-y-auto py-4">
+        <ul>
+            <ng-container *ngFor="let item of items">
+                <!-- Divider -->
+                <li *ngIf="item.divider" class="mx-4 my-2 border-t"
+                    [ngClass]="theme === 'dark' ? 'border-gray-700' : 'border-gray-200'"></li>
+
+                <!-- Menu item -->
+                <li *ngIf="!item.divider" class="sidebar-item">
+                    <a [routerLink]="item.disabled ? null : item.route"
+                        [ngClass]="{
+               'opacity-50 cursor-not-allowed': item.disabled,
+               'bg-blue-100 text-blue-800': isActive(item.route) && theme === 'light',
+               'bg-gray-800 text-white': isActive(item.route) && theme === 'dark'
+             }"
+                        class="flex items-center px-4 py-3 hover:bg-opacity-10"
+                        [class.justify-center]="collapsed"
+                        [class.hover:bg-gray-100]="theme === 'light'"
+                        [class.hover:bg-gray-800]="theme === 'dark'"
+                        (click)="toggleItem(item)">
+
+                        <!-- Icon -->
+                        <div *ngIf="item.icon"
+                            [ngClass]="{'text-center': collapsed}"
+                            class="inline-flex">
+                            <i [class]="item.icon + ' h-5 w-5'"></i>
+                        </div>
+
+                        <!-- Label and expand icon -->
+                        <div *ngIf="!collapsed" class="ml-3 flex-grow">
+                            <div class="flex items-center justify-between">
+                                <span
+                                    [ngClass]="{'font-medium': isActive(item.route)}">{{
+                                    item.label }}</span>
+
+                                <!-- Badge -->
+                                <span *ngIf="item.badge"
+                                    class="text-xs font-medium px-2 py-0.5 rounded-full"
+                                    [ngClass]="item.badgeColor || 'bg-blue-100 text-blue-800'">
+                                    {{ item.badge }}
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Tooltip for collapsed mode -->
+                        <div *ngIf="collapsed && !mobile"
+                            class="sidebar-tooltip">
+                            {{ item.label }}
+                        </div>
+
+                        <!-- Dropdown arrow for items with children -->
+                        <div
+                            *ngIf="!collapsed && item.children && item.children.length > 0"
+                            class="ml-auto">
+                            <svg xmlns="http://www.w3.org/2000/svg"
+                                class="h-4 w-4 transition-transform"
+                                [ngClass]="{'transform rotate-180': isExpanded(item)}"
+                                viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd"
+                                    d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                                    clip-rule="evenodd" />
+                            </svg>
+                        </div>
+                    </a>
+
+                    <!-- Child items -->
+                    <ul
+                        *ngIf="item.children && item.children.length > 0 && isExpanded(item) && !collapsed"
+                        class="sidebar-submenu pl-8 pr-3 py-1 space-y-1"
+                        [ngClass]="theme === 'dark' ? 'bg-gray-800' : 'bg-gray-50'">
+                        <li *ngFor="let child of item.children"
+                            class="sidebar-item">
+                            <a
+                                [routerLink]="child.disabled ? null : child.route"
+                                [ngClass]="{
+                   'opacity-50 cursor-not-allowed': child.disabled,
+                   'bg-blue-50 text-blue-700': isActive(child.route) && theme === 'light',
+                   'bg-gray-700': isActive(child.route) && theme === 'dark'
+                 }"
+                                (click)="itemClick.emit(child)"
+                                class="flex items-center px-3 py-2 text-sm rounded-md hover:bg-opacity-10"
+                                [class.hover:bg-gray-100]="theme === 'light'"
+                                [class.hover:bg-gray-700]="theme === 'dark'">
+
+                                <!-- Child icon -->
+                                <i *ngIf="child.icon"
+                                    [class]="child.icon + ' h-4 w-4 mr-2'"></i>
+
+                                <!-- Child label -->
+                                <span class="flex-grow"
+                                    [ngClass]="{'font-medium': isActive(child.route)}">{{
+                                    child.label }}</span>
+
+                                <!-- Child badge -->
+                                <span *ngIf="child.badge"
+                                    class="text-xs font-medium ml-2 px-2 py-0.5 rounded-full"
+                                    [ngClass]="child.badgeColor || 'bg-blue-100 text-blue-800'">
+                                    {{ child.badge }}
+                                </span>
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+            </ng-container>
+        </ul>
+    </div>
+
+    <!-- Sidebar footer -->
+    <div class="sidebar-footer p-4 mt-auto border-t"
+        [ngClass]="theme === 'dark' ? 'border-gray-700' : 'border-gray-200'">
+        <ng-content></ng-content>
+    </div>
+</div>

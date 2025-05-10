@@ -1,1 +1,110 @@
-<p>dropdown works!</p>
+<div class="dropdown-container relative" [ngClass]="width">
+    <!-- Label -->
+    <label *ngIf="label" class="block text-sm font-medium text-gray-700 mb-1">
+        {{ label }}
+    </label>
+
+    <!-- Dropdown button -->
+    <button
+        #dropdownButton
+        type="button"
+        [ngClass]="getButtonClasses()"
+        (click)="toggleDropdown()"
+        [attr.disabled]="disabled ? true : null"
+        aria-haspopup="true"
+        [attr.aria-expanded]="isOpen">
+
+        <span class="flex items-center truncate">
+            <!-- Selected option icon -->
+            <ng-container
+                *ngIf="showSelectedIcon && selectedOptions.length > 0 && selectedOptions[0].icon">
+                <i
+                    [class]="selectedOptions[0].icon + ' mr-2 text-gray-500'"></i>
+            </ng-container>
+
+            <!-- Selected text -->
+            <span class="truncate">{{ getSelectedText() }}</span>
+        </span>
+
+        <!-- Chevron icon -->
+        <svg
+            class="w-5 h-5 ml-2 text-gray-400"
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+            [ngClass]="{'transform rotate-180': isOpen}">
+            <path
+                fill-rule="evenodd"
+                d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                clip-rule="evenodd" />
+        </svg>
+    </button>
+
+    <!-- Error message -->
+    <div *ngIf="error" class="text-red-500 text-sm mt-1">{{ error }}</div>
+
+    <!-- Dropdown menu -->
+    <div
+        #dropdownMenu
+        *ngIf="isOpen"
+        class="absolute z-10 w-full min-w-[10rem] max-h-60 overflow-auto bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
+        [ngClass]="getDropdownPositionClasses()"
+        role="menu"
+        aria-orientation="vertical">
+
+        <div class="py-1">
+            <ng-container *ngIf="options.length > 0; else noOptions">
+                <div
+                    *ngFor="let option of options; let i = index"
+                    class="dropdown-item flex items-center px-4 py-2 text-sm cursor-pointer"
+                    [ngClass]="{
+            'bg-gray-100': highlightedIndex === i,
+            'opacity-50 cursor-not-allowed': option.disabled,
+            'text-gray-900 hover:bg-gray-100': !option.disabled && !isSelected(option),
+            'bg-blue-50 text-blue-700 font-medium': isSelected(option)
+          }"
+                    (click)="selectOption(option, $event)"
+                    role="menuitem">
+
+                    <!-- Option icon -->
+                    <span *ngIf="option.icon" class="mr-3 text-gray-500">
+                        <i [class]="option.icon"></i>
+                    </span>
+
+                    <!-- Option content -->
+                    <div class="flex flex-col flex-grow">
+                        <div class="flex items-center justify-between">
+                            <!-- Option label -->
+                            <span>{{ option.label }}</span>
+
+                            <!-- Checkmark for selected option -->
+                            <svg
+                                *ngIf="isSelected(option)"
+                                class="w-4 h-4 ml-2 text-blue-500"
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 20 20"
+                                fill="currentColor">
+                                <path
+                                    fill-rule="evenodd"
+                                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                    clip-rule="evenodd" />
+                            </svg>
+                        </div>
+
+                        <!-- Option description -->
+                        <span *ngIf="option.description"
+                            class="text-xs text-gray-500 mt-0.5">
+                            {{ option.description }}
+                        </span>
+                    </div>
+                </div>
+            </ng-container>
+
+            <ng-template #noOptions>
+                <div class="px-4 py-3 text-sm text-gray-500">
+                    No options available
+                </div>
+            </ng-template>
+        </div>
+    </div>
+</div>

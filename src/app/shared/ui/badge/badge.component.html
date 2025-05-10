@@ -1,1 +1,5 @@
-<p>badge works!</p>
+<span [ngClass]="classes">
+    <span *ngIf="dot"
+        [ngClass]="['flex-shrink-0 w-2 h-2 mr-1.5 rounded-full', getDotColor()]"></span>
+    <ng-content></ng-content>
+</span>

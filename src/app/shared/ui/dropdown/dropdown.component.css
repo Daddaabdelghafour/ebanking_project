@@ -1,0 +1,49 @@
+.dropdown-menu-enter {
+  opacity: 0;
+  transform: scale(0.95);
+}
+
+.dropdown-menu-enter-active {
+  opacity: 1;
+  transform: scale(1);
+  transition: opacity 100ms ease-out, transform 100ms ease-out;
+}
+
+.dropdown-menu-exit {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.dropdown-menu-exit-active {
+  opacity: 0;
+  transform: scale(0.95);
+  transition: opacity 75ms ease-in, transform 75ms ease-in;
+}
+
+.dropdown-container {
+  position: relative;
+}
+
+.dropdown-item {
+  transition: background-color 150ms ease;
+}
+
+/* Custom scrollbar styles */
+.dropdown-menu {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+}
+
+.dropdown-menu::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.dropdown-menu::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.dropdown-menu::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+}

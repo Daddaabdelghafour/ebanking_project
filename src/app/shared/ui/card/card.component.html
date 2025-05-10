@@ -1,1 +1,56 @@
-<p>card works!</p>
+<div class="bank-card relative rounded-xl overflow-hidden shadow-lg h-56 w-full"
+    [ngClass]="cardBackground">
+    <!-- Card decoration elements -->
+    <div
+        class="card-decoration absolute -bottom-16 -right-16 w-64 h-64 opacity-10 rounded-full bg-white"></div>
+    <div
+        class="card-decoration absolute top-10 -left-10 w-32 h-32 opacity-5 rounded-full bg-white"></div>
+
+    <!-- Card content -->
+    <div
+        class="card-content relative z-10 flex flex-col justify-between h-full p-6">
+        <div class="card-top flex justify-between items-start">
+            <div class="card-chip">
+                <div
+                    class="h-9 w-12 bg-gradient-to-br from-yellow-300 to-yellow-500 bg-opacity-90 rounded-md"></div>
+            </div>
+            <div class="card-logo">
+                <img [src]="cardLogo" alt="Card type"
+                    class="h-8 object-contain">
+            </div>
+        </div>
+
+        <div
+            class="card-number mt-5 text-white text-xl tracking-wider font-medium text-center">
+            {{ maskedCardNumber }}
+        </div>
+
+        <div class="card-details mt-auto">
+            <div class="flex justify-between items-end">
+                <div class="card-holder">
+                    <div class="text-xs text-gray-200 uppercase">Card
+                        Holder</div>
+                    <div
+                        class="text-white font-medium truncate max-w-[140px]">{{
+                        cardHolder }}</div>
+                </div>
+
+                <div class="card-expiry text-right">
+                    <div class="text-xs text-gray-200 uppercase">Expires</div>
+                    <div class="text-white font-medium">{{ expiryDate }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Balance indicator -->
+    <div class="card-balance absolute top-6 right-6 text-right z-20">
+        <div class="text-xs text-gray-200 uppercase">Balance</div>
+        <div class="text-white font-medium text-lg">{{ formatBalance(balance)
+            }}</div>
+    </div>
+
+    <!-- Shine effect -->
+    <div
+        class="absolute inset-0 bg-gradient-to-tr from-white opacity-[0.03]"></div>
+</div>
