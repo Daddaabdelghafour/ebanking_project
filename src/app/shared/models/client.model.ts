@@ -1,3 +1,13 @@
+export interface Account {
+  id: string;
+  accountNumber: string;
+  type: string;
+  balance: number;
+  currency: string;
+  status: 'active' | 'inactive' | 'blocked' | 'pending';
+  openedDate: Date;
+}
+
 export interface Client {
   id: string;
   firstName: string;
@@ -16,9 +26,12 @@ export interface Client {
   lastLogin?: Date;
   identityNumber: string;
   identityType: 'CIN' | 'Passport' | 'Residence Card';
-  birthDate?: Date;
+  birthDate: Date;
   occupation?: string;
   income?: number;
+  // Added these properties to fix the errors
+  contactPreference?: string;
+  accounts?: Account[];
 }
 
 export interface ClientFormData {

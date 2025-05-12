@@ -1,0 +1,236 @@
+<div class="bg-white shadow-sm rounded-lg p-6">
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold text-gray-800">Programme de
+            parrainage</h1>
+        <p class="text-gray-600 mt-1">Parrainez vos proches et gagnez des
+            récompenses</p>
+    </div>
+
+    <!-- Section de statistiques -->
+    <div *ngIf="isLoading" class="flex justify-center py-10">
+        <div
+            class="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-teal-500"></div>
+    </div>
+
+    <div *ngIf="!isLoading && stats"
+        class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div class="bg-teal-50 rounded-lg p-4 text-center">
+            <span class="block text-sm text-gray-500">Total parrainages</span>
+            <span class="block text-2xl font-bold text-teal-700">{{
+                stats.totalReferrals }}</span>
+        </div>
+        <div class="bg-teal-50 rounded-lg p-4 text-center">
+            <span class="block text-sm text-gray-500">Parrainages
+                complétés</span>
+            <span class="block text-2xl font-bold text-teal-700">{{
+                stats.completedReferrals }}</span>
+        </div>
+        <div class="bg-teal-50 rounded-lg p-4 text-center">
+            <span class="block text-sm text-gray-500">Bonus total gagné</span>
+            <span class="block text-2xl font-bold text-teal-700">{{
+                stats.totalBonusEarned }} {{ stats.bonusCurrency }}</span>
+        </div>
+    </div>
+
+    <!-- Section code de parrainage -->
+    <div class="mb-8 border rounded-lg p-6">
+        <h2 class="text-lg font-bold text-gray-800 mb-4">Votre code de
+            parrainage</h2>
+
+        <div *ngIf="!currentReferralCode && !isLoading" class="mb-6">
+            <p class="text-gray-600 mb-4">Vous n'avez pas encore de code de
+                parrainage actif. Créez-en un maintenant pour commencer à
+                parrainer vos proches.</p>
+
+            <div *ngIf="activeCampaigns.length > 0" class="mb-4">
+                <label for="campaignSelect"
+                    class="block text-sm font-medium text-gray-700">Choisir une
+                    campagne:</label>
+                <select
+                    id="campaignSelect"
+                    [(ngModel)]="selectedCampaignId"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500">
+                    <option *ngFor="let campaign of activeCampaigns"
+                        [value]="campaign.id">
+                        {{ campaign.name }} - {{ campaign.bonusAmount }} {{
+                        campaign.bonusCurrency }}
+                    </option>
+                </select>
+                <!-- Correction 1: Utilisation d'une méthode pour accéder à la description -->
+                <p *ngIf="selectedCampaignId"
+                    class="mt-2 text-sm text-gray-500">
+                    {{ getCampaignDescription(selectedCampaignId) }}
+                </p>
+            </div>
+
+            <button
+                (click)="createReferralCode()"
+                [disabled]="!selectedCampaignId || isLoading"
+                class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 disabled:bg-gray-300 disabled:cursor-not-allowed">
+                Créer un code de parrainage
+            </button>
+        </div>
+
+        <div *ngIf="currentReferralCode" class="mb-6">
+            <p class="text-gray-600 mb-4">Partagez ce code avec vos proches pour
+                qu'ils puissent bénéficier d'avantages lors de leur
+                inscription.</p>
+
+            <div class="flex items-center space-x-2">
+                <div
+                    class="flex-1 bg-gray-100 rounded-md p-4 font-mono text-lg text-center">
+                    {{ currentReferralCode }}
+                </div>
+                <button
+                    (click)="copyToClipboard()"
+                    class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500">
+                    <span *ngIf="!isCopied">Copier</span>
+                    <span *ngIf="isCopied" class="text-teal-600">Copié !</span>
+                </button>
+            </div>
+        </div>
+
+        <div *ngIf="currentReferralCode" class="mb-6">
+            <button
+                (click)="toggleForm()"
+                class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500">
+                {{ showForm ? 'Masquer le formulaire' : 'Inviter par email' }}
+            </button>
+        </div>
+
+        <!-- Formulaire d'invitation -->
+        <div *ngIf="showForm && currentReferralCode" class="mt-6 border-t pt-6">
+            <h3 class="text-md font-semibold text-gray-800 mb-4">Inviter un
+                ami</h3>
+
+            <div class="mb-4">
+                <label for="inviteEmail"
+                    class="block text-sm font-medium text-gray-700">Email</label>
+                <input
+                    type="email"
+                    id="inviteEmail"
+                    [(ngModel)]="inviteEmail"
+                    placeholder="email@exemple.com"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500">
+            </div>
+
+            <div class="mb-4">
+                <label for="inviteMessage"
+                    class="block text-sm font-medium text-gray-700">Message
+                    personnalisé (optionnel)</label>
+                <textarea
+                    id="inviteMessage"
+                    [(ngModel)]="inviteMessage"
+                    rows="3"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500"
+                    placeholder="Rejoins-moi sur cette super appli bancaire..."></textarea>
+            </div>
+
+            <button
+                (click)="sendInvitation()"
+                [disabled]="!inviteEmail || isLoading"
+                class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 disabled:bg-gray-300 disabled:cursor-not-allowed">
+                Envoyer l'invitation
+            </button>
+        </div>
+    </div>
+
+    <!-- Section historique des parrainages -->
+    <div>
+        <h2 class="text-lg font-bold text-gray-800 mb-4">Historique des
+            parrainages</h2>
+
+        <div *ngIf="isLoading" class="flex justify-center py-10">
+            <div
+                class="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-teal-500"></div>
+        </div>
+
+        <div *ngIf="!isLoading && referrals.length === 0"
+            class="text-center py-8 border rounded-md">
+            <p class="text-gray-500">Vous n'avez pas encore effectué de
+                parrainage</p>
+        </div>
+
+        <div *ngIf="!isLoading && referrals.length > 0">
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col"
+                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Code
+                            </th>
+                            <th scope="col"
+                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Statut
+                            </th>
+                            <th scope="col"
+                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Bonus
+                            </th>
+                            <th scope="col"
+                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Créé le
+                            </th>
+                            <th scope="col"
+                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Complété le
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        <tr *ngFor="let referral of referrals">
+                            <td
+                                class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                {{ referral.code }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span [ngClass]="
+                                    referral.status === 'completed' ? 'bg-green-100 text-green-800' : 
+                                    referral.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                    referral.status === 'expired' ? 'bg-gray-100 text-gray-800' :
+                                    'bg-red-100 text-red-800'"
+                                    class="px-2 py-1 text-xs rounded-full">
+                                    {{ getReferralStatusLabel(referral.status)
+                                    }}
+                                </span>
+                            </td>
+                            <td
+                                class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {{ referral.bonusAmount }} {{ referral.currency
+                                }}
+                            </td>
+                            <td
+                                class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {{ formatDate(referral.createdAt) }}
+                            </td>
+                            <td
+                                class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                <!-- Correction 2: Utilisation du formatDate qui gère déjà le cas undefined -->
+                                {{ formatDate(referral.completedAt) }}
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Termes et conditions -->
+<div class="mt-8 border-t pt-6">
+    <h3 class="text-md font-semibold text-gray-800 mb-2">Comment ça marche
+        ?</h3>
+    <ol class="list-decimal pl-5 text-sm text-gray-600 space-y-2">
+        <li>Générez votre code de parrainage unique</li>
+        <li>Partagez ce code avec vos amis et votre famille</li>
+        <li>Quand ils s'inscrivent en utilisant votre code, ils reçoivent un
+            avantage</li>
+        <li>Une fois qu'ils ont effectué leur première transaction, vous recevez
+            votre bonus</li>
+    </ol>
+    <p class="text-xs text-gray-500 mt-4">
+        * Des conditions s'appliquent. Voir les termes et conditions de la
+        campagne pour plus de détails.
+    </p>
+</div>

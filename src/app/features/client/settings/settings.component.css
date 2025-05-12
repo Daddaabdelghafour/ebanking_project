@@ -1,0 +1,31 @@
+/* Custom toggle switch styling */
+.toggle-bg {
+  transition: background-color 0.3s;
+  position: relative;
+  width: 3rem;
+}
+
+.toggle-bg:before {
+  content: '';
+  position: absolute;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 50%;
+  top: 0.125rem;
+  left: 0.125rem;
+  transition: transform 0.3s;
+  background-color: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+input:checked + .toggle-bg {
+  background-color: #3b82f6;
+}
+
+input:checked + .toggle-bg:before {
+  transform: translateX(1.5rem);
+}
+
+.toggle-bg {
+  background-color: #d1d5db;
+}

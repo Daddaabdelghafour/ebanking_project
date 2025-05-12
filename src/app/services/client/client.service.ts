@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
 import { delay } from 'rxjs/operators';
-import { Client, ClientFormData } from '../../shared/models/client.model';
+import { Client, ClientFormData, Account } from '../../shared/models/client.model';
 
 @Injectable({
   providedIn: 'root'
@@ -29,7 +29,28 @@ export class ClientService {
       identityType: 'CIN',
       birthDate: new Date('1985-07-22'),
       occupation: 'Engineer',
-      income: 25000
+      income: 25000,
+      contactPreference: 'Email',
+      accounts: [
+        {
+          id: 'acc1',
+          accountNumber: '11223344556677',
+          type: 'Courant',
+          balance: 75650.45,
+          currency: 'MAD',
+          status: 'active',
+          openedDate: new Date('2020-03-15')
+        },
+        {
+          id: 'acc2',
+          accountNumber: '77665544332211',
+          type: 'Épargne',
+          balance: 125000,
+          currency: 'MAD',
+          status: 'active',
+          openedDate: new Date('2020-07-22')
+        }
+      ]
     },
     {
       id: 'cl2',
@@ -51,7 +72,19 @@ export class ClientService {
       identityType: 'CIN',
       birthDate: new Date('1990-12-05'),
       occupation: 'Professor',
-      income: 18000
+      income: 18000,
+      contactPreference: 'Phone',
+      accounts: [
+        {
+          id: 'acc3',
+          accountNumber: '12345678901234',
+          type: 'Courant',
+          balance: 23475.90,
+          currency: 'MAD',
+          status: 'active',
+          openedDate: new Date('2021-06-10')
+        }
+      ]
     },
     {
       id: 'cl3',
@@ -73,7 +106,9 @@ export class ClientService {
       identityType: 'CIN',
       birthDate: new Date('1978-03-18'),
       occupation: 'Business Owner',
-      income: 45000
+      income: 45000,
+      contactPreference: 'Email',
+      accounts: []
     },
     {
       id: 'cl4',
@@ -95,7 +130,19 @@ export class ClientService {
       identityType: 'CIN',
       birthDate: new Date('1982-09-30'),
       occupation: 'Doctor',
-      income: 40000
+      income: 40000,
+      contactPreference: 'Email',
+      accounts: [
+        {
+          id: 'acc4',
+          accountNumber: '98765432109876',
+          type: 'Courant',
+          balance: 125750.80,
+          currency: 'MAD',
+          status: 'inactive',
+          openedDate: new Date('2020-07-25')
+        }
+      ]
     },
     {
       id: 'cl5',
@@ -117,7 +164,9 @@ export class ClientService {
       identityType: 'CIN',
       birthDate: new Date('1995-05-14'),
       occupation: 'Software Developer',
-      income: 15000
+      income: 15000,
+      contactPreference: 'Phone',
+      accounts: []
     },
     {
       id: 'cl6',
@@ -139,7 +188,19 @@ export class ClientService {
       identityType: 'Passport',
       birthDate: new Date('1975-11-22'),
       occupation: 'Entrepreneur',
-      income: 60000
+      income: 60000,
+      contactPreference: 'Email',
+      accounts: [
+        {
+          id: 'acc5',
+          accountNumber: '65432109876543',
+          type: 'Courant',
+          balance: 352400.25,
+          currency: 'MAD',
+          status: 'active',
+          openedDate: new Date('2018-09-12')
+        }
+      ]
     }
   ];
 
@@ -164,75 +225,71 @@ export class ClientService {
       balance: 0,
       dateJoined: new Date(),
       lastLogin: undefined,
+      birthDate: clientData.birthDate || new Date(), // Provide default
+      accounts: [], // Initialize with empty array
       ...clientData
     };
     
     this.mockClients.push(newClient);
-    return of(newClient).pipe(delay(800));
+    return of(newClient).pipe(delay(500));
   }
 
   updateClient(id: string, clientData: ClientFormData): Observable<Client> {
-    // In a real app, this would call an API
+    // Find the client by ID
     const index = this.mockClients.findIndex(c => c.id === id);
     if (index !== -1) {
+      // Update client data, preserving accounts and other fields not in form
+      const existingClient = this.mockClients[index];
       const updatedClient: Client = {
-        ...this.mockClients[index],
-        ...clientData
+        ...existingClient,
+        firstName: clientData.firstName,
+        lastName: clientData.lastName,
+        email: clientData.email,
+        phone: clientData.phone,
+        address: clientData.address,
+        city: clientData.city,
+        status: clientData.status,
+        accountType: clientData.accountType,
+        currency: clientData.currency,
+        identityNumber: clientData.identityNumber,
+        identityType: clientData.identityType,
+        birthDate: clientData.birthDate || existingClient.birthDate,
+        occupation: clientData.occupation,
+        income: clientData.income
       };
+      
       this.mockClients[index] = updatedClient;
-      return of(updatedClient).pipe(delay(800));
+      return of(updatedClient).pipe(delay(500));
     }
     
-    throw new Error('Client not found');
+    return of(undefined as any).pipe(delay(500));
   }
 
   deleteClient(id: string): Observable<boolean> {
-    // In a real app, this would call an API
+    // In a real app, this would call an API to delete
     const initialLength = this.mockClients.length;
     this.mockClients = this.mockClients.filter(c => c.id !== id);
-    return of(this.mockClients.length < initialLength).pipe(delay(800));
+    return of(this.mockClients.length < initialLength).pipe(delay(500));
   }
 
+  // Utility methods for form dropdowns
   getCities(): Observable<string[]> {
-    // In a real app, this would call an API to get available cities
     return of([
-      'Casablanca',
-      'Rabat',
-      'Marrakech',
-      'Fes',
-      'Tangier',
-      'Agadir',
-      'Meknes',
-      'Oujda',
-      'Kenitra',
-      'Tetouan',
-      'El Jadida',
-      'Safi',
-      'Mohammedia',
-      'Essaouira',
-      'Taza'
+      'Casablanca', 'Rabat', 'Marrakech', 'Fes', 'Tangier', 'Agadir', 
+      'Oujda', 'Meknes', 'Kenitra', 'Tetouan', 'El Jadida', 'Safi', 
+      'Mohammedia', 'Essaouira', 'Nador'
     ]).pipe(delay(300));
   }
 
   getAccountTypes(): Observable<string[]> {
-    // In a real app, this would call an API to get available account types
     return of([
-      'Standard',
-      'Premium',
-      'Gold',
-      'Youth',
-      'Senior',
-      'Business'
+      'Standard', 'Premium', 'Gold', 'Platinum', 'Student'
     ]).pipe(delay(300));
   }
 
   getCurrencies(): Observable<string[]> {
-    // In a real app, this would call an API to get available currencies
     return of([
-      'MAD',
-      'EUR',
-      'USD',
-      'GBP'
+      'MAD', 'EUR', 'USD', 'GBP'
     ]).pipe(delay(300));
   }
 }

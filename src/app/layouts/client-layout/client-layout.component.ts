@@ -1,8 +1,10 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, RouterOutlet } from '@angular/router';
+import { ClientService } from '../../services/client/client.service';
+import { Client } from '../../shared/models/client.model';
 
-// Define sidebar item interface locally
+// Define sidebar item interface
 interface SidebarItem {
   id: string;
   label?: string;
@@ -12,6 +14,13 @@ interface SidebarItem {
   divider?: boolean;
 }
 
+interface Notification {
+  id: string;
+  message: string;
+  time: string;
+  read: boolean;
+}
+
 @Component({
   selector: 'app-client-layout',
   standalone: true,
@@ -19,91 +28,167 @@ interface SidebarItem {
   templateUrl: './client-layout.component.html',
   styleUrls: ['./client-layout.component.css']
 })
-export class ClientLayoutComponent {
+export class ClientLayoutComponent implements OnInit {
   sidebarCollapsed = false;
+  currentClient: Client | null = null;
+  isLoading = true;
   
-  // Define sidebar navigation items
+  // Define sidebar navigation items with the correct routes
   sidebarItems: SidebarItem[] = [
     {
       id: 'dashboard',
-      label: 'Dashboard',
+      label: 'Tableau de bord',
       icon: 'fa-solid fa-gauge-high',
-      route: '/dashboard'
+      route: ''
     },
     {
       id: 'accounts',
-      label: 'Accounts',
+      label: 'Mes comptes',
       icon: 'fa-solid fa-wallet',
-      route: '/accounts'
+      route: 'accounts'
     },
     {
-      id: 'cards',
-      label: 'Cards',
-      icon: 'fa-solid fa-credit-card',
-      route: '/cards'
+      id: 'transfers',
+      label: 'Virements',
+      icon: 'fa-solid fa-paper-plane',
+      route: 'transfers'
     },
     {
-      id: 'transactions',
-      label: 'Transactions',
-      icon: 'fa-solid fa-exchange-alt',
-      route: '/transactions',
-      badge: '3'
+      id: 'bills',
+      label: 'Factures',
+      icon: 'fa-solid fa-file-invoice',
+      route: 'bills'
+    },
+    {
+      id: 'recharges',
+      label: 'Recharges',
+      icon: 'fa-solid fa-mobile-screen',
+      route: 'recharges'
+    },
+    {
+      id: 'crypto',
+      label: 'Portefeuille Crypto',
+      icon: 'fa-solid fa-coins',
+      route: 'crypto',
     },
     { 
       id: 'divider-1',
       divider: true
     },
     {
-      id: 'transfers',
-      label: 'Transfers',
-      icon: 'fa-solid fa-paper-plane',
-      route: '/transfers'
+      id: 'referrals',
+      label: 'Parrainage',
+      icon: 'fa-solid fa-user-plus',
+      route: 'referrals',
+      badge: 'New'
     },
     {
-      id: 'payments',
-      label: 'Bill Payments',
-      icon: 'fa-solid fa-file-invoice',
-      route: '/payments'
+      id: 'settings',
+      label: 'Paramètres',
+      icon: 'fa-solid fa-gear',
+      route: 'settings'
     },
     { 
       id: 'divider-2',
       divider: true
     },
-    {
-      id: 'profile',
-      label: 'Profile Settings',
-      icon: 'fa-solid fa-user-gear',
-      route: '/profile'
-    },
-    {
-      id: 'security',
-      label: 'Security Settings',
-      icon: 'fa-solid fa-shield-halved',
-      route: '/security'
-    }
   ];
   
-  // Mock user information
+  // User information - will be populated from service
   userInfo = {
-    name: 'Nick Karam',
-    email: 'nick@example.com',
+    name: 'Chargement...',
+    email: 'chargement@example.com',
     role: 'Client'
   };
   
-  // Sample notifications
-  notifications = [
-    { message: 'Payment received', time: '5 minutes ago' },
-    { message: 'Transfer completed', time: '2 hours ago' },
-    { message: 'New card activated', time: '1 day ago' }
-  ];
+  // Notifications - will be updated with dynamic data
+  notifications: Notification[] = [];
   
-  toggleSidebar() {
+  constructor(private clientService: ClientService) {}
+  
+  ngOnInit(): void {
+    this.loadClientData();
+    this.loadNotifications();
+  }
+  
+  loadClientData(): void {
+    // Pour la démonstration, nous utilisons le premier client
+    // Dans une application réelle, vous récupéreriez l'ID client à partir
+    // du service d'authentification ou du stockage local
+    const clientId = 'cl1';
+    
+    this.isLoading = true;
+    this.clientService.getClientById(clientId).subscribe({
+      next: (client) => {
+        if (client) {
+          this.currentClient = client;
+          this.userInfo = {
+            name: `${client.firstName} ${client.lastName}`,
+            email: client.email,
+            role: 'Client'
+          };
+        }
+        this.isLoading = false;
+      },
+      error: (err) => {
+        console.error('Erreur lors du chargement des données client', err);
+        this.isLoading = false;
+      }
+    });
+  }
+  
+  loadNotifications(): void {
+    // Dans une application réelle, ces notifications seraient chargées depuis une API
+    this.notifications = [
+      {
+        id: '1',
+        message: 'Virement reçu de 1500 MAD',
+        time: 'Il y a 5 minutes',
+        read: false
+      },
+      {
+        id: '2',
+        message: 'Transfert vers compte épargne effectué',
+        time: 'Il y a 2 heures',
+        read: false
+      },
+      {
+        id: '3',
+        message: 'Nouveau relevé bancaire disponible',
+        time: 'Il y a 1 jour',
+        read: true
+      }
+    ];
+  }
+  
+  toggleSidebar(): void {
     this.sidebarCollapsed = !this.sidebarCollapsed;
   }
   
-  // Handler for notification click
-  handleNotificationClick() {
-    console.log('Notification clicked');
-    // Implement notification handling logic
+  handleNotificationClick(): void {
+    console.log('Notifications ouvertes');
+    // Implémenter l'affichage des notifications
+  }
+  
+  logout(): void {
+    console.log('Déconnexion');
+    // Implémenter la logique de déconnexion
+    // Puis rediriger vers la page de connexion
+    window.location.href = '/auth/login';
+  }
+  
+  getUnreadNotificationCount(): number {
+    return this.notifications.filter(n => !n.read).length;
+  }
+  
+  // Cette méthode sera utilisée pour extraire les initiales du nom d'utilisateur
+  getUserInitials(): string {
+    if (!this.userInfo.name || this.userInfo.name === 'Chargement...') return 'U';
+    
+    const nameParts = this.userInfo.name.split(' ');
+    if (nameParts.length >= 2) {
+      return (nameParts[0][0] + nameParts[1][0]).toUpperCase();
+    }
+    return nameParts[0][0].toUpperCase();
   }
 }

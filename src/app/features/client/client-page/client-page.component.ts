@@ -1,127 +1,209 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { ClientService } from '../../../services/client/client.service';
+import { Client, Account } from '../../../shared/models/client.model';
 
+interface BankCard {
+  cardType: 'visa' | 'mastercard';
+  cardNumber: string;
+  cardHolder: string;
+  expiryDate: string;
+  balance: number;
+  currency: string;
+  cardBackground: string;
+}
+
+interface Transaction {
+  id: string;
+  name: string;
+  type: string;
+  date: Date;
+  category: 'Software' | 'Transfer' | 'Finance';
+  amount: number;
+  status: 'Completed' | 'Pending' | 'Failed';
+  icon: 'briefcase' | 'mail' | 'currency-dollar';
+}
+
+interface FinancialSummary {
+  totalBalance: number;
+  totalBalanceChange: number;
+  monthlyIncome: number;
+  monthlyIncomeChange: number;
+  monthlyExpenses: number;
+  monthlyExpensesChange: number;
+}
 
 @Component({
   selector: 'app-client-page',
   standalone: true,
-  imports: [
-    CommonModule, 
-  ],
+  imports: [CommonModule],
   templateUrl: './client-page.component.html',
   styleUrls: ['./client-page.component.css']
 })
-export class ClientPageComponent {
-  currentDate = new Date();
-  currentName = 'Nick';
+export class ClientPageComponent implements OnInit {
+  currentClient: Client | null = null;
+  currentName: string = '';
+  currentDate: Date = new Date();
+  isLoading: boolean = true;
+  error: string | null = null;
   
-  // Bank cards (using your existing data)
-  bankCards = [
-    {
-      cardNumber: '4242 4242 4242 4242',
-      cardHolder: 'Nick Karam',
-      expiryDate: '09/25',
-      cardType: 'visa',
-      cardBackground: 'bg-gradient-to-r from-blue-700 to-blue-400',
-      balance: 5432.21,
-      currency: 'EUR'
-    },
-    {
-      cardNumber: '5353 2345 6789 4321',
-      cardHolder: 'Nick Karam',
-      expiryDate: '12/26',
-      cardType: 'mastercard',
-      cardBackground: 'bg-gradient-to-r from-red-700 to-red-400',
-      balance: 2789.54,
-      currency: 'EUR'
-    }
-  ];
-  
-  // Financial summary (using your existing data)
-  financialSummary = {
-    totalBalance: 8221.75,
+  // Financial data
+  bankCards: BankCard[] = [];
+  financialSummary: FinancialSummary = {
+    totalBalance: 0,
     totalBalanceChange: 3.2,
-    monthlyIncome: 3500,
+    monthlyIncome: 0,
     monthlyIncomeChange: 5.1,
-    monthlyExpenses: 2100.5,
+    monthlyExpenses: 0,
     monthlyExpensesChange: 2.4
   };
-  
-  // Transactions (using your existing data)
-  transactions = [
-    {
-      name: 'Shopify Subscription',
-      type: 'Automatic Payment',
-      date: new Date(2023, 4, 12),
-      category: 'Software',
-      amount: -29.99,
-      status: 'Completed',
-      icon: 'briefcase'
-    },
-    {
-      name: 'Salary Payment',
-      type: 'Direct Deposit',
-      date: new Date(2023, 4, 10),
+  transactions: Transaction[] = [];
+
+  constructor(private clientService: ClientService) {}
+
+  ngOnInit(): void {
+    this.loadClientData();
+  }
+
+  loadClientData(): void {
+    this.isLoading = true;
+    this.error = null;
+    
+    // In a real app, you would get the current client ID from AuthService or similar
+    // For this example, we'll use a hardcoded ID (the first client)
+    const clientId = 'cl1';
+    
+    this.clientService.getClientById(clientId).subscribe({
+      next: (client) => {
+        if (client) {
+          this.currentClient = client;
+          this.currentName = `${client.firstName} ${client.lastName}`;
+          this.updateFinancialData(client);
+          this.generateTransactions();
+        } else {
+          this.error = "Client non trouvé";
+        }
+        this.isLoading = false;
+      },
+      error: (err) => {
+        this.error = "Erreur lors du chargement des données client";
+        this.isLoading = false;
+        console.error(err);
+      }
+    });
+  }
+
+  updateFinancialData(client: Client): void {
+    // Update financial summary based on client data
+    this.financialSummary.totalBalance = client.balance;
+    // Income could be based on client's income property if available
+    this.financialSummary.monthlyIncome = client.income || 0;
+    // Expenses could be calculated from transactions or estimated
+    this.financialSummary.monthlyExpenses = this.financialSummary.monthlyIncome * 0.7;
+    
+    // Generate bank cards based on client accounts
+    this.bankCards = [];
+    
+    // Add the main account as a card
+    this.bankCards.push({
+      cardType: 'visa',
+      cardNumber: this.formatCardNumber('4539 **** **** 5678'),
+      cardHolder: `${client.firstName} ${client.lastName}`,
+      expiryDate: '12/25',
+      balance: client.balance,
+      currency: client.currency,
+      cardBackground: 'bg-gradient-to-r from-blue-500 to-blue-700'
+    });
+    
+    // Add additional cards based on client accounts if they exist
+    if (client.accounts && client.accounts.length > 0) {
+      client.accounts.forEach((account, index) => {
+        if (index > 0) { // Skip the first account as it's already added
+          this.bankCards.push({
+            cardType: index % 2 === 0 ? 'visa' : 'mastercard',
+            cardNumber: this.formatCardNumber(`${account.accountNumber.substring(0, 4)} **** **** ${account.accountNumber.slice(-4)}`),
+            cardHolder: `${client.firstName} ${client.lastName}`,
+            expiryDate: '06/27',
+            balance: account.balance,
+            currency: account.currency,
+            cardBackground: index % 2 === 0 
+              ? 'bg-gradient-to-r from-purple-500 to-purple-700'
+              : 'bg-gradient-to-r from-green-500 to-green-700'
+          });
+        }
+      });
+    }
+  }
+
+  generateTransactions(): void {
+    // Generate realistic transactions based on client data
+    const categories: ['Software', 'Transfer', 'Finance'] = ['Software', 'Transfer', 'Finance'];
+    const icons: ['briefcase', 'mail', 'currency-dollar'] = ['briefcase', 'mail', 'currency-dollar'];
+    const statuses: ['Completed', 'Pending', 'Failed'] = ['Completed', 'Pending', 'Failed'];
+    
+    this.transactions = [];
+    
+    // Add some deposits
+    this.transactions.push({
+      id: 'txn1',
+      name: 'Virement entrant',
+      type: 'Dépôt',
+      date: new Date(2023, 4, 15),
       category: 'Transfer',
-      amount: 3500,
+      amount: 1250.00,
       status: 'Completed',
       icon: 'mail'
-    },
-    {
-      name: 'Investment Dividend',
-      type: 'Transfer',
-      date: new Date(2023, 4, 8),
+    });
+    
+    // Add salary payment
+    this.transactions.push({
+      id: 'txn2',
+      name: 'Salaire',
+      type: 'Dépôt',
+      date: new Date(2023, 4, 5),
       category: 'Finance',
-      amount: 89.45,
-      status: 'Pending',
+      amount: this.currentClient?.income || 0,
+      status: 'Completed',
       icon: 'currency-dollar'
+    });
+    
+    // Add some withdrawals/payments
+    const paymentAmounts = [-120.50, -45.99, -67.80, -255.30, -22.50];
+    const paymentNames = ['Carrefour', 'Netflix', 'Amazon', 'Loyer', 'Restaurant'];
+    
+    for (let i = 0; i < 5; i++) {
+      this.transactions.push({
+        id: `txn${i+3}`,
+        name: paymentNames[i],
+        type: 'Paiement',
+        date: new Date(2023, 4, 20 - i),
+        category: i % 3 === 0 ? 'Software' : (i % 2 === 0 ? 'Finance' : 'Transfer'),
+        amount: paymentAmounts[i],
+        status: i === 0 ? 'Pending' : (i === 4 ? 'Failed' : 'Completed'),
+        icon: icons[i % 3]
+      });
     }
-  ];
-  
-  // Chart data
-  spendingChartData = {
-    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May'],
-    datasets: [
-      {
-        label: 'Income',
-        data: [3200, 3500, 3200, 3400, 3500],
-        borderColor: '#4F46E5',
-        backgroundColor: 'rgba(79, 70, 229, 0.2)'
-      },
-      {
-        label: 'Expenses',
-        data: [2200, 2300, 1900, 2100, 2200],
-        borderColor: '#EF4444',
-        backgroundColor: 'rgba(239, 68, 68, 0.2)'
-      }
-    ]
-  };
-  
+    
+    // Sort by date, most recent first
+    this.transactions.sort((a, b) => b.date.getTime() - a.date.getTime());
+  }
+
+  formatCardNumber(number: string): string {
+    return number.replace(/\s/g, ' ');
+  }
+
   formatDate(date: Date): string {
-    const options: Intl.DateTimeFormatOptions = {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
+    const options: Intl.DateTimeFormatOptions = { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
     };
     return date.toLocaleDateString('fr-FR', options);
   }
-  
-  getTransactionIconClass(icon: string): string {
-    switch (icon) {
-      case 'briefcase':
-        return 'text-blue-600';
-      case 'mail':
-        return 'text-green-600';
-      case 'currency-dollar':
-        return 'text-purple-600';
-      default:
-        return 'text-gray-600';
-    }
-  }
-  
+
   getTransactionStatusClass(status: string): string {
-    switch (status) {
+    switch(status) {
       case 'Completed':
         return 'bg-green-100 text-green-800';
       case 'Pending':
@@ -132,9 +214,10 @@ export class ClientPageComponent {
         return 'bg-gray-100 text-gray-800';
     }
   }
-  
-  exportData() {
-    alert('Exporting data...');
-    // Implement export functionality
+
+  exportData(): void {
+    console.log('Exporting data...');
+    // Implement export functionality as needed
+    alert('La fonction d\'exportation sera disponible prochainement.');
   }
 }

@@ -1,0 +1,327 @@
+<div class="max-w-4xl mx-auto">
+    <!-- Loading state -->
+    <div *ngIf="isLoading" class="flex justify-center items-center h-64">
+        <div
+            class="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-blue-500"></div>
+    </div>
+
+    <div *ngIf="!isLoading">
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h1 class="text-2xl font-bold text-gray-800 mb-6">Paramètres du
+                compte</h1>
+
+            <!-- Success alert -->
+            <div *ngIf="showSuccess"
+                class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-6"
+                role="alert">
+                <div class="flex">
+                    <div class="py-1">
+                        <svg class="h-6 w-6 text-green-500 mr-4" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <p>Vos informations ont été mises à jour avec
+                            succès.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Error alert -->
+            <div *ngIf="showError"
+                class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6"
+                role="alert">
+                <div class="flex justify-between items-center">
+                    <div class="flex">
+                        <div class="py-1">
+                            <svg class="h-6 w-6 text-red-500 mr-4" fill="none"
+                                viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round"
+                                    stroke-linejoin="round" stroke-width="2"
+                                    d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <p>{{ errorMessage }}</p>
+                        </div>
+                    </div>
+                    <button (click)="closeError()"
+                        class="text-red-500 hover:text-red-700">
+                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Personal Information Form -->
+            <div class="mb-8">
+                <h2
+                    class="text-xl font-semibold text-gray-700 mb-4">Informations
+                    personnelles</h2>
+                <form [formGroup]="personalInfoForm" (ngSubmit)="onSubmit()"
+                    class="space-y-6">
+                    <!-- Form Row - First & Last Name -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="firstName"
+                                class="block text-sm font-medium text-gray-700 mb-1">Prénom</label>
+                            <input
+                                type="text"
+                                id="firstName"
+                                formControlName="firstName"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                [ngClass]="{'border-red-500': hasError('firstName', 'required') || hasError('firstName', 'minlength')}">
+                            <div *ngIf="hasError('firstName', 'required')"
+                                class="mt-1 text-sm text-red-500">
+                                Le prénom est requis.
+                            </div>
+                            <div *ngIf="hasError('firstName', 'minlength')"
+                                class="mt-1 text-sm text-red-500">
+                                Le prénom doit contenir au moins 2 caractères.
+                            </div>
+                        </div>
+
+                        <div>
+                            <label for="lastName"
+                                class="block text-sm font-medium text-gray-700 mb-1">Nom</label>
+                            <input
+                                type="text"
+                                id="lastName"
+                                formControlName="lastName"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                [ngClass]="{'border-red-500': hasError('lastName', 'required') || hasError('lastName', 'minlength')}">
+                            <div *ngIf="hasError('lastName', 'required')"
+                                class="mt-1 text-sm text-red-500">
+                                Le nom est requis.
+                            </div>
+                            <div *ngIf="hasError('lastName', 'minlength')"
+                                class="mt-1 text-sm text-red-500">
+                                Le nom doit contenir au moins 2 caractères.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Form Row - Email & Phone -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="email"
+                                class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                            <input
+                                type="email"
+                                id="email"
+                                formControlName="email"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                [ngClass]="{'border-red-500': hasError('email', 'required') || hasError('email', 'email')}">
+                            <div *ngIf="hasError('email', 'required')"
+                                class="mt-1 text-sm text-red-500">
+                                L'email est requis.
+                            </div>
+                            <div *ngIf="hasError('email', 'email')"
+                                class="mt-1 text-sm text-red-500">
+                                Veuillez saisir une adresse email valide.
+                            </div>
+                        </div>
+
+                        <div>
+                            <label for="phone"
+                                class="block text-sm font-medium text-gray-700 mb-1">Téléphone</label>
+                            <input
+                                type="tel"
+                                id="phone"
+                                formControlName="phone"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                [ngClass]="{'border-red-500': hasError('phone', 'required') || hasError('phone', 'pattern')}">
+                            <div *ngIf="hasError('phone', 'required')"
+                                class="mt-1 text-sm text-red-500">
+                                Le numéro de téléphone est requis.
+                            </div>
+                            <div *ngIf="hasError('phone', 'pattern')"
+                                class="mt-1 text-sm text-red-500">
+                                Veuillez saisir un numéro de téléphone valide.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Form Row - Address -->
+                    <div>
+                        <label for="address"
+                            class="block text-sm font-medium text-gray-700 mb-1">Adresse</label>
+                        <input
+                            type="text"
+                            id="address"
+                            formControlName="address"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                            [ngClass]="{'border-red-500': hasError('address', 'required')}">
+                        <div *ngIf="hasError('address', 'required')"
+                            class="mt-1 text-sm text-red-500">
+                            L'adresse est requise.
+                        </div>
+                    </div>
+
+                    <!-- Form Row - City & Occupation -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="city"
+                                class="block text-sm font-medium text-gray-700 mb-1">Ville</label>
+                            <input
+                                type="text"
+                                id="city"
+                                formControlName="city"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                [ngClass]="{'border-red-500': hasError('city', 'required')}">
+                            <div *ngIf="hasError('city', 'required')"
+                                class="mt-1 text-sm text-red-500">
+                                La ville est requise.
+                            </div>
+                        </div>
+
+                        <div>
+                            <label for="occupation"
+                                class="block text-sm font-medium text-gray-700 mb-1">Profession</label>
+                            <input
+                                type="text"
+                                id="occupation"
+                                formControlName="occupation"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                    </div>
+
+                    <!-- Contact Preference -->
+                    <div>
+                        <label
+                            class="block text-sm font-medium text-gray-700 mb-1">Préférence
+                            de contact</label>
+                        <div class="mt-2 space-y-2">
+                            <div class="flex flex-wrap gap-4">
+                                <div *ngFor="let option of contactPreferences"
+                                    class="flex items-center">
+                                    <input
+                                        type="radio"
+                                        [id]="'contactPref_' + option.value"
+                                        [value]="option.value"
+                                        formControlName="contactPreference"
+                                        class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300">
+                                    <label [for]="'contactPref_' + option.value"
+                                        class="ml-2 text-sm text-gray-700">
+                                        {{ option.label }}
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <div class="flex justify-end pt-4">
+                        <button
+                            type="submit"
+                            class="px-4 py-2 bg-blue-600 text-white rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 flex items-center"
+                            [disabled]="isSaving || personalInfoForm.invalid"
+                            [ngClass]="{'opacity-70 cursor-not-allowed': isSaving || personalInfoForm.invalid}">
+                            <span *ngIf="isSaving"
+                                class="inline-block w-4 h-4 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                            {{ isSaving ? 'Enregistrement...' :
+                            'Enregistrer les modifications' }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Identity Information (Read-only) -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 class="text-xl font-semibold text-gray-700 mb-4">Informations
+                d'identité</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <p class="text-sm text-gray-500 mb-1">Type d'identité</p>
+                    <p class="font-medium">{{ client?.identityType }}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500 mb-1">Numéro d'identité</p>
+                    <p class="font-medium">{{ client?.identityNumber }}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500 mb-1">Date de naissance</p>
+                    <p class="font-medium">{{ client?.birthDate |
+                        date:'dd/MM/yyyy' }}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500 mb-1">Client depuis</p>
+                    <p class="font-medium">{{ client?.dateJoined |
+                        date:'dd/MM/yyyy' }}</p>
+                </div>
+            </div>
+
+            <div class="mt-6 pt-6 border-t border-gray-200">
+                <div class="text-sm text-gray-500">
+                    Pour modifier vos informations d'identité, veuillez
+                    contacter notre service client ou vous rendre dans l'une de
+                    nos agences avec une pièce d'identité.
+                </div>
+            </div>
+        </div>
+
+        <!-- Account Preferences (For demonstration) -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-xl font-semibold text-gray-700 mb-4">Préférences du
+                compte</h2>
+
+            <div class="space-y-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="font-medium text-gray-800">Notifications par
+                            email</h3>
+                        <p class="text-sm text-gray-500">Recevoir des
+                            notifications par email pour les activités de
+                            compte</p>
+                    </div>
+                    <div
+                        class="relative inline-block w-12 mr-2 align-middle select-none">
+                        <input type="checkbox" id="toggle1" class="sr-only"
+                            checked />
+                        <label for="toggle1"
+                            class="toggle-bg block h-6 rounded-full bg-blue-600 cursor-pointer"></label>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="font-medium text-gray-800">Notifications par
+                            SMS</h3>
+                        <p class="text-sm text-gray-500">Recevoir des
+                            notifications par SMS pour les transactions
+                            importantes</p>
+                    </div>
+                    <div
+                        class="relative inline-block w-12 mr-2 align-middle select-none">
+                        <input type="checkbox" id="toggle2" class="sr-only" />
+                        <label for="toggle2"
+                            class="toggle-bg block h-6 rounded-full bg-gray-300 cursor-pointer"></label>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="font-medium text-gray-800">Newsletters et
+                            promotions</h3>
+                        <p class="text-sm text-gray-500">Recevoir des
+                            informations sur nos nouveaux produits et offres</p>
+                    </div>
+                    <div
+                        class="relative inline-block w-12 mr-2 align-middle select-none">
+                        <input type="checkbox" id="toggle3" class="sr-only"
+                            checked />
+                        <label for="toggle3"
+                            class="toggle-bg block h-6 rounded-full bg-blue-600 cursor-pointer"></label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

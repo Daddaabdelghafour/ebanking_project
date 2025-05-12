@@ -1,217 +1,359 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
-
-interface Beneficiary {
-  id: string;
-  name: string;
-  accountNumber: string;
-  bank: string;
-  iconColor: string;
-  lastTransfer?: Date;
-  favorite: boolean;
-}
-
-interface Transfer {
-  id: string;
-  recipient: string;
-  recipientAccount: string;
-  amount: number;
-  date: Date;
-  purpose?: string;
-  status: 'completed' | 'pending' | 'failed';
-  reference?: string;
-}
+import { RouterModule } from '@angular/router';
+import { FormsModule, ReactiveFormsModule, FormGroup, FormBuilder, Validators } from '@angular/forms';
+import { ClientService } from '../../../services/client/client.service';
+import { TransferService } from '../../../services/transfer/transfer.service';
+import { Client, Account } from '../../../shared/models/client.model';
+import { Transfer, TransferFormData } from '../../../shared/models/transfer.model';
 
 @Component({
   selector: 'app-transfers',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, RouterModule, FormsModule, ReactiveFormsModule],
   templateUrl: './transfers.component.html',
   styleUrls: ['./transfers.component.css']
 })
 export class TransfersComponent implements OnInit {
-  transferForm: FormGroup;
-  selectedBeneficiary: Beneficiary | null = null;
-  showBeneficiaryList = false;
-  showConfirmation = false;
-  beneficiaries: Beneficiary[] = [];
-  transfers: Transfer[] = [];
+  // Client and account data
+  currentClient: Client | null = null;
+  clientAccounts: Account[] = [];
+  selectedAccount: Account | null = null;
   
-  constructor(private fb: FormBuilder) {
-    this.transferForm = this.fb.group({
-      beneficiaryId: ['', Validators.required],
-      amount: ['', [Validators.required, Validators.min(1)]],
-      purpose: [''],
-      reference: ['']
-    });
+  // Transfers data
+  transfers: Transfer[] = [];
+  selectedTransfer: Transfer | null = null;
+  
+  // Form data
+  transferForm: FormGroup;
+  banks: {code: string, name: string}[] = [];
+  currencies: string[] = [];
+  transferTypes: {id: string, label: string}[] = [];
+  recurringFrequencies: {id: string, label: string}[] = [];
+  
+  // UI state
+  isLoading = true;
+  isSubmitting = false;
+  showTransferForm = false;
+  showTransferDetails = false;
+  showSuccess = false;
+  showError = false;
+  errorMessage = '';
+  currentTab = 'history'; // 'history' or 'new'
+  
+  constructor(
+    private clientService: ClientService,
+    private transferService: TransferService,
+    private fb: FormBuilder
+  ) {
+    this.transferForm = this.createTransferForm();
   }
-
+  
   ngOnInit(): void {
-    // In a real app, these would be loaded from a service
-    this.loadBeneficiaries();
-    this.loadTransfers();
+    this.loadClientData();
+    this.loadReferenceData();
   }
-
-  loadBeneficiaries(): void {
-    this.beneficiaries = [
-      {
-        id: 'ben1',
-        name: 'Ahmed Benali',
-        accountNumber: 'MA140000012345678901234567',
-        bank: 'Banque Populaire',
-        iconColor: 'bg-blue-600',
-        lastTransfer: new Date(2023, 3, 15),
-        favorite: true
-      },
-      {
-        id: 'ben2',
-        name: 'Fatima Zahra',
-        accountNumber: 'MA140000098765432109876543',
-        bank: 'Attijariwafa Bank',
-        iconColor: 'bg-green-600',
-        lastTransfer: new Date(2023, 2, 28),
-        favorite: true
-      },
-      {
-        id: 'ben3',
-        name: 'Youssef El Mansouri',
-        accountNumber: 'MA140000076543210987654321',
-        bank: 'BMCE Bank',
-        iconColor: 'bg-purple-600',
-        lastTransfer: new Date(2023, 1, 20),
-        favorite: false
-      }
-    ];
-  }
-
-  loadTransfers(): void {
-    this.transfers = [
-      {
-        id: 'tr1',
-        recipient: 'Ahmed Benali',
-        recipientAccount: 'MA14****4567',
-        amount: 1500.00,
-        date: new Date(2023, 3, 15),
-        purpose: 'Remboursement',
-        status: 'completed',
-        reference: 'REF123456'
-      },
-      {
-        id: 'tr2',
-        recipient: 'Fatima Zahra',
-        recipientAccount: 'MA14****6543',
-        amount: 800.00,
-        date: new Date(2023, 3, 10),
-        purpose: 'Loyer',
-        status: 'completed',
-        reference: 'REF789012'
-      },
-      {
-        id: 'tr3',
-        recipient: 'Youssef El Mansouri',
-        recipientAccount: 'MA14****4321',
-        amount: 250.00,
-        date: new Date(2023, 3, 5),
-        purpose: 'Facture',
-        status: 'failed',
-        reference: 'REF345678'
-      },
-      {
-        id: 'tr4',
-        recipient: 'Ahmed Benali',
-        recipientAccount: 'MA14****4567',
-        amount: 2000.00,
-        date: new Date(2023, 2, 28),
-        purpose: 'Paiement',
-        status: 'completed',
-        reference: 'REF901234'
-      },
-      {
-        id: 'tr5',
-        recipient: 'Fatima Zahra',
-        recipientAccount: 'MA14****6543',
-        amount: 300.00,
-        date: new Date(),
-        purpose: 'Divers',
-        status: 'pending',
-        reference: 'REF567890'
-      }
-    ];
-  }
-
-  toggleBeneficiaryList(): void {
-    this.showBeneficiaryList = !this.showBeneficiaryList;
-  }
-
-  selectBeneficiary(beneficiary: Beneficiary): void {
-    this.selectedBeneficiary = beneficiary;
-    this.transferForm.patchValue({
-      beneficiaryId: beneficiary.id
+  
+  createTransferForm(): FormGroup {
+    return this.fb.group({
+      senderAccountId: ['', Validators.required],
+      transferType: ['domestic', Validators.required],
+      recipientAccountNumber: ['', [Validators.required, Validators.minLength(4)]],
+      recipientName: ['', [Validators.required, Validators.minLength(3)]],
+      recipientBankCode: [''],
+      amount: ['', [Validators.required, Validators.min(1)]],
+      currency: ['MAD', Validators.required],
+      reason: [''],
+      isScheduled: [false],
+      scheduledDate: [null],
+      isRecurring: [false],
+      recurringFrequency: ['monthly']
     });
-    this.showBeneficiaryList = false;
   }
-
-  getSelectedBeneficiary(): Beneficiary | null {
-    const id = this.transferForm.get('beneficiaryId')?.value;
-    return this.beneficiaries.find(b => b.id === id) || null;
+  
+  loadClientData(): void {
+    // Pour la démo, on utilise le premier client
+    const clientId = 'cl1';
+    
+    this.isLoading = true;
+    this.clientService.getClientById(clientId).subscribe({
+      next: (client) => {
+        if (client) {
+          this.currentClient = client;
+          
+          // Extract accounts from client data
+          if (client.accounts && client.accounts.length > 0) {
+            this.clientAccounts = client.accounts;
+            this.selectedAccount = client.accounts[0];
+            
+            // Set default sender account
+            this.transferForm.patchValue({
+              senderAccountId: this.selectedAccount.id,
+              currency: this.selectedAccount.currency
+            });
+            
+            // Load transfers for the selected account
+            this.loadTransfers(this.selectedAccount.id);
+          } else {
+            this.isLoading = false;
+            this.showError = true;
+            this.errorMessage = "Aucun compte trouvé pour effectuer des virements.";
+          }
+        } else {
+          this.isLoading = false;
+          this.showError = true;
+          this.errorMessage = "Client non trouvé.";
+        }
+      },
+      error: (err) => {
+        console.error('Erreur lors du chargement des données client', err);
+        this.isLoading = false;
+        this.showError = true;
+        this.errorMessage = "Erreur lors du chargement des données client.";
+      }
+    });
   }
-
-  getBeneficiaryInitials(name: string): string {
-    return name.split(' ').map(n => n[0]).join('').toUpperCase();
+  
+  loadTransfers(accountId: string): void {
+    this.transferService.getTransfers(accountId).subscribe({
+      next: (transfers) => {
+        this.transfers = transfers;
+        this.isLoading = false;
+      },
+      error: (err) => {
+        console.error('Erreur lors du chargement des transferts', err);
+        this.isLoading = false;
+        this.showError = true;
+        this.errorMessage = "Erreur lors du chargement des transferts.";
+      }
+    });
+  }
+  
+  loadReferenceData(): void {
+    // Load banks
+    this.transferService.getBanks().subscribe(banks => {
+      this.banks = banks;
+    });
+    
+    // Load currencies
+    this.transferService.getCurrencies().subscribe(currencies => {
+      this.currencies = currencies;
+    });
+    
+    // Load transfer types
+    this.transferService.getTransferTypes().subscribe(types => {
+      this.transferTypes = types;
+    });
+    
+    // Load recurring frequencies
+    this.transferService.getRecurringFrequencies().subscribe(frequencies => {
+      this.recurringFrequencies = frequencies;
+    });
+  }
+  
+  onSubmitTransfer(): void {
+    if (this.transferForm.invalid) {
+      this.transferForm.markAllAsTouched();
+      return;
+    }
+    
+    this.isSubmitting = true;
+    const formData = this.transferForm.value;
+    
+    // Prepare transfer data
+    const transferData: TransferFormData = {
+      senderAccountId: formData.senderAccountId,
+      recipientAccountNumber: formData.recipientAccountNumber,
+      recipientName: formData.recipientName,
+      recipientBankCode: formData.transferType === 'international' ? formData.recipientBankCode : undefined,
+      amount: formData.amount,
+      currency: formData.currency,
+      reason: formData.reason,
+      scheduledDate: formData.isScheduled ? formData.scheduledDate : undefined,
+      isRecurring: formData.isRecurring,
+      recurringFrequency: formData.isRecurring ? formData.recurringFrequency : undefined,
+      type: formData.transferType
+    };
+    
+    this.transferService.createTransfer(transferData).subscribe({
+      next: (transfer) => {
+        this.isSubmitting = false;
+        this.showSuccess = true;
+        
+        // Reset form and reload transfers
+        this.transferForm.reset({
+          senderAccountId: this.selectedAccount?.id,
+          transferType: 'domestic',
+          currency: this.selectedAccount?.currency || 'MAD',
+          isScheduled: false,
+          isRecurring: false,
+          recurringFrequency: 'monthly'
+        });
+        
+        // Switch to history tab after success
+        setTimeout(() => {
+          this.currentTab = 'history';
+          this.showSuccess = false;
+          this.loadTransfers(this.selectedAccount?.id || '');
+        }, 3000);
+      },
+      error: (err) => {
+        console.error('Erreur lors de la création du virement', err);
+        this.isSubmitting = false;
+        this.showError = true;
+        this.errorMessage = "Erreur lors de la création du virement.";
+      }
+    });
+  }
+  
+  viewTransferDetails(transfer: Transfer): void {
+    this.selectedTransfer = transfer;
+    this.showTransferDetails = true;
+  }
+  
+  closeTransferDetails(): void {
+    this.selectedTransfer = null;
+    this.showTransferDetails = false;
+  }
+  
+  cancelTransfer(transferId?: string): void {
+  if (!transferId) return;
+  
+  if (confirm('Êtes-vous sûr de vouloir annuler ce virement ?')) {
+    this.transferService.cancelTransfer(transferId).subscribe({
+      next: (success) => {
+        if (success) {
+          // Reload transfers
+          this.loadTransfers(this.selectedAccount?.id || '');
+        } else {
+          this.showError = true;
+          this.errorMessage = "Impossible d'annuler ce virement.";
+        }
+      },
+      error: (err) => {
+        console.error('Erreur lors de l\'annulation du virement', err);
+        this.showError = true;
+        this.errorMessage = "Erreur lors de l'annulation du virement.";
+      }
+    });
+  }
+}
+  
+  selectAccount(account: Account): void {
+    this.selectedAccount = account;
+    // Update form sender account and load transfers
+    this.transferForm.patchValue({
+      senderAccountId: account.id,
+      currency: account.currency
+    });
+    this.loadTransfers(account.id);
+  }
+  
+  switchTab(tab: string): void {
+    this.currentTab = tab;
+    if (tab === 'new') {
+      // Reset any previous success/error messages
+      this.showSuccess = false;
+      this.showError = false;
+    }
+  }
+  
+  onTransferTypeChange(): void {
+    const transferType = this.transferForm.get('transferType')?.value;
+    
+    // If international, require bank code
+    if (transferType === 'international') {
+      this.transferForm.get('recipientBankCode')?.setValidators([Validators.required]);
+    } else {
+      this.transferForm.get('recipientBankCode')?.clearValidators();
+    }
+    this.transferForm.get('recipientBankCode')?.updateValueAndValidity();
+    
+    // If internal, pre-set recipient to client's other accounts
+    if (transferType === 'internal' && this.clientAccounts.length > 1) {
+      // Find accounts other than the selected sender account
+      const otherAccounts = this.clientAccounts.filter(
+        acc => acc.id !== this.transferForm.get('senderAccountId')?.value
+      );
+      
+      if (otherAccounts.length > 0) {
+        const recipientAccount = otherAccounts[0];
+        this.transferForm.patchValue({
+          recipientAccountNumber: recipientAccount.accountNumber,
+          recipientName: `${this.currentClient?.firstName} ${this.currentClient?.lastName}`,
+          currency: recipientAccount.currency
+        });
+      }
+    }
+  }
+  
+  // Helper methods for form validation
+  hasError(controlName: string, errorName: string): boolean {
+    const control = this.transferForm.get(controlName);
+    return !!control && control.touched && control.hasError(errorName);
+  }
+  
+  closeError(): void {
+    this.showError = false;
+  }
+  
+  // Formatting helper methods
+  formatCurrency(amount: number, currency: string): string {
+    return new Intl.NumberFormat('fr-MA', { 
+      style: 'currency', 
+      currency: currency 
+    }).format(amount);
+  }
+  
+  formatDate(date: Date | undefined): string {
+    if (!date) return 'N/A';
+    return new Intl.DateTimeFormat('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    }).format(new Date(date));
   }
   
   getStatusClass(status: string): string {
-    switch (status) {
+    switch(status) {
       case 'completed':
         return 'bg-green-100 text-green-800';
       case 'pending':
         return 'bg-yellow-100 text-yellow-800';
       case 'failed':
         return 'bg-red-100 text-red-800';
+      case 'cancelled':
+        return 'bg-gray-100 text-gray-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
   }
-
-  submitTransfer(): void {
-    if (this.transferForm.valid && this.selectedBeneficiary) {
-      this.confirmTransfer();
+  
+  getStatusText(status: string): string {
+    switch(status) {
+      case 'completed':
+        return 'Exécuté';
+      case 'pending':
+        return 'En attente';
+      case 'failed':
+        return 'Échoué';
+      case 'cancelled':
+        return 'Annulé';
+      default:
+        return status;
     }
   }
-
-  confirmTransfer(): void {
-    // In a real app, this would call an API to process the transfer
-    this.showConfirmation = true;
-    
-    const selectedBeneficiary = this.getSelectedBeneficiary();
-    const accountNumber = selectedBeneficiary?.accountNumber || '';
-    let maskedAccount = '';
-    
-    if (accountNumber) {
-      // Create a masked version of the account number (first 4 chars + **** + last 7 chars)
-      maskedAccount = accountNumber.substring(0, 4) + '****' + 
-                     accountNumber.substring(accountNumber.length - 7);
+  
+  getTransferTypeText(type: string): string {
+    switch(type) {
+      case 'domestic':
+        return 'National';
+      case 'international':
+        return 'International';
+      case 'internal':
+        return 'Interne';
+      default:
+        return type;
     }
-    
-    // Add the new transfer to the list (in a real app, this would be returned from the API)
-    const newTransfer: Transfer = {
-      id: 'tr' + Math.floor(1000 + Math.random() * 9000),
-      recipient: selectedBeneficiary?.name || '',
-      recipientAccount: maskedAccount,
-      amount: parseFloat(this.transferForm.get('amount')?.value),
-      date: new Date(),
-      purpose: this.transferForm.get('purpose')?.value,
-      status: 'pending',
-      reference: this.transferForm.get('reference')?.value || `REF${Math.floor(100000 + Math.random() * 900000)}`
-    };
-    
-    this.transfers.unshift(newTransfer);
-  }
-
-  closeConfirmation(): void {
-    this.showConfirmation = false;
-    this.transferForm.reset();
-    this.selectedBeneficiary = null;
   }
 }

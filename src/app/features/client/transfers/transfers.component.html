@@ -1,345 +1,604 @@
-<!-- Page header -->
-<div class="bg-white rounded-lg shadow p-6 mb-6">
-    <div class="flex justify-between items-center">
-        <div>
-            <h2 class="text-2xl font-bold text-gray-800">Virements
-                Bancaires</h2>
-            <p class="text-gray-600">Effectuez des virements rapides et
-                sécurisés vers vos bénéficiaires</p>
-        </div>
-    </div>
-</div>
-
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-    <!-- Transfer form - Left column on large screens, full width on small -->
-    <div class="lg:col-span-1">
-        <div class="bg-white rounded-lg shadow">
-            <div class="p-6">
-                <h3 class="text-lg font-semibold mb-4">Nouveau Virement</h3>
-
-                <form [formGroup]="transferForm" (ngSubmit)="submitTransfer()">
-                    <!-- Beneficiary Selection -->
-                    <div class="mb-5">
-                        <label
-                            class="block text-sm font-medium text-gray-700 mb-1">
-                            Bénéficiaire
-                        </label>
-                        <div class="relative">
-                            <div
-                                (click)="toggleBeneficiaryList()"
-                                class="w-full border rounded-lg p-3 cursor-pointer hover:border-blue-500 flex justify-between items-center">
-                                <div class="flex items-center">
-                                    <div
-                                        *ngIf="selectedBeneficiary; else noBeneficiary">
-                                        <div class="flex items-center">
-                                            <div
-                                                class="h-10 w-10 rounded-full flex items-center justify-center text-white"
-                                                [ngClass]="selectedBeneficiary.iconColor">
-                                                {{
-                                                getBeneficiaryInitials(selectedBeneficiary.name)
-                                                }}
-                                            </div>
-                                            <div class="ml-3">
-                                                <div class="font-medium">{{
-                                                    selectedBeneficiary.name
-                                                    }}</div>
-                                                <div
-                                                    class="text-xs text-gray-500">{{
-                                                    selectedBeneficiary.bank
-                                                    }}</div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <ng-template #noBeneficiary>
-                                        <div class="text-gray-500">Sélectionnez
-                                            un bénéficiaire</div>
-                                    </ng-template>
-                                </div>
-                                <i
-                                    class="fa-solid fa-chevron-down text-gray-400"></i>
-                            </div>
-
-                            <!-- Beneficiary dropdown list -->
-                            <div *ngIf="showBeneficiaryList"
-                                class="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-lg border overflow-hidden">
-                                <div class="p-2 border-b">
-                                    <div class="relative">
-                                        <input type="text"
-                                            placeholder="Rechercher un bénéficiaire..."
-                                            class="w-full p-2 pl-9 border rounded">
-                                        <i
-                                            class="fa-solid fa-search absolute left-3 top-3 text-gray-400"></i>
-                                    </div>
-                                </div>
-                                <div class="max-h-60 overflow-y-auto">
-                                    <div *ngFor="let ben of beneficiaries"
-                                        (click)="selectBeneficiary(ben)"
-                                        class="p-3 hover:bg-gray-50 cursor-pointer border-b last:border-b-0"
-                                        [class.border-blue-600]="selectedBeneficiary?.id === ben.id"
-                                        [class.bg-blue-50]="selectedBeneficiary?.id === ben.id">
-                                        <div class="flex items-center">
-                                            <div
-                                                class="h-10 w-10 rounded-full flex items-center justify-center text-white"
-                                                [ngClass]="ben.iconColor">
-                                                {{
-                                                getBeneficiaryInitials(ben.name)
-                                                }}
-                                            </div>
-                                            <div class="ml-3">
-                                                <div class="font-medium">{{
-                                                    ben.name }}</div>
-                                                <div
-                                                    class="text-xs flex items-center justify-between">
-                                                    <span
-                                                        class="text-gray-500">{{
-                                                        ben.bank }}</span>
-                                                    <span
-                                                        *ngIf="selectedBeneficiary?.id === ben.id"
-                                                        class="ml-2 text-blue-600">
-                                                        <i
-                                                            class="fa-solid fa-check"></i>
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="p-2 border-t">
-                                    <button type="button"
-                                        class="w-full p-2 text-center text-blue-600 hover:bg-blue-50 rounded">
-                                        <i class="fa-solid fa-plus mr-1"></i>
-                                        Ajouter un bénéficiaire
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                        <div
-                            *ngIf="transferForm.get('beneficiaryId')?.invalid && transferForm.get('beneficiaryId')?.touched"
-                            class="mt-1 text-sm text-red-600">
-                            Veuillez sélectionner un bénéficiaire
-                        </div>
-                    </div>
-
-                    <!-- Amount -->
-                    <div class="mb-5">
-                        <label for="amount"
-                            class="block text-sm font-medium text-gray-700 mb-1">
-                            Montant
-                        </label>
-                        <div class="relative">
-                            <div
-                                class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <span class="text-gray-500">MAD</span>
-                            </div>
-                            <input
-                                type="number"
-                                id="amount"
-                                formControlName="amount"
-                                placeholder="0.00"
-                                class="block w-full pl-12 pr-12 py-2 border rounded-lg focus:ring-blue-500 focus:border-blue-500">
-                        </div>
-                        <div
-                            *ngIf="transferForm.get('amount')?.invalid && transferForm.get('amount')?.touched"
-                            class="mt-1 text-sm text-red-600">
-                            <span
-                                *ngIf="transferForm.get('amount')?.errors?.['required']">Le
-                                montant est requis</span>
-                            <span
-                                *ngIf="transferForm.get('amount')?.errors?.['min']">Le
-                                montant minimum est 1 MAD</span>
-                        </div>
-                    </div>
-
-                    <!-- Purpose -->
-                    <div class="mb-5">
-                        <label for="purpose"
-                            class="block text-sm font-medium text-gray-700 mb-1">
-                            Motif de virement (optionnel)
-                        </label>
-                        <select
-                            id="purpose"
-                            formControlName="purpose"
-                            class="block w-full py-2 px-3 border rounded-lg focus:ring-blue-500 focus:border-blue-500">
-                            <option value>Sélectionner un motif</option>
-                            <option value="Loyer">Loyer</option>
-                            <option value="Facture">Facture</option>
-                            <option value="Remboursement">Remboursement</option>
-                            <option value="Salaire">Salaire</option>
-                            <option value="Divers">Divers</option>
-                        </select>
-                    </div>
-
-                    <!-- Reference -->
-                    <div class="mb-5">
-                        <label for="reference"
-                            class="block text-sm font-medium text-gray-700 mb-1">
-                            Référence (optionnel)
-                        </label>
-                        <input
-                            type="text"
-                            id="reference"
-                            formControlName="reference"
-                            placeholder="Référence de votre virement"
-                            class="block w-full py-2 px-3 border rounded-lg focus:ring-blue-500 focus:border-blue-500">
-                    </div>
-
-                    <!-- Submit button -->
-                    <div class="mt-6">
-                        <button
-                            type="submit"
-                            [disabled]="transferForm.invalid"
-                            class="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                            Effectuer le virement
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
+<div class="max-w-6xl mx-auto">
+    <!-- Loading state -->
+    <div *ngIf="isLoading" class="flex justify-center items-center h-64">
+        <div
+            class="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-blue-500"></div>
     </div>
 
-    <!-- Transaction History - Right column on large screens -->
-    <div class="lg:col-span-2">
-        <div class="bg-white rounded-lg shadow">
-            <div class="p-6 border-b">
-                <h3 class="text-lg font-semibold">Historique des virements</h3>
+    <div *ngIf="!isLoading">
+        <!-- Page header with accounts selector -->
+        <div class="mb-6">
+            <h1 class="text-2xl font-bold text-gray-800 mb-4">Virements
+                bancaires</h1>
+            <div class="bg-white rounded-lg shadow-sm p-4">
+                <div
+                    class="flex flex-col md:flex-row md:items-center md:justify-between">
+                    <div>
+                        <h2 class="text-lg font-medium text-gray-700">Compte
+                            sélectionné</h2>
+                        <div
+                            class="mt-2 space-y-3 sm:space-y-0 sm:flex sm:space-x-4">
+                            <div *ngFor="let account of clientAccounts"
+                                (click)="selectAccount(account)"
+                                class="flex items-center px-3 py-2 border rounded-md cursor-pointer transition-colors"
+                                [ngClass]="{
+                     'bg-blue-50 border-blue-300': selectedAccount?.id === account.id,
+                     'hover:bg-gray-50 border-gray-300': selectedAccount?.id !== account.id
+                   }">
+                                <div>
+                                    <div class="font-medium"
+                                        [ngClass]="{'text-blue-700': selectedAccount?.id === account.id}">
+                                        {{ account.type }}
+                                    </div>
+                                    <div class="text-sm text-gray-600">{{
+                                        account.accountNumber }}</div>
+                                </div>
+                                <div class="ml-4 font-semibold"
+                                    [ngClass]="{'text-blue-700': selectedAccount?.id === account.id}">
+                                    {{ formatCurrency(account.balance,
+                                    account.currency) }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab navigation -->
+        <div class="mb-6">
+            <div class="border-b border-gray-200">
+                <nav class="flex -mb-px">
+                    <button (click)="switchTab('history')"
+                        class="px-5 py-3 font-medium text-sm transition-colors duration-200"
+                        [ngClass]="currentTab === 'history' ? 
+                    'border-b-2 border-blue-500 text-blue-600' : 
+                    'text-gray-500 hover:text-gray-700 hover:border-gray-300'">
+                        Historique des virements
+                    </button>
+                    <button (click)="switchTab('new')"
+                        class="px-5 py-3 ml-8 font-medium text-sm transition-colors duration-200"
+                        [ngClass]="currentTab === 'new' ? 
+                    'border-b-2 border-blue-500 text-blue-600' : 
+                    'text-gray-500 hover:text-gray-700 hover:border-gray-300'">
+                        Nouveau virement
+                    </button>
+                </nav>
+            </div>
+        </div>
+
+        <!-- Error message -->
+        <div *ngIf="showError"
+            class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6"
+            role="alert">
+            <div class="flex justify-between items-center">
+                <div class="flex">
+                    <div class="py-1">
+                        <svg class="h-6 w-6 text-red-500 mr-4" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <p>{{ errorMessage }}</p>
+                    </div>
+                </div>
+                <button (click)="closeError()"
+                    class="text-red-500 hover:text-red-700">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Success message -->
+        <div *ngIf="showSuccess"
+            class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-6"
+            role="alert">
+            <div class="flex">
+                <div class="py-1">
+                    <svg class="h-6 w-6 text-green-500 mr-4" fill="none"
+                        viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                </div>
+                <div>
+                    <p class="font-medium">Virement créé avec succès!</p>
+                    <p class="text-sm">Votre demande de virement a été traitée
+                        et sera exécutée selon les modalités sélectionnées.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Transfers History Tab -->
+        <div *ngIf="currentTab === 'history'"
+            class="bg-white rounded-lg shadow-sm">
+            <div class="p-4 border-b">
+                <h3 class="text-lg font-medium text-gray-700">Historique des
+                    virements</h3>
             </div>
 
-            <!-- Transaction list -->
+            <!-- Transfer list -->
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
-                            <th
+                            <th scope="col"
                                 class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                            <th
+                            <th scope="col"
                                 class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bénéficiaire</th>
-                            <th
+                            <th scope="col"
                                 class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Montant</th>
-                            <th
-                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Motif</th>
-                            <th
+                            <th scope="col"
+                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                            <th scope="col"
                                 class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
-                            <th
-                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Référence</th>
+                            <th scope="col"
+                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
                         <tr *ngFor="let transfer of transfers"
                             class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm">
-                                {{ transfer.date | date:'dd/MM/yyyy' }}
-                            </td>
+                            <td
+                                class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{
+                                formatDate(transfer.executedDate ||
+                                transfer.scheduledDate) }}</td>
                             <td class="px-6 py-4 whitespace-nowrap">
-                                <div class="text-sm font-medium">{{
-                                    transfer.recipient }}</div>
-                                <div class="text-xs text-gray-500">{{
-                                    transfer.recipientAccount }}</div>
+                                <div
+                                    class="text-sm font-medium text-gray-900">{{
+                                    transfer.recipientName }}</div>
+                                <div class="text-sm text-gray-500">{{
+                                    transfer.recipientAccountNumber }}</div>
                             </td>
                             <td
                                 class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                {{ transfer.amount |
-                                currency:'MAD':'symbol':'1.2-2' }}
+                                {{ formatCurrency(transfer.amount,
+                                transfer.currency) }}
                             </td>
                             <td
-                                class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {{ transfer.purpose || 'N/A' }}
-                            </td>
+                                class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{
+                                getTransferTypeText(transfer.type) }}</td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <span
-                                    [ngClass]="getStatusClass(transfer.status)"
-                                    class="px-2 py-1 inline-flex text-xs leading-5 font-medium rounded-full">
-                                    {{ transfer.status === 'completed' ?
-                                    'Complété' :
-                                    transfer.status === 'pending' ? 'En cours' :
-                                    'Échoué' }}
+                                    class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
+                                    [ngClass]="getStatusClass(transfer.status)">
+                                    {{ getStatusText(transfer.status) }}
                                 </span>
                             </td>
                             <td
-                                class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {{ transfer.reference }}
+                                class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <button (click)="viewTransferDetails(transfer)"
+                                    class="text-blue-600 hover:text-blue-900 mr-4">Détails</button>
+                                <button *ngIf="transfer.status === 'pending'"
+                                    (click)="cancelTransfer(transfer.id)"
+                                    class="text-red-600 hover:text-red-900">Annuler</button>
+                            </td>
+                        </tr>
+
+                        <!-- Empty state -->
+                        <tr *ngIf="transfers.length === 0">
+                            <td colspan="6"
+                                class="px-6 py-10 text-center text-gray-500">
+                                Aucun virement trouvé pour ce compte
                             </td>
                         </tr>
                     </tbody>
                 </table>
             </div>
-
-            <!-- Pagination -->
-            <div class="px-6 py-4 flex items-center justify-between border-t">
-                <div class="text-sm text-gray-500">
-                    Affichage de <span class="font-medium">1</span> à <span
-                        class="font-medium">{{ transfers.length }}</span> sur
-                    <span class="font-medium">{{ transfers.length }}</span>
-                    virements
-                </div>
-                <div class="flex-1 flex justify-end">
-                    <nav class="relative z-0 inline-flex shadow-sm -space-x-px"
-                        aria-label="Pagination">
-                        <a href="#"
-                            class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
-                            <span class="sr-only">Previous</span>
-                            <i class="fa-solid fa-chevron-left"></i>
-                        </a>
-                        <a href="#"
-                            class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">1</a>
-                        <a href="#"
-                            class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">2</a>
-                        <a href="#"
-                            class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
-                            <span class="sr-only">Next</span>
-                            <i class="fa-solid fa-chevron-right"></i>
-                        </a>
-                    </nav>
-                </div>
-            </div>
         </div>
-    </div>
-</div>
 
-<!-- Confirmation modal -->
-<div *ngIf="showConfirmation" class="fixed inset-0 overflow-y-auto z-50"
-    aria-labelledby="modal-title" role="dialog" aria-modal="true">
-    <div
-        class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-        <!-- Background overlay -->
-        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
-            aria-hidden="true"></div>
+        <!-- New Transfer Tab -->
+        <div *ngIf="currentTab === 'new'"
+            class="bg-white rounded-lg shadow-sm p-6">
+            <h3 class="text-lg font-medium text-gray-700 mb-4">Nouveau
+                virement</h3>
 
-        <!-- Modal panel -->
-        <div
-            class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-            <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                <div class="sm:flex sm:items-start">
-                    <div
-                        class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-green-100 sm:mx-0 sm:h-10 sm:w-10">
-                        <i class="fa-solid fa-check text-green-600"></i>
-                    </div>
-                    <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
-                        <h3 class="text-lg leading-6 font-medium text-gray-900"
-                            id="modal-title">
-                            Virement en cours de traitement
-                        </h3>
-                        <div class="mt-2">
-                            <p class="text-sm text-gray-500">
-                                Votre virement vers {{
-                                getSelectedBeneficiary()?.name }} d'un montant
-                                de {{ transferForm.get('amount')?.value |
-                                currency:'MAD':'symbol':'1.2-2' }} est en cours
-                                de traitement. Vous pouvez suivre son statut
-                                dans l'historique des virements.
-                            </p>
+            <form [formGroup]="transferForm" (ngSubmit)="onSubmitTransfer()"
+                class="space-y-6">
+                <!-- Transfer Type -->
+                <div>
+                    <label
+                        class="block text-sm font-medium text-gray-700 mb-1">Type
+                        de virement</label>
+                    <div class="mt-1">
+                        <div class="flex space-x-4">
+                            <div *ngFor="let type of transferTypes"
+                                class="flex items-center">
+                                <input type="radio"
+                                    [value]="type.id"
+                                    [id]="'type-' + type.id"
+                                    formControlName="transferType"
+                                    (change)="onTransferTypeChange()"
+                                    class="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300">
+                                <label [for]="'type-' + type.id"
+                                    class="ml-2 block text-sm text-gray-700">
+                                    {{ type.label }}
+                                </label>
+                            </div>
                         </div>
                     </div>
                 </div>
+
+                <!-- Recipient Information Section -->
+                <div class="p-4 bg-gray-50 rounded-md">
+                    <h4 class="font-medium text-gray-700 mb-3">Information du
+                        bénéficiaire</h4>
+
+                    <!-- Recipient Account Number -->
+                    <div class="mb-4">
+                        <label for="recipientAccountNumber"
+                            class="block text-sm font-medium text-gray-700 mb-1">Numéro
+                            de compte</label>
+                        <input type="text"
+                            id="recipientAccountNumber"
+                            formControlName="recipientAccountNumber"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                            [ngClass]="{'border-red-500': hasError('recipientAccountNumber', 'required') || hasError('recipientAccountNumber', 'minlength')}">
+                        <div
+                            *ngIf="hasError('recipientAccountNumber', 'required')"
+                            class="mt-1 text-sm text-red-500">
+                            Le numéro de compte est obligatoire
+                        </div>
+                        <div
+                            *ngIf="hasError('recipientAccountNumber', 'minlength')"
+                            class="mt-1 text-sm text-red-500">
+                            Le numéro de compte doit contenir au moins 4
+                            caractères
+                        </div>
+                    </div>
+
+                    <!-- Recipient Name -->
+                    <div class="mb-4">
+                        <label for="recipientName"
+                            class="block text-sm font-medium text-gray-700 mb-1">Nom
+                            du bénéficiaire</label>
+                        <input type="text"
+                            id="recipientName"
+                            formControlName="recipientName"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                            [ngClass]="{'border-red-500': hasError('recipientName', 'required') || hasError('recipientName', 'minlength')}">
+                        <div *ngIf="hasError('recipientName', 'required')"
+                            class="mt-1 text-sm text-red-500">
+                            Le nom du bénéficiaire est obligatoire
+                        </div>
+                        <div *ngIf="hasError('recipientName', 'minlength')"
+                            class="mt-1 text-sm text-red-500">
+                            Le nom du bénéficiaire doit contenir au moins 3
+                            caractères
+                        </div>
+                    </div>
+
+                    <!-- Bank Code (for international transfers) -->
+                    <div
+                        *ngIf="transferForm.get('transferType')?.value === 'international'"
+                        class="mb-4">
+                        <label for="recipientBankCode"
+                            class="block text-sm font-medium text-gray-700 mb-1">Code
+                            bancaire (BIC/SWIFT)</label>
+                        <select id="recipientBankCode"
+                            formControlName="recipientBankCode"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                            [ngClass]="{'border-red-500': hasError('recipientBankCode', 'required')}">
+                            <option value>Sélectionnez une banque</option>
+                            <option *ngFor="let bank of banks"
+                                [value]="bank.code">{{ bank.name }} ({{
+                                bank.code }})</option>
+                        </select>
+                        <div *ngIf="hasError('recipientBankCode', 'required')"
+                            class="mt-1 text-sm text-red-500">
+                            Le code bancaire est obligatoire pour les virements
+                            internationaux
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Transfer Details Section -->
+                <div class="p-4 bg-gray-50 rounded-md">
+                    <h4 class="font-medium text-gray-700 mb-3">Détails du
+                        virement</h4>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <!-- Amount -->
+                        <div>
+                            <label for="amount"
+                                class="block text-sm font-medium text-gray-700 mb-1">Montant</label>
+                            <div class="mt-1 relative rounded-md shadow-sm">
+                                <input type="number"
+                                    id="amount"
+                                    formControlName="amount"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                                    [ngClass]="{'border-red-500': hasError('amount', 'required') || hasError('amount', 'min')}">
+                            </div>
+                            <div *ngIf="hasError('amount', 'required')"
+                                class="mt-1 text-sm text-red-500">
+                                Le montant est obligatoire
+                            </div>
+                            <div *ngIf="hasError('amount', 'min')"
+                                class="mt-1 text-sm text-red-500">
+                                Le montant doit être supérieur à 0
+                            </div>
+                        </div>
+
+                        <!-- Currency -->
+                        <div>
+                            <label for="currency"
+                                class="block text-sm font-medium text-gray-700 mb-1">Devise</label>
+                            <select id="currency"
+                                formControlName="currency"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                <option *ngFor="let currency of currencies"
+                                    [value]="currency">{{ currency }}</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Reason -->
+                    <div class="mb-4">
+                        <label for="reason"
+                            class="block text-sm font-medium text-gray-700 mb-1">Motif
+                            du virement</label>
+                        <input type="text"
+                            id="reason"
+                            formControlName="reason"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                    </div>
+                </div>
+
+                <!-- Schedule Options Section -->
+                <div class="p-4 bg-gray-50 rounded-md">
+                    <h4 class="font-medium text-gray-700 mb-3">Options de
+                        programmation</h4>
+
+                    <!-- Scheduled Checkbox -->
+                    <div class="mb-4">
+                        <div class="flex items-center">
+                            <input type="checkbox"
+                                id="isScheduled"
+                                formControlName="isScheduled"
+                                class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                            <label for="isScheduled"
+                                class="ml-2 block text-sm text-gray-700">
+                                Programmer ce virement pour une date ultérieure
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Scheduled Date -->
+                    <div *ngIf="transferForm.get('isScheduled')?.value"
+                        class="mb-4">
+                        <label for="scheduledDate"
+                            class="block text-sm font-medium text-gray-700 mb-1">Date
+                            d'exécution</label>
+                        <input type="date"
+                            id="scheduledDate"
+                            formControlName="scheduledDate"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                    </div>
+
+                    <!-- Recurring Checkbox -->
+                    <div class="mb-4">
+                        <div class="flex items-center">
+                            <input type="checkbox"
+                                id="isRecurring"
+                                formControlName="isRecurring"
+                                class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                            <label for="isRecurring"
+                                class="ml-2 block text-sm text-gray-700">
+                                Virement récurrent
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Recurring Frequency -->
+                    <div *ngIf="transferForm.get('isRecurring')?.value"
+                        class="mb-4">
+                        <label for="recurringFrequency"
+                            class="block text-sm font-medium text-gray-700 mb-1">Fréquence</label>
+                        <select id="recurringFrequency"
+                            formControlName="recurringFrequency"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                            <option *ngFor="let freq of recurringFrequencies"
+                                [value]="freq.id">{{ freq.label }}</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Terms and Conditions -->
+                <div class="text-sm text-gray-500 mt-4">
+                    <p>En effectuant ce virement, vous acceptez nos conditions
+                        générales et confirmez que les informations fournies
+                        sont exactes.</p>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="flex justify-end">
+                    <button type="submit"
+                        class="px-4 py-2 bg-blue-600 text-white rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 flex items-center"
+                        [disabled]="isSubmitting || transferForm.invalid"
+                        [ngClass]="{'opacity-70 cursor-not-allowed': isSubmitting || transferForm.invalid}">
+                        <span *ngIf="isSubmitting"
+                            class="inline-block w-4 h-4 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                        {{ isSubmitting ? 'Traitement en cours...' :
+                        'Effectuer le virement' }}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Transfer Details Modal -->
+    <div *ngIf="showTransferDetails" class="fixed inset-0 overflow-y-auto z-50">
+        <div
+            class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 transition-opacity"
+                (click)="closeTransferDetails()">
+                <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
             </div>
+
+            <!-- Modal panel -->
             <div
-                class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                <button
-                    type="button"
-                    (click)="closeConfirmation()"
-                    class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm">
-                    Fermer
-                </button>
+                class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <div class="sm:flex sm:items-start">
+                        <div
+                            class="mt-3 text-center sm:mt-0 sm:text-left w-full">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3
+                                    class="text-lg leading-6 font-medium text-gray-900">Détails
+                                    du virement</h3>
+                                <button (click)="closeTransferDetails()"
+                                    class="text-gray-400 hover:text-gray-500">
+                                    <svg class="h-6 w-6" fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor">
+                                        <path stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            stroke-width="2"
+                                            d="M6 18L18 6M6 6l12 12"></path>
+                                    </svg>
+                                </button>
+                            </div>
+
+                            <div class="mt-2 border-t pt-4">
+                                <dl>
+                                    <div
+                                        class="bg-gray-50 px-4 py-2 sm:grid sm:grid-cols-3 sm:gap-4">
+                                        <dt
+                                            class="text-sm font-medium text-gray-500">Référence</dt>
+                                        <dd
+                                            class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{
+                                            selectedTransfer?.reference }}</dd>
+                                    </div>
+                                    <div
+                                        class="bg-white px-4 py-2 sm:grid sm:grid-cols-3 sm:gap-4">
+                                        <dt
+                                            class="text-sm font-medium text-gray-500">Statut</dt>
+                                        <dd
+                                            class="mt-1 text-sm sm:mt-0 sm:col-span-2">
+                                            <span
+                                                class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
+                                                [ngClass]="selectedTransfer ? getStatusClass(selectedTransfer.status) : ''">
+                                                {{ selectedTransfer ?
+                                                getStatusText(selectedTransfer.status)
+                                                : '' }}
+                                            </span>
+                                        </dd>
+                                    </div>
+                                    <div
+                                        class="bg-gray-50 px-4 py-2 sm:grid sm:grid-cols-3 sm:gap-4">
+                                        <dt
+                                            class="text-sm font-medium text-gray-500">De</dt>
+                                        <dd
+                                            class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{
+                                            selectedTransfer?.senderAccountNumber
+                                            }}</dd>
+                                    </div>
+                                    <div
+                                        class="bg-white px-4 py-2 sm:grid sm:grid-cols-3 sm:gap-4">
+                                        <dt
+                                            class="text-sm font-medium text-gray-500">Vers</dt>
+                                        <dd
+                                            class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                                            {{ selectedTransfer?.recipientName
+                                            }}<br>
+                                            <span class="text-gray-500">{{
+                                                selectedTransfer?.recipientAccountNumber
+                                                }}</span>
+                                        </dd>
+                                    </div>
+                                    <div
+                                        class="bg-gray-50 px-4 py-2 sm:grid sm:grid-cols-3 sm:gap-4">
+                                        <dt
+                                            class="text-sm font-medium text-gray-500">Montant</dt>
+                                        <dd
+                                            class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2 font-semibold">
+                                            {{ selectedTransfer ?
+                                            formatCurrency(selectedTransfer.amount,
+                                            selectedTransfer.currency) : '' }}
+                                        </dd>
+                                    </div>
+                                    <div
+                                        class="bg-white px-4 py-2 sm:grid sm:grid-cols-3 sm:gap-4">
+                                        <dt
+                                            class="text-sm font-medium text-gray-500">Date
+                                            de création</dt>
+                                        <dd
+                                            class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                                            {{ selectedTransfer?.createdAt ?
+                                            formatDate(selectedTransfer.createdAt)
+                                            : 'N/A' }}
+                                        </dd>
+                                    </div>
+                                    <div
+                                        class="bg-gray-50 px-4 py-2 sm:grid sm:grid-cols-3 sm:gap-4">
+                                        <dt
+                                            class="text-sm font-medium text-gray-500">Date
+                                            d'exécution</dt>
+                                        <dd
+                                            class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                                            {{ selectedTransfer?.executedDate ?
+                                            formatDate(selectedTransfer.executedDate)
+                                            :
+                                            (selectedTransfer?.scheduledDate ?
+                                            formatDate(selectedTransfer.scheduledDate)
+                                            + ' (prévue)' : 'N/A') }}
+                                        </dd>
+                                    </div>
+                                    <div *ngIf="selectedTransfer?.reason"
+                                        class="bg-white px-4 py-2 sm:grid sm:grid-cols-3 sm:gap-4">
+                                        <dt
+                                            class="text-sm font-medium text-gray-500">Motif</dt>
+                                        <dd
+                                            class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{
+                                            selectedTransfer.reason }}</dd>
+                                    </div>
+                                    <div
+                                        *ngIf="selectedTransfer?.transactionFees"
+                                        class="bg-gray-50 px-4 py-2 sm:grid sm:grid-cols-3 sm:gap-4">
+                                        <dt
+                                            class="text-sm font-medium text-gray-500">Frais</dt>
+                                        <dd
+                                            class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                                            {{ selectedTransfer.transactionFees
+                                            }} {{ selectedTransfer.currency }}
+                                        </dd>
+                                    </div>
+                                    <div *ngIf="selectedTransfer?.isRecurring"
+                                        class="bg-white px-4 py-2 sm:grid sm:grid-cols-3 sm:gap-4">
+                                        <dt
+                                            class="text-sm font-medium text-gray-500">Récurrence</dt>
+                                        <dd
+                                            class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                                            {{
+                                            selectedTransfer?.recurringFrequency
+                                            }}
+                                        </dd>
+                                    </div>
+                                </dl>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div
+                    class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                    <button *ngIf="selectedTransfer?.status === 'pending'"
+                        (click)="cancelTransfer(selectedTransfer?.id); closeTransferDetails()"
+                        class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm">
+                        Annuler le virement
+                    </button>
+                    <button (click)="closeTransferDetails()"
+                        class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:w-auto sm:text-sm">
+                        Fermer
+                    </button>
+                </div>
             </div>
         </div>
     </div>

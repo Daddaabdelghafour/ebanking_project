@@ -1,0 +1,416 @@
+<div class="bg-white shadow-sm rounded-lg p-6">
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800">Gestion des
+                factures</h1>
+            <p class="text-gray-600 mt-1">Visualisez, ajoutez et payez vos
+                factures</p>
+        </div>
+        <button
+            (click)="toggleAddBillForm()"
+            class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500">
+            <span *ngIf="!showAddBillForm">Ajouter une facture</span>
+            <span *ngIf="showAddBillForm">Annuler</span>
+        </button>
+    </div>
+
+    <!-- Formulaire d'ajout de facture -->
+    <div *ngIf="showAddBillForm" class="border rounded-md p-6 mb-8">
+        <h2 class="text-lg font-bold mb-4">Nouvelle facture</h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <label for="provider"
+                    class="block text-sm font-medium text-gray-700">Fournisseur</label>
+                <select
+                    id="provider"
+                    [(ngModel)]="newBill.providerId"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500">
+                    <option value disabled selected>Sélectionnez un
+                        fournisseur</option>
+                    <option *ngFor="let provider of providers"
+                        [value]="provider.id">
+                        {{ provider.name }}
+                    </option>
+                </select>
+            </div>
+
+            <div>
+                <label for="billCategory"
+                    class="block text-sm font-medium text-gray-700">Catégorie</label>
+                <select
+                    id="billCategory"
+                    [(ngModel)]="newBill.billCategory"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500">
+                    <option value disabled selected>Sélectionnez une
+                        catégorie</option>
+                    <option *ngFor="let category of billCategories"
+                        [value]="category.id">
+                        {{ category.name }}
+                    </option>
+                </select>
+            </div>
+
+            <div>
+                <label for="reference"
+                    class="block text-sm font-medium text-gray-700">Numéro de
+                    référence</label>
+                <input
+                    type="text"
+                    id="reference"
+                    [(ngModel)]="newBill.referenceNumber"
+                    placeholder="Ex: facture123, contrat456..."
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500">
+            </div>
+
+            <div>
+                <label for="amount"
+                    class="block text-sm font-medium text-gray-700">Montant</label>
+                <input
+                    type="number"
+                    id="amount"
+                    [(ngModel)]="newBill.amount"
+                    min="0"
+                    step="0.01"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500">
+            </div>
+
+            <div>
+                <label for="dueDate"
+                    class="block text-sm font-medium text-gray-700">Date
+                    d'échéance</label>
+                <input
+                    type="date"
+                    id="dueDate"
+                    [(ngModel)]="newBill.dueDate"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500">
+            </div>
+
+            <div>
+                <label for="account"
+                    class="block text-sm font-medium text-gray-700">Compte à
+                    débiter</label>
+                <select
+                    id="account"
+                    [(ngModel)]="newBill.accountId"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500">
+                    <option *ngFor="let account of accounts"
+                        [value]="account.id">
+                        {{ account.type }} ({{ account.accountNumber }}) - {{
+                        account.balance }} {{ account.currency }}
+                    </option>
+                </select>
+            </div>
+
+            <div class="flex items-center mt-5">
+                <input
+                    type="checkbox"
+                    id="isRecurring"
+                    [(ngModel)]="newBill.isRecurring"
+                    class="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded">
+                <label for="isRecurring"
+                    class="ml-2 block text-sm text-gray-700">
+                    Facture récurrente
+                </label>
+            </div>
+
+            <div *ngIf="newBill.isRecurring">
+                <label for="recurringFrequency"
+                    class="block text-sm font-medium text-gray-700">Fréquence</label>
+                <select
+                    id="recurringFrequency"
+                    [(ngModel)]="newBill.recurringFrequency"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500">
+                    <option *ngFor="let freq of recurringFrequencies"
+                        [value]="freq.id">
+                        {{ freq.name }}
+                    </option>
+                </select>
+            </div>
+
+            <div class="flex items-center mt-5">
+                <input
+                    type="checkbox"
+                    id="notificationEnabled"
+                    [(ngModel)]="newBill.notificationEnabled"
+                    class="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded">
+                <label for="notificationEnabled"
+                    class="ml-2 block text-sm text-gray-700">
+                    Activer les notifications
+                </label>
+            </div>
+        </div>
+
+        <div class="mt-6 flex justify-end">
+            <button
+                (click)="addBill()"
+                [disabled]="!validateBillForm() || isLoading"
+                class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 disabled:bg-gray-300 disabled:cursor-not-allowed">
+                <span *ngIf="!isLoading">Ajouter la facture</span>
+                <span *ngIf="isLoading">En cours...</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Filtres -->
+    <div
+        class="flex flex-wrap items-center justify-between gap-4 mb-6 border-b pb-4">
+        <div class="flex gap-2">
+            <button
+                (click)="filterStatus = 'all'; applyFilters()"
+                [ngClass]="filterStatus === 'all' ? 'bg-teal-100 border-teal-500 text-teal-700' : 'bg-white border-gray-300 text-gray-700'"
+                class="inline-flex items-center px-3 py-1 border rounded-full text-sm font-medium">
+                Toutes
+            </button>
+            <button
+                (click)="filterStatus = 'pending'; applyFilters()"
+                [ngClass]="filterStatus === 'pending' ? 'bg-yellow-100 border-yellow-500 text-yellow-700' : 'bg-white border-gray-300 text-gray-700'"
+                class="inline-flex items-center px-3 py-1 border rounded-full text-sm font-medium">
+                En attente
+            </button>
+            <button
+                (click)="filterStatus = 'paid'; applyFilters()"
+                [ngClass]="filterStatus === 'paid' ? 'bg-green-100 border-green-500 text-green-700' : 'bg-white border-gray-300 text-gray-700'"
+                class="inline-flex items-center px-3 py-1 border rounded-full text-sm font-medium">
+                Payées
+            </button>
+            <button
+                (click)="filterStatus = 'overdue'; applyFilters()"
+                [ngClass]="filterStatus === 'overdue' ? 'bg-red-100 border-red-500 text-red-700' : 'bg-white border-gray-300 text-gray-700'"
+                class="inline-flex items-center px-3 py-1 border rounded-full text-sm font-medium">
+                En retard
+            </button>
+        </div>
+
+        <div class="relative">
+            <input
+                type="text"
+                [(ngModel)]="searchTerm"
+                (input)="applyFilters()"
+                placeholder="Rechercher une facture..."
+                class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-teal-500 focus:border-teal-500 sm:text-sm">
+            <div
+                class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg class="h-5 w-5 text-gray-400"
+                    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"
+                    fill="currentColor">
+                    <path fill-rule="evenodd"
+                        d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
+                        clip-rule="evenodd" />
+                </svg>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading state -->
+    <div *ngIf="isLoading" class="py-8 flex justify-center">
+        <div
+            class="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-teal-500"></div>
+    </div>
+
+    <!-- Empty state -->
+    <div *ngIf="!isLoading && filteredBills.length === 0"
+        class="text-center py-12 border rounded-md">
+        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none"
+            viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round"
+                stroke-width="2"
+                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+        <h3 class="mt-2 text-sm font-medium text-gray-900">Aucune facture</h3>
+        <p class="mt-1 text-sm text-gray-500">
+            Aucune facture ne correspond à votre recherche ou vous n'avez pas
+            encore ajouté de factures.
+        </p>
+    </div>
+
+    <!-- Bills list -->
+    <div *ngIf="!isLoading && filteredBills.length > 0">
+        <div class="space-y-4">
+            <div *ngFor="let bill of filteredBills"
+                class="border rounded-lg overflow-hidden">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 p-4">
+                    <div class="flex items-center">
+                        <div class="h-12 w-12 flex-shrink-0 mr-4">
+                            <img *ngIf="bill.logo" [src]="bill.logo"
+                                alt="{{ bill.providerName }}"
+                                class="h-full w-full object-contain">
+                            <div *ngIf="!bill.logo"
+                                class="h-full w-full flex items-center justify-center bg-gray-100 rounded-full">
+                                <span class="text-xl font-bold text-gray-400">{{
+                                    bill.providerName.charAt(0) }}</span>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="font-medium">{{ bill.providerName
+                                }}</div>
+                            <div class="text-sm text-gray-500">Réf: {{
+                                bill.referenceNumber }}</div>
+                        </div>
+                    </div>
+                    <div class="flex flex-col justify-center">
+                        <div class="text-sm text-gray-500">Montant</div>
+                        <div class="font-semibold">{{
+                            formatCurrency(bill.amount, bill.currency) }}</div>
+                        <div
+                            *ngIf="bill.paidAmount > 0 && bill.paidAmount < bill.amount"
+                            class="text-xs text-gray-500">
+                            Payé: {{ formatCurrency(bill.paidAmount,
+                            bill.currency) }}
+                        </div>
+                    </div>
+                    <div class="flex flex-col justify-center">
+                        <div class="text-sm text-gray-500">Échéance</div>
+                        <div class="font-medium">{{ formatDate(bill.dueDate)
+                            }}</div>
+                        <div *ngIf="bill.isRecurring"
+                            class="text-xs text-gray-500">
+                            Récurrent ({{ bill.recurringFrequency === 'monthly'
+                            ? 'Mensuel' :
+                            bill.recurringFrequency === 'quarterly' ?
+                            'Trimestriel' :
+                            bill.recurringFrequency === 'biannual' ?
+                            'Semestriel' : 'Annuel' }})
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span [ngClass]="getBillStatusClass(bill.status)"
+                            class="px-3 py-1 inline-flex text-xs leading-5 font-medium rounded-full">
+                            {{ getBillStatusLabel(bill.status) }}
+                        </span>
+                        <button
+                            *ngIf="bill.status !== 'paid'"
+                            (click)="openPaymentModal(bill)"
+                            class="ml-2 inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500">
+                            Payer
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Modal -->
+    <div *ngIf="selectedBill"
+        class="fixed inset-0 overflow-y-auto bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-medium text-gray-900">Payer une
+                        facture</h3>
+                    <button (click)="closePaymentModal()"
+                        class="text-gray-400 hover:text-gray-500">
+                        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <div *ngIf="!paymentSuccessful">
+                    <div class="mb-6">
+                        <div class="flex items-center mb-4">
+                            <div class="h-12 w-12 flex-shrink-0 mr-4">
+                                <img *ngIf="selectedBill.logo"
+                                    [src]="selectedBill.logo"
+                                    alt="{{ selectedBill.providerName }}"
+                                    class="h-full w-full object-contain">
+                                <div *ngIf="!selectedBill.logo"
+                                    class="h-full w-full flex items-center justify-center bg-gray-100 rounded-full">
+                                    <span
+                                        class="text-xl font-bold text-gray-400">{{
+                                        selectedBill.providerName.charAt(0)
+                                        }}</span>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="font-medium">{{
+                                    selectedBill.providerName }}</div>
+                                <div class="text-sm text-gray-500">Réf: {{
+                                    selectedBill.referenceNumber }}</div>
+                                <div class="text-sm font-semibold mt-1">
+                                    Montant total: {{
+                                    formatCurrency(selectedBill.amount,
+                                    selectedBill.currency) }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div *ngIf="selectedBill.paidAmount > 0"
+                            class="mb-4 bg-blue-50 p-3 rounded-md text-sm">
+                            <p class="font-medium text-blue-800">Paiement
+                                partiel effectué</p>
+                            <p class="text-blue-600">
+                                {{ formatCurrency(selectedBill.paidAmount,
+                                selectedBill.currency) }} déjà payés sur {{
+                                formatCurrency(selectedBill.amount,
+                                selectedBill.currency) }}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="space-y-4 mb-6">
+                        <div>
+                            <label for="paymentAmount"
+                                class="block text-sm font-medium text-gray-700">Montant
+                                à payer</label>
+                            <input
+                                type="number"
+                                id="paymentAmount"
+                                [(ngModel)]="paymentAmount"
+                                [max]="selectedBill.amount - selectedBill.paidAmount"
+                                min="0"
+                                step="0.01"
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500">
+                        </div>
+
+                        <div>
+                            <label for="paymentAccount"
+                                class="block text-sm font-medium text-gray-700">Compte
+                                à débiter</label>
+                            <select
+                                id="paymentAccount"
+                                [(ngModel)]="selectedAccountId"
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500">
+                                <option *ngFor="let account of accounts"
+                                    [value]="account.id">
+                                    {{ account.type }} ({{ account.accountNumber
+                                    }}) - {{ account.balance }} {{
+                                    account.currency }}
+                                </option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end">
+                        <button
+                            (click)="payBill()"
+                            [disabled]="isPaying || paymentAmount <= 0 || !selectedAccountId"
+                            class="inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 disabled:bg-gray-300 disabled:cursor-not-allowed">
+                            <span *ngIf="!isPaying">Confirmer le paiement</span>
+                            <span *ngIf="isPaying">Traitement en cours...</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div *ngIf="paymentSuccessful" class="text-center py-6">
+                    <div
+                        class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100">
+                        <svg class="h-6 w-6 text-green-600" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                stroke-width="2" d="M5 13l4 4L19 7" />
+                        </svg>
+                    </div>
+                    <h3 class="mt-2 text-lg font-medium text-gray-900">Paiement
+                        réussi !</h3>
+                    <p class="mt-1 text-sm text-gray-500">
+                        Votre paiement de {{ formatCurrency(paymentAmount,
+                        selectedBill.currency) }} a été effectué avec succès.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
