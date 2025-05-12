@@ -14,6 +14,16 @@ export const routes: Routes = [
         loadComponent: () => import('./features/client/client-page/client-page.component')
           .then(c => c.ClientPageComponent)
       },
+      {
+        path: 'transfers',
+        loadComponent: () => import('./features/client/transfers/transfers.component')
+          .then(c => c.TransfersComponent)
+      },
+      {
+        path: 'crypto',
+        loadComponent: () => import('./features/client/crypto-wallet/crypto-wallet.component')
+          .then(c => c.CryptoWalletComponent)
+      },
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' }
     ]
   },
@@ -33,11 +43,19 @@ export const routes: Routes = [
         loadComponent: () => import('./features/admin/currency/currency.component')
           .then(c => c.CurrencyComponent)
       },
+{
+  path: 'admin/client-management',
+  loadComponent: () => import('./features/admin/client-management/client-management.component')
+    .then(c => c.ClientManagementComponent)
+},
+{
+  path: 'agent-management',
+  loadComponent: () => import('./features/admin/agent-management/agent-management.component')
+    .then(c => c.AgentManagementComponent)
+},
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' }
     ]
   },
-  
-  // Bank Agent routes with bank agent layout
   {
     path: 'bank-agent',
     component: AgentLayoutComponent,
@@ -70,7 +88,5 @@ export const routes: Routes = [
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' }
     ]
   },
-  
-  // Fallback route
   { path: '**', redirectTo: '/dashboard' }
 ];

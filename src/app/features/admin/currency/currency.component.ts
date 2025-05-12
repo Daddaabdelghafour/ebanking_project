@@ -1,68 +1,111 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { FormBuilder, FormGroup, Validators, FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { CurrencyApiService
+ } from '../../../services/currency/currency-api.service';
+import { Currency } from '../../../shared/models/currency.model';
+import { HttpClientModule } from '@angular/common/http';
 
 @Component({
   selector: 'app-currency',
   standalone: true,
-  imports: [CommonModule, FormsModule, ReactiveFormsModule],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, HttpClientModule],
   templateUrl: './currency.component.html',
-  styleUrls: ['./currency.component.css']
+  styleUrls: ['./currency.component.css'],
+  providers: [CurrencyApiService]
 })
 export class CurrencyComponent implements OnInit {
   // Currency Management
   currencies: Currency[] = [];
   showModal = false;
+  Math = Math;
   isEditing = false;
   selectedCurrency: Currency | null = null;
   currencyForm: FormGroup;
-
-  constructor(private fb: FormBuilder) {
+  isLoading = true;
+  error: string | null = null;
+  lastUpdated: Date | null = null;
+  
+  // Pagination
+  currentPage = 1;
+  itemsPerPage = 10;
+  
+  // Filter
+  filterText = '';
+  
+  constructor(
+    private fb: FormBuilder,
+    private currencyApiService: CurrencyApiService
+  ) {
     this.currencyForm = this.fb.group({
+      id: [''],
       code: ['', [Validators.required, Validators.maxLength(3)]],
       name: ['', Validators.required],
       symbol: ['', Validators.required],
-      rate: [0, [Validators.required, Validators.min(0)]],
+      rate: ['', [Validators.required, Validators.min(0.0001)]],
       isActive: [true]
     });
   }
 
   ngOnInit(): void {
-    // Load demo currencies
     this.loadCurrencies();
   }
 
   loadCurrencies(): void {
-    // This would come from an API in a real app
-    this.currencies = [
-      { id: '1', code: 'USD', name: 'US Dollar', symbol: '$', rate: 1.0000, isActive: true },
-      { id: '2', code: 'EUR', name: 'Euro', symbol: '€', rate: 0.9410, isActive: true },
-      { id: '3', code: 'GBP', name: 'British Pound', symbol: '£', rate: 0.8107, isActive: true },
-      { id: '4', code: 'JPY', name: 'Japanese Yen', symbol: '¥', rate: 151.6500, isActive: true },
-      { id: '5', code: 'CAD', name: 'Canadian Dollar', symbol: 'CA$', rate: 1.3640, isActive: true },
-      { id: '6', code: 'AUD', name: 'Australian Dollar', symbol: 'A$', rate: 1.5230, isActive: true },
-      { id: '7', code: 'CHF', name: 'Swiss Franc', symbol: 'CHF', rate: 0.9047, isActive: true },
-      { id: '8', code: 'CNY', name: 'Chinese Yuan', symbol: '¥', rate: 7.2550, isActive: true }
-    ];
+    this.isLoading = true;
+    this.error = null;
+    
+    // First try to load from localStorage
+    const savedCurrencies = localStorage.getItem('currencies');
+    const savedTimestamp = localStorage.getItem('currencies_timestamp');
+    
+    if (savedCurrencies && savedTimestamp) {
+      const parsedCurrencies: Currency[] = JSON.parse(savedCurrencies);
+      this.lastUpdated = new Date(parseInt(savedTimestamp));
+      
+      // Check if the data is less than 3 hours old
+      const now = new Date().getTime();
+      const timestamp = parseInt(savedTimestamp);
+      
+      if (now - timestamp < 3 * 60 * 60 * 1000) { // 3 hours in milliseconds
+        this.currencies = parsedCurrencies;
+        this.isLoading = false;
+        return;
+      }
+    }
+    
+    // Otherwise fetch from API
+    this.currencyApiService.getAllCurrencies().subscribe({
+      next: (currencies) => {
+        this.currencies = currencies;
+        this.lastUpdated = new Date();
+        this.isLoading = false;
+        
+        // Save to localStorage
+        localStorage.setItem('currencies', JSON.stringify(this.currencies));
+        localStorage.setItem('currencies_timestamp', Date.now().toString());
+      },
+      error: (err) => {
+        this.error = err.message;
+        this.isLoading = false;
+      }
+    });
   }
 
   openAddModal(): void {
     this.isEditing = false;
     this.selectedCurrency = null;
-    this.currencyForm.reset({isActive: true});
+    this.currencyForm.reset({
+      isActive: true,
+      rate: 1.0000
+    });
     this.showModal = true;
   }
 
   openEditModal(currency: Currency): void {
     this.isEditing = true;
-    this.selectedCurrency = currency;
-    this.currencyForm.patchValue({
-      code: currency.code,
-      name: currency.name,
-      symbol: currency.symbol,
-      rate: currency.rate,
-      isActive: currency.isActive
-    });
+    this.selectedCurrency = { ...currency };
+    this.currencyForm.patchValue(this.selectedCurrency);
     this.showModal = true;
   }
 
@@ -71,72 +114,147 @@ export class CurrencyComponent implements OnInit {
   }
 
   saveCurrency(): void {
-    if (this.currencyForm.invalid) {
-      // Mark all fields as touched to trigger validation messages
-      Object.keys(this.currencyForm.controls).forEach(key => {
-        this.currencyForm.get(key)?.markAsTouched();
-      });
-      return;
-    }
-
-    const formData = this.currencyForm.value;
+    if (this.currencyForm.invalid) return;
+    
+    const formValue = this.currencyForm.value;
     
     if (this.isEditing && this.selectedCurrency) {
       // Update existing currency
-      const index = this.currencies.findIndex(c => c.id === this.selectedCurrency!.id);
+      const updatedCurrency: Currency = {
+        ...this.selectedCurrency,
+        ...formValue,
+        lastUpdated: new Date()
+      };
+      
+      const index = this.currencies.findIndex(c => c.id === updatedCurrency.id);
       if (index !== -1) {
-        this.currencies[index] = {
-          ...this.selectedCurrency,
-          code: formData.code,
-          name: formData.name,
-          symbol: formData.symbol,
-          rate: formData.rate,
-          isActive: formData.isActive
-        };
+        this.currencies[index] = updatedCurrency;
       }
     } else {
       // Add new currency
       const newCurrency: Currency = {
-        id: Math.random().toString(36).substr(2, 9),
-        code: formData.code,
-        name: formData.name,
-        symbol: formData.symbol,
-        rate: formData.rate,
-        isActive: formData.isActive
+        ...formValue,
+        id: formValue.code.toLowerCase(),
+        lastUpdated: new Date()
       };
+      
+      // Check if currency already exists
+      const existingIndex = this.currencies.findIndex(c => c.code === newCurrency.code);
+      if (existingIndex !== -1) {
+        this.error = `La devise avec le code ${newCurrency.code} existe déjà.`;
+        return;
+      }
+      
       this.currencies.push(newCurrency);
     }
-
+    
+    // Save to localStorage
+    localStorage.setItem('currencies', JSON.stringify(this.currencies));
+    localStorage.setItem('currencies_timestamp', Date.now().toString());
+    
+    // Close modal and reset form
     this.closeModal();
   }
 
   deleteCurrency(id: string): void {
-    if (confirm('Are you sure you want to delete this currency?')) {
+    if (confirm('Êtes-vous sûr de vouloir supprimer cette devise?')) {
       this.currencies = this.currencies.filter(c => c.id !== id);
+      
+      // Save to localStorage
+      localStorage.setItem('currencies', JSON.stringify(this.currencies));
     }
   }
 
   // UI Helper methods
   getStatusClass(isActive: boolean): string {
-    return isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800';
+    return isActive 
+      ? 'bg-green-100 text-green-800' 
+      : 'bg-gray-100 text-gray-800';
   }
 
   showValidationError(controlName: string): boolean {
     const control = this.currencyForm.get(controlName);
-    return control ? control.invalid && (control.dirty || control.touched) : false;
+    return control ? (control.invalid && (control.dirty || control.touched)) : false;
   }
 
-  exportData() {
-    alert('Exporting currency data...');
-    // Implement export functionality
+  exportData(): void {
+    // Create CSV content
+    const headers = ['Code', 'Nom', 'Symbole', 'Taux de Change', 'Statut'];
+    const csvRows = [
+      headers.join(','),
+      ...this.currencies.map(c => 
+        [
+          c.code,
+          c.name.replace(/,/g, ' '),
+          c.symbol,
+          c.rate,
+          c.isActive ? 'Actif' : 'Inactif'
+        ].join(',')
+      )
+    ];
+    const csvContent = csvRows.join('\n');
+    
+    // Create and trigger download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', `currency-rates-${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   }
-}
-
-interface Currency {
-  id: string;
-  code: string;
-  name: string;
-  symbol: string;
-  rate: number;
-  isActive: boolean;
+  
+  refreshRates(): void {
+    // Force a refresh of rates from API
+    localStorage.removeItem('currencies');
+    localStorage.removeItem('currencies_timestamp');
+    this.loadCurrencies();
+  }
+  
+  getPaginatedCurrencies(): Currency[] {
+    // Filter currencies
+    const filtered = this.filterText 
+      ? this.currencies.filter(c => 
+          c.code.toLowerCase().includes(this.filterText.toLowerCase()) ||
+          c.name.toLowerCase().includes(this.filterText.toLowerCase())
+        )
+      : this.currencies;
+      
+    // Apply pagination
+    const startIndex = (this.currentPage - 1) * this.itemsPerPage;
+    return filtered.slice(startIndex, startIndex + this.itemsPerPage);
+  }
+  
+  get totalPages(): number {
+    const filtered = this.filterText 
+      ? this.currencies.filter(c => 
+          c.code.toLowerCase().includes(this.filterText.toLowerCase()) ||
+          c.name.toLowerCase().includes(this.filterText.toLowerCase())
+        )
+      : this.currencies;
+      
+    return Math.ceil(filtered.length / this.itemsPerPage);
+  }
+  
+  nextPage(): void {
+    if (this.currentPage < this.totalPages) {
+      this.currentPage++;
+    }
+  }
+  
+  prevPage(): void {
+    if (this.currentPage > 1) {
+      this.currentPage--;
+    }
+  }
+  
+  setPage(page: number): void {
+    if (page >= 1 && page <= this.totalPages) {
+      this.currentPage = page;
+    }
+  }
 }

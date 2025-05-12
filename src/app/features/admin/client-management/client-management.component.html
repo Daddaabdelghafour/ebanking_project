@@ -1,0 +1,903 @@
+<!-- Page header -->
+<div class="bg-white rounded-lg shadow p-6 mb-6">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+        <div>
+            <h2 class="text-2xl font-bold text-gray-800">Gestion des
+                Clients</h2>
+            <p class="text-gray-600">Gérer les comptes clients et leurs
+                informations</p>
+        </div>
+        <button (click)="openAddModal()"
+            class="mt-4 sm:mt-0 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
+            <i class="fa-solid fa-plus mr-2"></i>
+            Ajouter un client
+        </button>
+    </div>
+</div>
+
+<!-- Loading state -->
+<div *ngIf="isLoading" class="bg-white rounded-lg shadow p-12 mb-6 text-center">
+    <div
+        class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mb-4"></div>
+    <p class="text-lg text-gray-600">Chargement des clients...</p>
+</div>
+
+<!-- Error state -->
+<div *ngIf="error && !isLoading" class="bg-white rounded-lg shadow p-6 mb-6">
+    <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-800">
+        <div class="flex">
+            <i
+                class="fa-solid fa-circle-exclamation text-xl mr-3 flex-shrink-0"></i>
+            <div>
+                <h3 class="font-medium">Erreur</h3>
+                <p>{{ error }}</p>
+                <button (click)="loadClients()"
+                    class="mt-2 text-sm text-red-600 hover:underline">
+                    Réessayer
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Clients Management UI -->
+<div *ngIf="!isLoading && !error && !isViewingDetails"
+    class="bg-white shadow rounded-lg p-6">
+    <!-- Search and filters -->
+    <div
+        class="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4">
+        <div class="relative w-full lg:w-auto lg:min-w-[280px]">
+            <input
+                type="text"
+                [(ngModel)]="filterText"
+                placeholder="Rechercher un client..."
+                class="pl-9 pr-4 py-2 w-full border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+            <div
+                class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <i class="fa-solid fa-search text-gray-400"></i>
+            </div>
+        </div>
+
+        <div class="flex flex-wrap gap-2">
+            <button
+                (click)="filterByStatus('all')"
+                class="px-3 py-1 rounded-full text-sm font-medium transition-colors"
+                [class.bg-blue-600]="statusFilter === 'all'"
+                [class.text-white]="statusFilter === 'all'"
+                [class.bg-gray-200]="statusFilter !== 'all'"
+                [class.text-gray-700]="statusFilter !== 'all'">
+                Tous
+            </button>
+            <button
+                (click)="filterByStatus('active')"
+                class="px-3 py-1 rounded-full text-sm font-medium transition-colors"
+                [class.bg-green-600]="statusFilter === 'active'"
+                [class.text-white]="statusFilter === 'active'"
+                [class.bg-gray-200]="statusFilter !== 'active'"
+                [class.text-gray-700]="statusFilter !== 'active'">
+                Actifs
+            </button>
+            <button
+                (click)="filterByStatus('inactive')"
+                class="px-3 py-1 rounded-full text-sm font-medium transition-colors"
+                [class.bg-gray-600]="statusFilter === 'inactive'"
+                [class.text-white]="statusFilter === 'inactive'"
+                [class.bg-gray-200]="statusFilter !== 'inactive'"
+                [class.text-gray-700]="statusFilter !== 'inactive'">
+                Inactifs
+            </button>
+            <button
+                (click)="filterByStatus('blocked')"
+                class="px-3 py-1 rounded-full text-sm font-medium transition-colors"
+                [class.bg-red-600]="statusFilter === 'blocked'"
+                [class.text-white]="statusFilter === 'blocked'"
+                [class.bg-gray-200]="statusFilter !== 'blocked'"
+                [class.text-gray-700]="statusFilter !== 'blocked'">
+                Bloqués
+            </button>
+            <button
+                (click)="filterByStatus('pending')"
+                class="px-3 py-1 rounded-full text-sm font-medium transition-colors"
+                [class.bg-yellow-600]="statusFilter === 'pending'"
+                [class.text-white]="statusFilter === 'pending'"
+                [class.bg-gray-200]="statusFilter !== 'pending'"
+                [class.text-gray-700]="statusFilter !== 'pending'">
+                En attente
+            </button>
+        </div>
+    </div>
+
+    <!-- Clients table -->
+    <div class="overflow-x-auto">
+        <table class="min-w-full bg-white">
+            <thead>
+                <tr class="bg-gray-50 text-gray-600 uppercase text-xs">
+                    <th class="py-3 px-4 text-left">
+                        <button (click)="sortClients('name')"
+                            class="flex items-center">
+                            Client
+                            <i class="fa-solid ml-1"
+                                [class]="getSortIcon('name')"></i>
+                        </button>
+                    </th>
+                    <th class="py-3 px-4 text-left">Contact</th>
+                    <th class="py-3 px-4 text-left">
+                        <button (click)="sortClients('city')"
+                            class="flex items-center">
+                            Ville
+                            <i class="fa-solid ml-1"
+                                [class]="getSortIcon('city')"></i>
+                        </button>
+                    </th>
+                    <th class="py-3 px-4 text-left">
+                        <button (click)="sortClients('accountType')"
+                            class="flex items-center">
+                            Type de compte
+                            <i class="fa-solid ml-1"
+                                [class]="getSortIcon('accountType')"></i>
+                        </button>
+                    </th>
+                    <th class="py-3 px-4 text-right">
+                        <button (click)="sortClients('balance')"
+                            class="flex items-center justify-end">
+                            Solde
+                            <i class="fa-solid ml-1"
+                                [class]="getSortIcon('balance')"></i>
+                        </button>
+                    </th>
+                    <th class="py-3 px-4 text-center">
+                        <button (click)="sortClients('status')"
+                            class="flex items-center justify-center">
+                            Statut
+                            <i class="fa-solid ml-1"
+                                [class]="getSortIcon('status')"></i>
+                        </button>
+                    </th>
+                    <th class="py-3 px-4 text-center">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200">
+                <tr *ngFor="let client of getPaginatedClients()"
+                    class="hover:bg-gray-50">
+                    <td class="py-3 px-4">
+                        <div class="flex items-center">
+                            <div
+                                class="h-10 w-10 rounded-full bg-gray-200 flex-shrink-0 overflow-hidden">
+                                <img *ngIf="client.imageUrl"
+                                    [src]="client.imageUrl" alt="Client"
+                                    class="h-full w-full object-cover">
+                                <div *ngIf="!client.imageUrl"
+                                    class="h-full w-full flex items-center justify-center bg-blue-600 text-white font-medium">
+                                    {{ client.firstName[0] }}{{
+                                    client.lastName[0] }}
+                                </div>
+                            </div>
+                            <div class="ml-3">
+                                <div class="font-medium">{{ getFullName(client)
+                                    }}</div>
+                                <div class="text-xs text-gray-500">ID: {{
+                                    client.clientId }}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="py-3 px-4">
+                        <div class="text-sm">{{ client.email }}</div>
+                        <div class="text-xs text-gray-500">{{ client.phone
+                            }}</div>
+                    </td>
+                    <td class="py-3 px-4">{{ client.city }}</td>
+                    <td class="py-3 px-4">{{ client.accountType }}</td>
+                    <td class="py-3 px-4 text-right font-medium">{{
+                        formatCurrency(client.balance, client.currency) }}</td>
+                    <td class="py-3 px-4 text-center">
+                        <span class="px-2 py-1 text-xs rounded-full"
+                            [ngClass]="getStatusClass(client.status)">
+                            {{ getStatusLabel(client.status) }}
+                        </span>
+                    </td>
+                    <td class="py-3 px-4 text-center">
+                        <div class="flex justify-center gap-2">
+                            <button (click)="viewClientDetails(client)"
+                                class="p-1.5 bg-gray-100 text-gray-600 rounded hover:bg-gray-200 transition-colors"
+                                title="Voir détails">
+                                <i class="fa-solid fa-eye"></i>
+                            </button>
+                            <button (click)="openEditModal(client)"
+                                class="p-1.5 bg-blue-100 text-blue-600 rounded hover:bg-blue-200 transition-colors"
+                                title="Modifier">
+                                <i class="fa-solid fa-pen-to-square"></i>
+                            </button>
+                            <button (click)="confirmDeleteClient(client)"
+                                class="p-1.5 bg-red-100 text-red-600 rounded hover:bg-red-200 transition-colors"
+                                title="Supprimer">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+
+                <!-- Empty state -->
+                <tr *ngIf="getPaginatedClients().length === 0">
+                    <td colspan="7" class="py-8 text-center text-gray-500">
+                        <div class="flex flex-col items-center">
+                            <i
+                                class="fa-solid fa-user-slash text-4xl mb-3 text-gray-300"></i>
+                            <p>Aucun client trouvé</p>
+                            <p class="text-sm"
+                                *ngIf="filterText || statusFilter !== 'all'">Essayez
+                                avec des filtres différents</p>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    <div *ngIf="getFilteredClients().length > itemsPerPage"
+        class="mt-6 flex items-center justify-between">
+        <div class="text-sm text-gray-500">
+            Affichage de <span class="font-medium">{{ (currentPage - 1) *
+                itemsPerPage + 1 }}</span> à
+            <span class="font-medium">{{ Math.min(currentPage * itemsPerPage,
+                getFilteredClients().length) }}</span> sur
+            <span class="font-medium">{{ getFilteredClients().length }}</span>
+            clients
+        </div>
+
+        <div class="flex-1 flex justify-end">
+            <nav class="relative z-0 inline-flex shadow-sm -space-x-px"
+                aria-label="Pagination">
+                <button
+                    (click)="prevPage()"
+                    [disabled]="currentPage === 1"
+                    class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <span class="sr-only">Previous</span>
+                    <i class="fa-solid fa-chevron-left"></i>
+                </button>
+
+                <ng-container
+                    *ngFor="let page of [].constructor(totalPages); let i = index">
+                    <button
+                        (click)="setPage(i + 1)"
+                        [class.bg-blue-50]="currentPage === i + 1"
+                        [class.text-blue-600]="currentPage === i + 1"
+                        [class.border-blue-500]="currentPage === i + 1"
+                        class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
+                        {{ i + 1 }}
+                    </button>
+                </ng-container>
+
+                <button
+                    (click)="nextPage()"
+                    [disabled]="currentPage === totalPages"
+                    class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <span class="sr-only">Next</span>
+                    <i class="fa-solid fa-chevron-right"></i>
+                </button>
+            </nav>
+        </div>
+    </div>
+</div>
+
+<!-- Client Details View -->
+<div *ngIf="!isLoading && !error && isViewingDetails && selectedClient"
+    class="bg-white shadow rounded-lg overflow-hidden">
+    <!-- Header with back button -->
+    <div class="bg-blue-600 text-white p-6">
+        <div class="flex items-center justify-between">
+            <button (click)="closeDetailsView()"
+                class="text-white hover:text-blue-100 transition-colors flex items-center">
+                <i class="fa-solid fa-arrow-left mr-2"></i>
+                Retour
+            </button>
+            <div class="flex space-x-3">
+                <button (click)="openEditModal(selectedClient)"
+                    class="bg-white text-blue-600 px-3 py-1 rounded-md flex items-center hover:bg-blue-50 transition-colors">
+                    <i class="fa-solid fa-pen-to-square mr-1"></i>
+                    Modifier
+                </button>
+                <button (click)="confirmDeleteClient(selectedClient)"
+                    class="bg-red-500 text-white px-3 py-1 rounded-md flex items-center hover:bg-red-600 transition-colors">
+                    <i class="fa-solid fa-trash mr-1"></i>
+                    Supprimer
+                </button>
+            </div>
+        </div>
+
+        <div class="mt-6 flex flex-col md:flex-row md:items-center">
+            <div
+                class="h-24 w-24 rounded-full bg-white flex-shrink-0 overflow-hidden border-4 border-white">
+                <img *ngIf="selectedClient.imageUrl"
+                    [src]="selectedClient.imageUrl" alt="Client"
+                    class="h-full w-full object-cover">
+                <div *ngIf="!selectedClient.imageUrl"
+                    class="h-full w-full flex items-center justify-center bg-blue-700 text-white text-3xl font-medium">
+                    {{ selectedClient.firstName[0] }}{{
+                    selectedClient.lastName[0] }}
+                </div>
+            </div>
+            <div class="mt-4 md:mt-0 md:ml-6">
+                <h2 class="text-2xl font-bold">{{ getFullName(selectedClient)
+                    }}</h2>
+                <div class="flex flex-wrap items-center gap-4 mt-2">
+                    <div class="flex items-center">
+                        <i class="fa-solid fa-envelope mr-2 opacity-75"></i>
+                        {{ selectedClient.email }}
+                    </div>
+                    <div class="flex items-center">
+                        <i class="fa-solid fa-phone mr-2 opacity-75"></i>
+                        {{ selectedClient.phone }}
+                    </div>
+                    <div>
+                        <span class="px-2 py-1 text-xs rounded-full"
+                            [ngClass]="getStatusClass(selectedClient.status)">
+                            {{ getStatusLabel(selectedClient.status) }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Content -->
+    <div class="p-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Basic Information -->
+            <div class="bg-gray-50 p-4 rounded-lg">
+                <h3
+                    class="font-medium text-lg text-gray-800 border-b pb-2 mb-3">Informations
+                    personnelles</h3>
+                <div class="space-y-3">
+                    <div>
+                        <p class="text-sm text-gray-500">Numéro client</p>
+                        <p class="font-medium">{{ selectedClient.clientId }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500">Date de naissance</p>
+                        <p class="font-medium">{{ selectedClient.birthDate |
+                            date:'dd/MM/yyyy' }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500">Pièce d'identité</p>
+                        <p class="font-medium">{{ selectedClient.identityType }}
+                            : {{ selectedClient.identityNumber }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500">Profession</p>
+                        <p class="font-medium">{{ selectedClient.occupation ||
+                            'Non renseigné' }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500">Revenu mensuel</p>
+                        <p class="font-medium">{{ selectedClient.income ?
+                            formatCurrency(selectedClient.income,
+                            selectedClient.currency) : 'Non renseigné' }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Account Information -->
+            <div class="bg-gray-50 p-4 rounded-lg">
+                <h3
+                    class="font-medium text-lg text-gray-800 border-b pb-2 mb-3">Informations
+                    de compte</h3>
+                <div class="space-y-3">
+                    <div>
+                        <p class="text-sm text-gray-500">Type de compte</p>
+                        <p class="font-medium">{{ selectedClient.accountType
+                            }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500">Date d'ouverture</p>
+                        <p class="font-medium">{{ selectedClient.dateJoined |
+                            date:'dd/MM/yyyy' }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500">Dernière connexion</p>
+                        <p class="font-medium">{{ selectedClient.lastLogin ?
+                            (selectedClient.lastLogin | date:'dd/MM/yyyy HH:mm')
+                            : 'Jamais connecté' }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500">Solde actuel</p>
+                        <p class="font-medium text-lg text-blue-600">{{
+                            formatCurrency(selectedClient.balance,
+                            selectedClient.currency) }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500">Devise principale</p>
+                        <p class="font-medium">{{ selectedClient.currency }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contact Information -->
+            <div class="bg-gray-50 p-4 rounded-lg">
+                <h3
+                    class="font-medium text-lg text-gray-800 border-b pb-2 mb-3">Coordonnées</h3>
+                <div class="space-y-3">
+                    <div>
+                        <p class="text-sm text-gray-500">Adresse</p>
+                        <p class="font-medium">{{ selectedClient.address }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500">Ville</p>
+                        <p class="font-medium">{{ selectedClient.city }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500">Email</p>
+                        <p class="font-medium">{{ selectedClient.email }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500">Téléphone</p>
+                        <p class="font-medium">{{ selectedClient.phone }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500">Préférences de
+                            contact</p>
+                        <p class="font-medium">{{
+                            selectedClient.contactPreference || 'Email' }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Associated Accounts -->
+        <div class="mt-6">
+            <h3 class="font-medium text-lg text-gray-800 mb-4">Comptes
+                associés</h3>
+
+            <!-- Show account list or empty message -->
+            <div
+                *ngIf="selectedClient.accounts && selectedClient.accounts.length > 0"
+                class="bg-gray-50 rounded-lg overflow-hidden">
+                <table class="min-w-full">
+                    <thead>
+                        <tr class="bg-gray-100 text-gray-600 text-xs uppercase">
+                            <th class="py-3 px-4 text-left">Numéro de
+                                compte</th>
+                            <th class="py-3 px-4 text-left">Type</th>
+                            <th class="py-3 px-4 text-right">Solde</th>
+                            <th class="py-3 px-4 text-center">Statut</th>
+                            <th class="py-3 px-4 text-right">Date
+                                d'ouverture</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        <tr *ngFor="let account of selectedClient.accounts"
+                            class="hover:bg-gray-100">
+                            <td class="py-2 px-4">{{ account.accountNumber
+                                }}</td>
+                            <td class="py-2 px-4">{{ account.type }}</td>
+                            <td class="py-2 px-4 text-right">{{
+                                formatCurrency(account.balance,
+                                account.currency) }}</td>
+                            <td class="py-2 px-4 text-center">
+                                <span class="px-2 py-1 text-xs rounded-full"
+                                    [ngClass]="getStatusClass(account.status)">
+                                    {{ getStatusLabel(account.status) }}
+                                </span>
+                            </td>
+                            <td class="py-2 px-4 text-right">{{
+                                account.openedDate | date:'dd/MM/yyyy' }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div
+                *ngIf="!selectedClient.accounts || selectedClient.accounts.length === 0"
+                class="text-center p-8 bg-gray-50 rounded-lg">
+                <i
+                    class="fa-solid fa-credit-card text-4xl text-gray-300 mb-3"></i>
+                <p class="text-gray-500">Aucun compte supplémentaire associé à
+                    ce client.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Client Add/Edit Modal -->
+<div *ngIf="showModal"
+    class="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto flex items-center justify-center z-50"
+    (click)="closeModal()">
+    <div
+        class="bg-white rounded-lg shadow-xl max-w-3xl w-full mx-4 overflow-hidden"
+        (click)="$event.stopPropagation()">
+        <!-- Modal Header -->
+        <div class="bg-blue-600 text-white px-6 py-4">
+            <div class="flex items-center justify-between">
+                <h3 class="text-lg font-medium">
+                    {{ isEditing ? 'Modifier' : 'Ajouter' }} un client
+                </h3>
+                <button (click)="closeModal()"
+                    class="text-white hover:text-blue-100">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Modal Content -->
+        <form [formGroup]="clientForm" (ngSubmit)="saveClient()"
+            class="px-6 py-4 max-h-[70vh] overflow-y-auto">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Personal Information Section -->
+                <div class="space-y-4 md:col-span-2">
+                    <h4
+                        class="font-medium text-gray-700 border-b pb-2">Informations
+                        personnelles</h4>
+
+                    <!-- Name fields -->
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label for="firstName"
+                                class="block text-sm font-medium text-gray-700 mb-1">Prénom</label>
+                            <input
+                                type="text"
+                                id="firstName"
+                                formControlName="firstName"
+                                class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                placeholder="Prénom">
+                            <p *ngIf="showValidationError('firstName')"
+                                class="mt-1 text-sm text-red-600">
+                                Prénom requis
+                            </p>
+                        </div>
+                        <div>
+                            <label for="lastName"
+                                class="block text-sm font-medium text-gray-700 mb-1">Nom</label>
+                            <input
+                                type="text"
+                                id="lastName"
+                                formControlName="lastName"
+                                class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                placeholder="Nom">
+                            <p *ngIf="showValidationError('lastName')"
+                                class="mt-1 text-sm text-red-600">
+                                Nom requis
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Birth date and identity fields -->
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label for="birthDate"
+                                class="block text-sm font-medium text-gray-700 mb-1">Date
+                                de naissance</label>
+                            <input
+                                type="date"
+                                id="birthDate"
+                                formControlName="birthDate"
+                                class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                            <p *ngIf="showValidationError('birthDate')"
+                                class="mt-1 text-sm text-red-600">
+                                Date de naissance requise
+                            </p>
+                        </div>
+                        <div>
+                            <label for="identityType"
+                                class="block text-sm font-medium text-gray-700 mb-1">Type
+                                de pièce d'identité</label>
+                            <select
+                                id="identityType"
+                                formControlName="identityType"
+                                class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                <option value="CIN">Carte Nationale
+                                    d'Identité</option>
+                                <option value="Passeport">Passeport</option>
+                                <option value="Carte de séjour">Carte de
+                                    séjour</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label for="identityNumber"
+                            class="block text-sm font-medium text-gray-700 mb-1">Numéro
+                            de pièce d'identité</label>
+                        <input
+                            type="text"
+                            id="identityNumber"
+                            formControlName="identityNumber"
+                            class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="AB123456">
+                        <p *ngIf="showValidationError('identityNumber')"
+                            class="mt-1 text-sm text-red-600">
+                            Numéro de pièce d'identité requis
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Contact Information Section -->
+                <div class="space-y-4 md:col-span-2">
+                    <h4
+                        class="font-medium text-gray-700 border-b pb-2">Coordonnées</h4>
+
+                    <div>
+                        <label for="email"
+                            class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                        <input
+                            type="email"
+                            id="email"
+                            formControlName="email"
+                            class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="client@exemple.com">
+                        <p *ngIf="showValidationError('email')"
+                            class="mt-1 text-sm text-red-600">
+                            Email valide requis
+                        </p>
+                    </div>
+
+                    <div>
+                        <label for="phone"
+                            class="block text-sm font-medium text-gray-700 mb-1">Téléphone</label>
+                        <input
+                            type="tel"
+                            id="phone"
+                            formControlName="phone"
+                            class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="+212 6XX XXX XXX">
+                        <p *ngIf="showValidationError('phone')"
+                            class="mt-1 text-sm text-red-600">
+                            Numéro de téléphone requis
+                        </p>
+                    </div>
+
+                    <div>
+                        <label for="address"
+                            class="block text-sm font-medium text-gray-700 mb-1">Adresse</label>
+                        <input
+                            type="text"
+                            id="address"
+                            formControlName="address"
+                            class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="Adresse complète">
+                        <p *ngIf="showValidationError('address')"
+                            class="mt-1 text-sm text-red-600">
+                            Adresse requise
+                        </p>
+                    </div>
+
+                    <div>
+                        <label for="city"
+                            class="block text-sm font-medium text-gray-700 mb-1">Ville</label>
+                        <select
+                            id="city"
+                            formControlName="city"
+                            class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                            <option value disabled>Sélectionnez une
+                                ville</option>
+                            <option *ngFor="let city of cities"
+                                [value]="city">{{ city }}</option>
+                        </select>
+                        <p *ngIf="showValidationError('city')"
+                            class="mt-1 text-sm text-red-600">
+                            Ville requise
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Account Information Section -->
+                <div class="space-y-4 md:col-span-2">
+                    <h4
+                        class="font-medium text-gray-700 border-b pb-2">Informations
+                        professionnelles</h4>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="occupation"
+                                class="block text-sm font-medium text-gray-700 mb-1">Profession</label>
+                            <input
+                                type="text"
+                                id="occupation"
+                                formControlName="occupation"
+                                class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                placeholder="Profession">
+                        </div>
+
+                        <div>
+                            <label for="income"
+                                class="block text-sm font-medium text-gray-700 mb-1">Revenu
+                                mensuel</label>
+                            <input
+                                type="number"
+                                id="income"
+                                formControlName="income"
+                                class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                placeholder="0.00">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Banking Information Section -->
+                <div class="space-y-4 md:col-span-2">
+                    <h4
+                        class="font-medium text-gray-700 border-b pb-2">Informations
+                        bancaires</h4>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label for="accountType"
+                                class="block text-sm font-medium text-gray-700 mb-1">Type
+                                de compte</label>
+                            <select
+                                id="accountType"
+                                formControlName="accountType"
+                                class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                <option *ngFor="let type of accountTypes"
+                                    [value]="type">{{ type }}</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label for="currency"
+                                class="block text-sm font-medium text-gray-700 mb-1">Devise</label>
+                            <select
+                                id="currency"
+                                formControlName="currency"
+                                class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                <option *ngFor="let currency of currencies"
+                                    [value]="currency">{{ currency }}</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label for="status"
+                                class="block text-sm font-medium text-gray-700 mb-1">Statut</label>
+                            <select
+                                id="status"
+                                formControlName="status"
+                                class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                <option value="active">Actif</option>
+                                <option value="inactive">Inactif</option>
+                                <option value="pending">En attente</option>
+                                <option value="blocked">Bloqué</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Password Section (only shown when creating a new client) -->
+                <div *ngIf="!isEditing" class="space-y-4 md:col-span-2">
+                    <h4
+                        class="font-medium text-gray-700 border-b pb-2">Identifiants
+                        de connexion</h4>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="password"
+                                class="block text-sm font-medium text-gray-700 mb-1">Mot
+                                de passe</label>
+                            <input
+                                type="password"
+                                id="password"
+                                formControlName="password"
+                                class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                            <p *ngIf="showValidationError('password')"
+                                class="mt-1 text-sm text-red-600">
+                                Mot de passe requis (8 caractères minimum)
+                            </p>
+                        </div>
+
+                        <div>
+                            <label for="confirmPassword"
+                                class="block text-sm font-medium text-gray-700 mb-1">Confirmer
+                                le mot de passe</label>
+                            <input
+                                type="password"
+                                id="confirmPassword"
+                                formControlName="confirmPassword"
+                                class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                            <p *ngIf="getPasswordMismatchError()"
+                                class="mt-1 text-sm text-red-600">
+                                Les mots de passe ne correspondent pas
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Optional password change when editing -->
+                <ng-container *ngIf="isEditing">
+                    <div class="space-y-4 md:col-span-2">
+                        <h4
+                            class="font-medium text-gray-700 border-b pb-2">Modifier
+                            le mot de passe (optionnel)</h4>
+
+                        <p class="text-sm text-gray-500 mb-2">Laissez vide pour
+                            conserver le mot de passe actuel</p>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label for="password"
+                                    class="block text-sm font-medium text-gray-700 mb-1">Nouveau
+                                    mot de passe</label>
+                                <input
+                                    type="password"
+                                    id="password"
+                                    formControlName="password"
+                                    class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                <p *ngIf="showValidationError('password')"
+                                    class="mt-1 text-sm text-red-600">
+                                    Le mot de passe doit contenir au moins 8
+                                    caractères
+                                </p>
+                            </div>
+
+                            <div>
+                                <label for="confirmPassword"
+                                    class="block text-sm font-medium text-gray-700 mb-1">Confirmer
+                                    le mot de passe</label>
+                                <input
+                                    type="password"
+                                    id="confirmPassword"
+                                    formControlName="confirmPassword"
+                                    class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                <p *ngIf="getPasswordMismatchError()"
+                                    class="mt-1 text-sm text-red-600">
+                                    Les mots de passe ne correspondent pas
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </ng-container>
+            </div>
+        </form>
+
+        <!-- Modal Footer -->
+        <div class="border-t px-6 py-4 flex justify-end space-x-3">
+            <button
+                (click)="closeModal()"
+                class="px-4 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                Annuler
+            </button>
+            <button
+                (click)="saveClient()"
+                [disabled]="clientForm.invalid"
+                class="px-4 py-2 bg-blue-600 border border-transparent rounded-md shadow-sm text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                {{ isEditing ? 'Mettre à jour' : 'Enregistrer' }}
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div *ngIf="isDeleting && selectedClient"
+    class="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto flex items-center justify-center z-50"
+    (click)="cancelDelete()">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4"
+        (click)="$event.stopPropagation()">
+        <div class="p-6">
+            <div class="flex items-center justify-center mb-6">
+                <div
+                    class="h-16 w-16 bg-red-100 rounded-full flex items-center justify-center text-red-600">
+                    <i class="fa-solid fa-trash text-2xl"></i>
+                </div>
+            </div>
+
+            <h3 class="text-lg font-medium text-center mb-4">Supprimer le
+                client</h3>
+            <p class="text-gray-500 text-center mb-6">
+                Êtes-vous sûr de vouloir supprimer le client <span
+                    class="font-medium">{{ getFullName(selectedClient) }}</span>
+                ?
+                <br>Cette action ne peut pas être annulée et entraînera la
+                suppression de tous les comptes associés.
+            </p>
+
+            <div class="flex justify-center space-x-4">
+                <button
+                    (click)="cancelDelete()"
+                    class="px-4 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    Annuler
+                </button>
+                <button
+                    (click)="deleteClient()"
+                    class="px-4 py-2 bg-red-600 border border-transparent rounded-md shadow-sm text-sm font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                    Supprimer
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,29 +1,81 @@
 <!-- Welcome section -->
 <div class="bg-white rounded-lg shadow p-6 mb-6">
-    <div class="flex items-center justify-between">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
             <h2 class="text-2xl font-bold text-gray-800">Gestion des
                 Devises</h2>
             <p class="text-gray-600">Gérer les taux de change et les devises
                 supportées</p>
         </div>
-        <button (click)="exportData()"
-            class="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center">
-            <i class="fa-solid fa-file-export mr-2"></i>
-            Exporter
-        </button>
+        <div class="flex flex-wrap mt-4 sm:mt-0 gap-3">
+            <button (click)="refreshRates()"
+                class="bg-green-600 text-white px-4 py-2 rounded-lg flex items-center hover:bg-green-700 transition-colors">
+                <i class="fa-solid fa-sync mr-2"></i>
+                Actualiser les taux
+            </button>
+            <button (click)="exportData()"
+                class="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center hover:bg-blue-700 transition-colors">
+                <i class="fa-solid fa-file-export mr-2"></i>
+                Exporter
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Loading state -->
+<div *ngIf="isLoading" class="bg-white rounded-lg shadow p-12 mb-6 text-center">
+    <div
+        class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mb-4"></div>
+    <p class="text-lg text-gray-600">Chargement des taux de change...</p>
+</div>
+
+<!-- Error state -->
+<div *ngIf="error" class="bg-white rounded-lg shadow p-6 mb-6">
+    <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-800">
+        <div class="flex">
+            <i class="fa-solid fa-circle-exclamation text-xl mr-3"></i>
+            <div>
+                <h3 class="font-medium">Erreur de chargement</h3>
+                <p>{{ error }}</p>
+                <button (click)="loadCurrencies()"
+                    class="mt-2 text-sm text-red-600 hover:underline">
+                    Réessayer
+                </button>
+            </div>
+        </div>
     </div>
 </div>
 
 <!-- Currency Management -->
-<div class="bg-white shadow rounded-lg p-6">
-    <div class="flex justify-between items-center mb-6">
+<div *ngIf="!isLoading && !error" class="bg-white shadow rounded-lg p-6">
+    <div
+        class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
         <h3 class="text-xl font-semibold text-gray-800">Devises</h3>
-        <button (click)="openAddModal()"
-            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center">
-            <i class="fa-solid fa-plus mr-2"></i>
-            Ajouter Devise
-        </button>
+
+        <!-- Search and filter -->
+        <div class="mt-3 sm:mt-0 flex items-center">
+            <div class="relative">
+                <input type="text"
+                    [(ngModel)]="filterText"
+                    placeholder="Rechercher..."
+                    class="pl-9 pr-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                <div
+                    class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <i class="fa-solid fa-search text-gray-400"></i>
+                </div>
+            </div>
+
+            <button (click)="openAddModal()"
+                class="ml-3 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center transition-colors">
+                <i class="fa-solid fa-plus mr-2"></i>
+                Ajouter Devise
+            </button>
+        </div>
+    </div>
+
+    <!-- Last updated info -->
+    <div *ngIf="lastUpdated" class="mb-4 text-sm text-gray-500">
+        Dernière mise à jour: {{ lastUpdated | date:'dd/MM/yyyy HH:mm' }}
     </div>
 
     <!-- Currency Table -->
@@ -40,7 +92,7 @@
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-200">
-                <tr *ngFor="let currency of currencies"
+                <tr *ngFor="let currency of getPaginatedCurrencies()"
                     class="hover:bg-gray-50">
                     <td class="py-3 px-4">
                         <span class="font-medium">{{ currency.code }}</span>
@@ -58,18 +110,76 @@
                     <td class="py-3 px-4 text-center">
                         <div class="flex justify-center gap-2">
                             <button (click)="openEditModal(currency)"
-                                class="p-1 bg-blue-100 text-blue-600 rounded hover:bg-blue-200">
+                                class="p-1 bg-blue-100 text-blue-600 rounded hover:bg-blue-200 transition-colors">
                                 <i class="fa-solid fa-pen-to-square"></i>
                             </button>
                             <button (click)="deleteCurrency(currency.id)"
-                                class="p-1 bg-red-100 text-red-600 rounded hover:bg-red-200">
+                                class="p-1 bg-red-100 text-red-600 rounded hover:bg-red-200 transition-colors">
                                 <i class="fa-solid fa-trash"></i>
                             </button>
                         </div>
                     </td>
                 </tr>
+
+                <!-- Empty state -->
+                <tr *ngIf="getPaginatedCurrencies().length === 0">
+                    <td colspan="6" class="py-8 text-center text-gray-500">
+                        <div class="flex flex-col items-center">
+                            <i
+                                class="fa-solid fa-search text-4xl mb-3 text-gray-300"></i>
+                            <p>Aucune devise trouvée</p>
+                            <p class="text-sm" *ngIf="filterText">Essayez avec
+                                des termes de recherche différents</p>
+                        </div>
+                    </td>
+                </tr>
             </tbody>
         </table>
+    </div>
+
+    <!-- Pagination -->
+    <div *ngIf="currencies.length > itemsPerPage"
+        class="mt-6 flex items-center justify-between">
+        <div class="text-sm text-gray-500">
+            Affichage de <span class="font-medium">{{ (currentPage - 1) *
+                itemsPerPage + 1 }}</span> à
+            <span class="font-medium">{{ Math.min(currentPage * itemsPerPage,
+                currencies.length) }}</span> sur
+            <span class="font-medium">{{ currencies.length }}</span> devises
+        </div>
+
+        <div class="flex-1 flex justify-end">
+            <nav class="relative z-0 inline-flex shadow-sm -space-x-px"
+                aria-label="Pagination">
+                <button
+                    (click)="prevPage()"
+                    [disabled]="currentPage === 1"
+                    class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <span class="sr-only">Previous</span>
+                    <i class="fa-solid fa-chevron-left"></i>
+                </button>
+
+                <ng-container
+                    *ngFor="let page of [].constructor(totalPages); let i = index">
+                    <button
+                        (click)="setPage(i + 1)"
+                        [class.bg-blue-50]="currentPage === i + 1"
+                        [class.text-blue-600]="currentPage === i + 1"
+                        [class.border-blue-500]="currentPage === i + 1"
+                        class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
+                        {{ i + 1 }}
+                    </button>
+                </ng-container>
+
+                <button
+                    (click)="nextPage()"
+                    [disabled]="currentPage === totalPages"
+                    class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <span class="sr-only">Next</span>
+                    <i class="fa-solid fa-chevron-right"></i>
+                </button>
+            </nav>
+        </div>
     </div>
 
     <!-- Information Card -->
@@ -84,7 +194,9 @@
                 <div class="mt-2 text-sm text-blue-700">
                     <p>Les taux de change sont mis à jour quotidiennement à
                         partir de sources financières fiables. Tous les taux
-                        sont exprimés par rapport au dollar américain (USD).</p>
+                        sont exprimés par rapport au dollar américain (USD).
+                        Cliquez sur "Actualiser les taux" pour obtenir les
+                        dernières valeurs.</p>
                 </div>
             </div>
         </div>

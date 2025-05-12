@@ -1,0 +1,264 @@
+<!-- Page header -->
+<div class="bg-white rounded-lg shadow p-6 mb-6">
+    <div class="flex justify-between items-center">
+        <div>
+            <h2 class="text-2xl font-bold text-gray-800">Portefeuille
+                Crypto</h2>
+            <p class="text-gray-600">Gérez vos actifs cryptographiques et suivez
+                les performances du marché</p>
+        </div>
+        <div class="flex space-x-3">
+            <button (click)="openBuyCryptoModal()"
+                class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center">
+                <i class="fa-solid fa-plus mr-2"></i>
+                Acheter
+            </button>
+            <button (click)="openSellCryptoModal()"
+                class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center">
+                <i class="fa-solid fa-arrow-right-arrow-left mr-2"></i>
+                Vendre
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Loading state -->
+<div *ngIf="isLoading" class="bg-white rounded-lg shadow p-12 mb-6 text-center">
+    <div
+        class="spinner-border inline-block w-12 h-12 border-4 rounded-full text-blue-600 mb-4"
+        role="status">
+        <span class="sr-only">Loading...</span>
+    </div>
+    <p class="text-lg text-gray-600">Chargement des données crypto...</p>
+</div>
+
+<!-- Error state -->
+<div *ngIf="error" class="bg-white rounded-lg shadow p-6 mb-6">
+    <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-800">
+        <div class="flex">
+            <i class="fa-solid fa-circle-exclamation text-xl mr-3"></i>
+            <div>
+                <h3 class="font-medium">Erreur de chargement</h3>
+                <p>{{ error }}</p>
+                <button (click)="loadCryptoData()"
+                    class="mt-2 text-sm text-red-600 hover:underline">
+                    Réessayer
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Portfolio summary - only show when data is loaded and no error -->
+<div *ngIf="!isLoading && !error" class="bg-white rounded-lg shadow p-6 mb-6">
+    <div class="flex justify-between items-start mb-6">
+        <div>
+            <h3 class="text-gray-500 font-medium">Valeur du portefeuille</h3>
+            <div class="flex items-baseline mt-1">
+                <div class="text-2xl font-bold mr-2">{{ totalCryptoBalance |
+                    currency:'EUR':'symbol':'1.2-2' }}</div>
+                <div [class]="getChangeClass(totalCryptoChange24h)"
+                    class="flex items-center">
+                    <i [class]="getChangeIcon(totalCryptoChange24h)"
+                        class="mr-1"></i>
+                    {{ formatChangeValue(totalCryptoChange24h) }}
+                </div>
+            </div>
+        </div>
+
+        <div>
+            <div class="flex border rounded-lg bg-gray-50 overflow-hidden">
+                <button *ngFor="let tf of timeframes"
+                    (click)="setTimeframe(tf)"
+                    [class.bg-blue-600]="selectedTimeframe === tf"
+                    [class.text-white]="selectedTimeframe === tf"
+                    [class.hover:bg-gray-100]="selectedTimeframe !== tf"
+                    class="py-1 px-3 text-sm font-medium transition-colors">
+                    {{ tf }}
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chart -->
+    <div class="h-64 w-full rounded-lg p-4 relative mb-6">
+        <canvas #cryptoChart></canvas>
+    </div>
+
+    <!-- Assets summary cards -->
+    <div>
+        <h3 class="text-lg font-semibold mb-4">Vos actifs</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div *ngFor="let asset of cryptoAssets"
+                class="border rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
+                (click)="selectCoin(asset.name.toLowerCase())">
+                <div class="flex justify-between items-center mb-3">
+                    <div class="flex items-center">
+                        <div
+                            class="w-10 h-10 rounded-full flex items-center justify-center bg-opacity-10">
+                            <img *ngIf="asset.image" [src]="asset.image"
+                                [alt]="asset.name" class="w-8 h-8">
+                            <i *ngIf="!asset.image"
+                                [class]="asset.icon + ' ' + asset.color"></i>
+                        </div>
+                        <div class="ml-3">
+                            <p class="font-semibold">{{ asset.name }}</p>
+                            <p class="text-xs text-gray-500">{{ asset.symbol
+                                }}</p>
+                        </div>
+                    </div>
+                    <div [class]="getChangeClass(asset.change24h)"
+                        class="flex items-center">
+                        <i [class]="getChangeIcon(asset.change24h)"
+                            class="mr-1"></i>
+                        {{ formatChangeValue(asset.change24h) }}
+                    </div>
+                </div>
+
+                <div class="mb-2">
+                    <p class="text-sm text-gray-500">Prix actuel</p>
+                    <p class="font-medium">{{ asset.price |
+                        currency:'EUR':'symbol':'1.2-2' }}</p>
+                </div>
+
+                <div class="flex justify-between mb-4">
+                    <div>
+                        <p class="text-sm text-gray-500">Solde</p>
+                        <p class="font-medium">{{ asset.balance }} {{
+                            asset.symbol }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500">Valeur</p>
+                        <p class="font-medium">{{ asset.valueInFiat |
+                            currency:'EUR':'symbol':'1.2-2' }}</p>
+                    </div>
+                </div>
+
+                <div class="flex space-x-2">
+                    <button
+                        (click)="openBuyCryptoModal(asset); $event.stopPropagation();"
+                        class="flex-1 py-2 px-3 bg-gray-100 hover:bg-gray-200 rounded text-sm font-medium transition-colors">
+                        Acheter
+                    </button>
+                    <button
+                        (click)="openSellCryptoModal(asset); $event.stopPropagation();"
+                        class="flex-1 py-2 px-3 bg-gray-100 hover:bg-gray-200 rounded text-sm font-medium transition-colors">
+                        Vendre
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Transaction history -->
+<div *ngIf="!isLoading && !error" class="bg-white rounded-lg shadow">
+    <div class="border-b px-6 py-4 flex justify-between items-center">
+        <h3 class="text-lg font-semibold">Historique des transactions</h3>
+        <div class="flex">
+            <div class="relative">
+                <input type="text" placeholder="Rechercher..."
+                    class="pl-9 pr-4 py-2 border border-gray-300 rounded-md">
+                <div
+                    class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <i class="fa-solid fa-search text-gray-400"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="overflow-x-auto">
+        <table class="w-full">
+            <thead>
+                <tr
+                    class="text-left text-xs font-medium text-gray-500 uppercase border-b">
+                    <th class="py-3 px-4">Date</th>
+                    <th class="py-3 px-4">Type</th>
+                    <th class="py-3 px-4">Actif</th>
+                    <th class="py-3 px-4">Quantité</th>
+                    <th class="py-3 px-4">Prix</th>
+                    <th class="py-3 px-4">Valeur</th>
+                    <th class="py-3 px-4">Statut</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+                <tr *ngFor="let tx of transactions"
+                    class="hover:bg-gray-50 transition-colors">
+                    <td class="py-3 px-4 text-gray-500">{{ tx.date |
+                        date:'dd/MM/yyyy' }}</td>
+                    <td class="py-3 px-4">
+                        <span
+                            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                            [ngClass]="{
+                    'bg-green-100 text-green-800': tx.type === 'buy',
+                    'bg-red-100 text-red-800': tx.type === 'sell',
+                    'bg-blue-100 text-blue-800': tx.type === 'transfer'
+                  }">
+                            {{ tx.type === 'buy' ? 'Achat' : tx.type === 'sell'
+                            ? 'Vente' : 'Transfert' }}
+                        </span>
+                    </td>
+                    <td class="py-3 px-4">
+                        <div class="font-medium">{{ tx.asset }}</div>
+                        <div class="text-xs text-gray-500">{{ tx.symbol }}</div>
+                    </td>
+                    <td class="py-3 px-4 font-medium">
+                        {{ tx.amount }} {{ tx.symbol }}
+                    </td>
+                    <td class="py-3 px-4 text-gray-500">
+                        {{ tx.price | currency:'EUR':'symbol':'1.2-2' }}
+                    </td>
+                    <td class="py-3 px-4">
+                        {{ tx.valueInFiat | currency:'EUR':'symbol':'1.2-2' }}
+                    </td>
+                    <td class="py-3 px-4">
+                        <span
+                            class="px-2 py-1 inline-flex text-xs leading-5 font-medium rounded-full"
+                            [ngClass]="getStatusClass(tx.status)">
+                            {{ tx.status === 'completed' ? 'Complété' :
+                            tx.status === 'pending' ? 'En cours' : 'Échoué' }}
+                        </span>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="px-6 py-4 flex items-center justify-between border-t">
+        <div class="text-sm text-gray-500">
+            Affichage de <span class="font-medium">1</span> à <span
+                class="font-medium">{{ transactions.length }}</span> sur
+            <span class="font-medium">{{ transactions.length }}</span>
+            transactions
+        </div>
+        <div class="flex-1 flex justify-end">
+            <nav class="relative z-0 inline-flex shadow-sm -space-x-px"
+                aria-label="Pagination">
+                <a href="#"
+                    class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                    <span class="sr-only">Previous</span>
+                    <i class="fa-solid fa-chevron-left"></i>
+                </a>
+                <a href="#"
+                    class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">1</a>
+                <a href="#"
+                    class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">2</a>
+                <a href="#"
+                    class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                    <span class="sr-only">Next</span>
+                    <i class="fa-solid fa-chevron-right"></i>
+                </a>
+            </nav>
+        </div>
+    </div>
+</div>
+
+<!-- Market info -->
+<div class="mt-6 mb-6 bg-gray-50 rounded-lg p-4 text-center text-gray-500">
+    <p>Les prix des cryptomonnaies sont fournis à titre indicatif uniquement et
+        peuvent différer des cours du marché en temps réel.</p>
+
+    <p class="text-sm">Dernière mise à jour: {{ getCurrentDate() |
+        date:'dd/MM/yyyy HH:mm:ss' }}</p>
+</div>
