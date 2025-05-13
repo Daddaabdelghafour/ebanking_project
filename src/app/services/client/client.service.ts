@@ -2,7 +2,8 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
 import { delay } from 'rxjs/operators';
-import { Client, ClientFormData, Account } from '../../shared/models/client.model';
+import { Client, ClientFormData } from '../../shared/models/client.model';
+import { Account } from '../../shared/models/account.model';
 
 @Injectable({
   providedIn: 'root'
@@ -34,21 +35,41 @@ export class ClientService {
       accounts: [
         {
           id: 'acc1',
+          clientId: 'cl1',
           accountNumber: '11223344556677',
-          type: 'Courant',
+          type: 'current',
           balance: 75650.45,
+          availableBalance: 75000.00,
           currency: 'MAD',
           status: 'active',
-          openedDate: new Date('2020-03-15')
+          openedDate: new Date('2020-03-15'),
+          lastTransactionDate: new Date('2023-05-10'),
+          iban: 'MA64 1234 5678 9012 3456 7890 1234',
+          dailyLimit: 10000,
+          monthlyLimit: 50000,
+          isPrimary: true,
+          interestRate: 0,
+          createdAt: new Date('2020-03-15'),
+          updatedAt: new Date('2023-05-10')
         },
         {
           id: 'acc2',
+          clientId: 'cl1',
           accountNumber: '77665544332211',
-          type: 'Épargne',
+          type: 'savings',
           balance: 125000,
+          availableBalance: 125000,
           currency: 'MAD',
           status: 'active',
-          openedDate: new Date('2020-07-22')
+          openedDate: new Date('2020-07-22'),
+          lastTransactionDate: new Date('2023-04-15'),
+          iban: 'MA64 1234 5678 9012 3456 7890 5678',
+          dailyLimit: 5000,
+          monthlyLimit: 20000,
+          isPrimary: false,
+          interestRate: 2.5,
+          createdAt: new Date('2020-07-22'),
+          updatedAt: new Date('2023-04-15')
         }
       ]
     },
@@ -77,12 +98,22 @@ export class ClientService {
       accounts: [
         {
           id: 'acc3',
+          clientId: 'cl2',
           accountNumber: '12345678901234',
-          type: 'Courant',
+          type: 'current',
           balance: 23475.90,
+          availableBalance: 23000,
           currency: 'MAD',
           status: 'active',
-          openedDate: new Date('2021-06-10')
+          openedDate: new Date('2021-06-10'),
+          lastTransactionDate: new Date('2023-05-08'),
+          iban: 'MA64 5678 1234 5678 9012 3456 7890',
+          dailyLimit: 5000,
+          monthlyLimit: 30000,
+          isPrimary: true,
+          interestRate: 0,
+          createdAt: new Date('2021-06-10'),
+          updatedAt: new Date('2023-05-08')
         }
       ]
     },
@@ -135,12 +166,22 @@ export class ClientService {
       accounts: [
         {
           id: 'acc4',
+          clientId: 'cl4',
           accountNumber: '98765432109876',
-          type: 'Courant',
+          type: 'current',
           balance: 125750.80,
+          availableBalance: 125000,
           currency: 'MAD',
           status: 'inactive',
-          openedDate: new Date('2020-07-25')
+          openedDate: new Date('2020-07-25'),
+          lastTransactionDate: new Date('2022-11-12'),
+          iban: 'MA64 9876 5432 1098 7654 3210 9876',
+          dailyLimit: 15000,
+          monthlyLimit: 100000,
+          isPrimary: true,
+          interestRate: 0,
+          createdAt: new Date('2020-07-25'),
+          updatedAt: new Date('2022-11-12')
         }
       ]
     },
@@ -193,12 +234,22 @@ export class ClientService {
       accounts: [
         {
           id: 'acc5',
+          clientId: 'cl6',
           accountNumber: '65432109876543',
-          type: 'Courant',
+          type: 'current',
           balance: 352400.25,
+          availableBalance: 350000,
           currency: 'MAD',
           status: 'active',
-          openedDate: new Date('2018-09-12')
+          openedDate: new Date('2018-09-12'),
+          lastTransactionDate: new Date('2023-05-09'),
+          iban: 'MA64 6543 2109 8765 4321 0987 6543',
+          dailyLimit: 50000,
+          monthlyLimit: 300000,
+          isPrimary: true,
+          interestRate: 0,
+          createdAt: new Date('2018-09-12'),
+          updatedAt: new Date('2023-05-09')
         }
       ]
     }
@@ -217,6 +268,25 @@ export class ClientService {
     return of(client).pipe(delay(300));
   }
 
+  getClientAccounts(clientId: string): Observable<Account[]> {
+    // In a real app, this would call an API
+    const client = this.mockClients.find(c => c.id === clientId);
+    return of(client?.accounts || []).pipe(delay(400));
+  }
+
+  getAccountById(accountId: string): Observable<Account | undefined> {
+    // In a real app, this would call an API
+    for (const client of this.mockClients) {
+      if (client.accounts) {
+        const account = client.accounts.find(a => a.id === accountId);
+        if (account) {
+          return of(account).pipe(delay(300));
+        }
+      }
+    }
+    return of(undefined).pipe(delay(300));
+  }
+
   createClient(clientData: ClientFormData): Observable<Client> {
     // In a real app, this would call an API
     const newClient: Client = {
@@ -232,6 +302,74 @@ export class ClientService {
     
     this.mockClients.push(newClient);
     return of(newClient).pipe(delay(500));
+  }
+
+  createAccount(clientId: string, accountData: Partial<Account>): Observable<Account> {
+    // In a real app, this would call an API
+    const clientIndex = this.mockClients.findIndex(c => c.id === clientId);
+    if (clientIndex === -1) {
+      return of(undefined as any).pipe(delay(500));
+    }
+
+    const accountId = 'acc' + (
+      this.mockClients
+        .map(client => client.accounts?.length || 0)
+        .reduce((acc, val) => acc + val, 0) + 1
+    );
+
+    const now = new Date();
+    
+    // Create new account with required fields and provided data
+    const newAccount: Account = {
+      id: accountId,
+      clientId: clientId,
+      accountNumber: Math.floor(Math.random() * 10000000000000000).toString(),
+      type: accountData.type || 'current',
+      balance: accountData.balance || 0,
+      availableBalance: accountData.availableBalance || accountData.balance || 0,
+      currency: accountData.currency || 'MAD',
+      status: accountData.status || 'active',
+      openedDate: accountData.openedDate || now,
+      createdAt: now,
+      ...accountData
+    };
+    
+    // Initialize accounts array if it doesn't exist
+    if (!this.mockClients[clientIndex].accounts) {
+      this.mockClients[clientIndex].accounts = [];
+    }
+    this.mockClients[clientIndex].accounts.push(newAccount);
+    
+    // Update client balance
+    this.updateClientBalance(clientId);
+    
+    return of(newAccount).pipe(delay(500));
+  }
+
+  updateAccount(accountId: string, updates: Partial<Account>): Observable<Account> {
+    // Find the account and update it
+    for (const client of this.mockClients) {
+      if (!client.accounts) continue;
+      const accountIndex = client.accounts.findIndex(a => a.id === accountId);
+      if (accountIndex !== -1) {
+        const updatedAccount = {
+          ...client.accounts[accountIndex],
+          ...updates,
+          updatedAt: new Date()
+        };
+        
+        client.accounts[accountIndex] = updatedAccount;
+        
+        // Update client balance if necessary
+        if (updates.balance !== undefined) {
+          this.updateClientBalance(client.id);
+        }
+        
+        return of(updatedAccount).pipe(delay(500));
+      }
+    }
+    
+    return of(undefined as any).pipe(delay(500));
   }
 
   updateClient(id: string, clientData: ClientFormData): Observable<Client> {
@@ -272,6 +410,37 @@ export class ClientService {
     return of(this.mockClients.length < initialLength).pipe(delay(500));
   }
 
+  deleteAccount(accountId: string): Observable<boolean> {
+    // In a real app, this would call an API to delete
+    for (const client of this.mockClients) {
+      if (!client.accounts) continue;
+      
+      const initialLength = client.accounts.length;
+      client.accounts = client.accounts.filter(a => a.id !== accountId);
+      
+      if (client.accounts.length < initialLength) {
+        // Update client balance
+        this.updateClientBalance(client.id);
+        return of(true).pipe(delay(500));
+      }
+    }
+    
+    return of(false).pipe(delay(500));
+  }
+
+  // Helper method to update a client's total balance based on their accounts
+  private updateClientBalance(clientId: string): void {
+    const client = this.mockClients.find(c => c.id === clientId);
+    if (client && client.accounts) {
+      client.balance = client.accounts.reduce((sum, account) => {
+        if (account.status === 'active') {
+          return sum + account.balance;
+        }
+        return sum;
+      }, 0);
+    }
+  }
+
   // Utility methods for form dropdowns
   getCities(): Observable<string[]> {
     return of([
@@ -290,6 +459,12 @@ export class ClientService {
   getCurrencies(): Observable<string[]> {
     return of([
       'MAD', 'EUR', 'USD', 'GBP'
+    ]).pipe(delay(300));
+  }
+
+  getAccountCategories(): Observable<string[]> {
+    return of([
+      'current', 'savings', 'investment', 'fixed', 'other'
     ]).pipe(delay(300));
   }
 }
