@@ -532,7 +532,7 @@
                                         <dd
                                             class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
                                             {{ selectedTransfer?.createdAt ?
-                                            formatDate(selectedTransfer.createdAt)
+                                            formatDate(selectedTransfer?.createdAt)
                                             : 'N/A' }}
                                         </dd>
                                     </div>
@@ -544,10 +544,10 @@
                                         <dd
                                             class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
                                             {{ selectedTransfer?.executedDate ?
-                                            formatDate(selectedTransfer.executedDate)
+                                            formatDate(selectedTransfer?.executedDate)
                                             :
                                             (selectedTransfer?.scheduledDate ?
-                                            formatDate(selectedTransfer.scheduledDate)
+                                            formatDate(selectedTransfer?.scheduledDate)
                                             + ' (prévue)' : 'N/A') }}
                                         </dd>
                                     </div>
@@ -557,7 +557,7 @@
                                             class="text-sm font-medium text-gray-500">Motif</dt>
                                         <dd
                                             class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{
-                                            selectedTransfer.reason }}</dd>
+                                            selectedTransfer?.reason }}</dd>
                                     </div>
                                     <div
                                         *ngIf="selectedTransfer?.transactionFees"
@@ -566,8 +566,8 @@
                                             class="text-sm font-medium text-gray-500">Frais</dt>
                                         <dd
                                             class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-                                            {{ selectedTransfer.transactionFees
-                                            }} {{ selectedTransfer.currency }}
+                                            {{ selectedTransfer?.transactionFees
+                                            }} {{ selectedTransfer?.currency }}
                                         </dd>
                                     </div>
                                     <div *ngIf="selectedTransfer?.isRecurring"
