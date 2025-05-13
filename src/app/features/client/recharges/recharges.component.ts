@@ -3,8 +3,10 @@ import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { BillService } from '../../../services/bill/bill.service';
 import { AccountService } from '../../../services/account/account.service';
-import { Recharge, RechargeProvider, RechargeFormData } from '../../../shared/models/bill.model';
-import { Account } from '../../../shared/models/client.model';
+import { Recharge, RechargeProvider, RechargeFormData } from '../../../shared/models/recharge.model';
+import { Account } from '../../../shared/models/account.model';
+import { forkJoin } from 'rxjs';
+import { finalize } from 'rxjs/operators';
 
 @Component({
   selector: 'app-recharges',
@@ -54,33 +56,48 @@ export class RechargesComponent implements OnInit {
   loadData(): void {
     this.isLoading = true;
     
-    // Charger les comptes du client
-    this.accountService.getClientAccounts(this.clientId).subscribe(accounts => {
-      this.accounts = accounts;
-      if (accounts.length > 0) {
-        this.selectedAccountId = accounts[0].id;
-      }
-      
-      // Charger les fournisseurs de recharge mobile
-      this.billService.getRechargeProviders('mobile').subscribe(providers => {
-        this.mobileProviders = providers;
-        if (providers.length > 0) {
-          this.selectedProvider = providers[0].id;
+    // Utiliser forkJoin pour charger les données en parallèle
+    forkJoin({
+      accounts: this.accountService.getClientAccounts(this.clientId),
+      mobileProviders: this.billService.getRechargeProviders('mobile'),
+      streamingProviders: this.billService.getRechargeProviders('streaming'),
+      recharges: this.billService.getClientRecharges(this.accountId)
+    })
+    .pipe(
+      finalize(() => this.isLoading = false)
+    )
+    .subscribe({
+      next: (results) => {
+        // Traiter les comptes
+        this.accounts = results.accounts;
+        if (this.accounts.length > 0) {
+          this.selectedAccountId = this.accounts[0].id;
         }
         
-        // Charger les fournisseurs de streaming
-        this.billService.getRechargeProviders('streaming').subscribe(providers => {
-          this.streamingProviders = providers;
-          
-          // Charger l'historique des recharges
-          this.billService.getClientRecharges(this.accountId).subscribe(recharges => {
-            this.rechargeHistory = recharges.sort((a, b) => 
-              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-            );
-            this.isLoading = false;
-          });
-        });
-      });
+        // Traiter les fournisseurs mobiles
+        this.mobileProviders = results.mobileProviders.map(provider => ({
+          ...provider,
+          type: 'mobile'
+        }));
+        if (this.mobileProviders.length > 0) {
+          this.selectedProvider = this.mobileProviders[0].id;
+        }
+        
+        // Traiter les fournisseurs de streaming
+        this.streamingProviders = results.streamingProviders.map(provider => ({
+          ...provider,
+          type: 'streaming'
+        }));
+        
+        // Traiter l'historique des recharges
+        this.rechargeHistory = results.recharges.sort((a, b) => 
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+      },
+      error: (err) => {
+        console.error('Erreur lors du chargement des données:', err);
+        // Vous pourriez ajouter un message d'erreur à afficher à l'utilisateur
+      }
     });
   }
 

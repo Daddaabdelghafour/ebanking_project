@@ -29,8 +29,8 @@
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <!-- Visa Card -->
-        <div *ngFor="let card of bankCards"
+        <!-- Cartes bancaires -->
+        <div *ngFor="let card of displayCards"
             class="rounded-xl overflow-hidden shadow-lg h-48 relative"
             [ngClass]="card.cardBackground">
             <div
@@ -40,12 +40,12 @@
                     <div class="text-lg font-bold">Bank Card</div>
                     <!-- Card Type Logo -->
                     <div>
-                        <svg *ngIf="card.cardType === 'visa'" class="h-8"
+                        <svg *ngIf="card.network === 'visa'" class="h-8"
                             viewBox="0 0 36 12" fill="white">
                             <path
                                 d="M13.954 1.38L8.552 10.37H5.67L3.024 2.894c-.153-.612-.288-.836-.756-1.092C1.566 1.42.298.95.01.95L.083.522h4.707c.6 0 1.14.402 1.276 1.096l1.166 6.193 2.868-7.29h3.854zM36 10.37h-3.395L29.688.522h2.935L36 10.37zm-5.027-6.329c.012-2.446-3.387-2.578-3.366-3.67.008-.332.325-.686 1.02-.776.343-.044 1.292-.08 2.37.415l.422-1.97c-.578-.21-1.32-.41-2.242-.41-2.368 0-4.036 1.258-4.05 3.06-.017 1.33 1.191 2.072 2.099 2.515.933.453 1.246.744 1.241 1.148-.007.62-.743.894-1.432.905-1.202.02-1.9-.324-2.461-.582l-.434 2.027c.56.256 1.596.48 2.67.492 2.52 0 4.17-1.244 4.177-3.17l-.014-.984zM20.586.522l-3.005 7.686-.322-1.544-.964-4.642C16.11.8 15.58.522 14.93.522h-4.9l-.06.245c1.264.307 2.403.76 3.371 1.33L16.78 10.37h3.02L24.485.522h-3.9z" />
                         </svg>
-                        <svg *ngIf="card.cardType === 'mastercard'" class="h-8"
+                        <svg *ngIf="card.network === 'mastercard'" class="h-8"
                             viewBox="0 0 36 24" fill="white">
                             <path d="M22.57 5.5H13.43v12.96h9.14V5.5z"
                                 fill="#FF5F00" />
@@ -56,21 +56,35 @@
                                 d="M30.105 12c0 4.55-3.7 8.24-8.25 8.24-1.93 0-3.7-.66-5.1-1.76 1.92-1.52 3.15-3.85 3.15-6.48 0-2.63-1.23-4.96-3.14-6.48 1.4-1.1 3.17-1.76 5.1-1.76 4.55 0 8.24 3.7 8.24 8.24z"
                                 fill="#F79E1B" />
                         </svg>
+                        <svg *ngIf="card.network === 'amex'" class="h-8"
+                            viewBox="0 0 36 24" fill="white">
+                            <path
+                                d="M33 5H3C1.3 5 0 6.3 0 8v8c0 1.7 1.4 3 3 3h30c1.7 0 3-1.3 3-3V8c0-1.7-1.3-3-3-3z"
+                                fill="#006FCF" />
+                            <path
+                                d="M16 12.7v-2h4.2L21 9h1.6l.4 1.2h4v7.5H16v-1.8l-.5 1.8h-2.6l-.5-1.8V18H3.4l-.5-1.4h-1L1.4 18H0V9h7.7l.8 1.2 1-1.2H16zm-11 3l1.2-3.3.9 3.4h-2.1zm4-.9h-2.2l.7-1.4-.5-1.4h1.9v2.8zm9.4 0h-2v-.6h1.9v-.7h-1.8v-.6h2.1l.9 1-1 .9zm3.7 0h-2v-.6h2v-.7h-2v-.6h2.2l.9.9-1 1zm3.9-1.7l1.4-1.4h1.6v3.1h-1.6v-1.8L25.9 14v1.8h-1.6v-3.1H26l-1 1.4z"
+                                fill="#FFF" />
+                        </svg>
                     </div>
                 </div>
 
                 <!-- Card Number -->
-                <div class="text-lg tracking-wider">{{ card.cardNumber }}</div>
+                <div class="text-lg tracking-wider">{{ card.maskedNumber
+                    }}</div>
 
                 <!-- Card Footer -->
                 <div class="flex justify-between items-center">
                     <div>
-                        <div class="text-xs opacity-80">CARD HOLDER</div>
-                        <div>{{ card.cardHolder }}</div>
+                        <div class="text-xs opacity-80">TITULAIRE</div>
+                        <div>{{ card.cardholderName }}</div>
                     </div>
                     <div>
-                        <div class="text-xs opacity-80">EXPIRES</div>
+                        <div class="text-xs opacity-80">EXPIRE</div>
                         <div>{{ card.expiryDate }}</div>
+                    </div>
+                    <div *ngIf="card.status !== 'active'">
+                        <div class="text-xs opacity-80">STATUT</div>
+                        <div class="capitalize">{{ card.status }}</div>
                     </div>
                 </div>
             </div>
@@ -103,7 +117,7 @@
             </div>
         </div>
         <div class="text-2xl font-bold">{{ financialSummary.totalBalance |
-            currency:'EUR':'symbol':'1.2-2' }}</div>
+            currency:'MAD':'symbol':'1.2-2' }}</div>
         <div class="flex items-center mt-1">
             <div
                 class="flex items-center bg-green-100 text-green-800 rounded-full px-2 py-0.5 text-xs">
@@ -127,7 +141,7 @@
             </div>
         </div>
         <div class="text-2xl font-bold">{{ financialSummary.monthlyIncome |
-            currency:'EUR':'symbol':'1.2-2' }}</div>
+            currency:'MAD':'symbol':'1.2-2' }}</div>
         <div class="flex items-center mt-1">
             <div
                 class="flex items-center bg-green-100 text-green-800 rounded-full px-2 py-0.5 text-xs">
@@ -153,7 +167,7 @@
             </div>
         </div>
         <div class="text-2xl font-bold">{{ financialSummary.monthlyExpenses |
-            currency:'EUR':'symbol':'1.2-2' }}</div>
+            currency:'MAD':'symbol':'1.2-2' }}</div>
         <div class="flex items-center mt-1">
             <div
                 class="flex items-center bg-red-100 text-red-800 rounded-full px-2 py-0.5 text-xs">
@@ -203,6 +217,7 @@
 </div>
 
 <!-- Recent transactions -->
+<!-- Recent transactions -->
 <div class="bg-white rounded-lg shadow p-6 mb-6">
     <div class="flex justify-between items-center mb-4">
         <h3 class="text-lg font-bold text-gray-800">Transactions Récentes</h3>
@@ -229,38 +244,82 @@
                             <div
                                 class="w-8 h-8 rounded-full flex items-center justify-center mr-3"
                                 [ngClass]="{
-                  'bg-blue-100': transaction.icon === 'briefcase',
-                  'bg-green-100': transaction.icon === 'mail',
-                  'bg-purple-100': transaction.icon === 'currency-dollar'
-                }">
-                                <svg *ngIf="transaction.icon === 'briefcase'"
-                                    class="w-4 h-4 text-blue-600" fill="none"
+                                    'bg-blue-100': transaction.category === 'software',
+                                    'bg-green-100': transaction.category === 'transfer',
+                                    'bg-purple-100': transaction.category === 'finance',
+                                    'bg-yellow-100': transaction.category === 'shopping',
+                                    'bg-red-100': transaction.category === 'food',
+                                    'bg-indigo-100': transaction.category === 'entertainment',
+                                    'bg-gray-100': transaction.category === 'other'
+                                }">
+                                <!-- Shopping Icon -->
+                                <svg *ngIf="transaction.category === 'shopping'"
+                                    class="w-4 h-4 text-yellow-600" fill="none"
                                     stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round"
                                         stroke-linejoin="round" stroke-width="2"
-                                        d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                                        d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
                                 </svg>
-                                <svg *ngIf="transaction.icon === 'mail'"
+                                <!-- Transfer Icon -->
+                                <svg *ngIf="transaction.category === 'transfer'"
                                     class="w-4 h-4 text-green-600" fill="none"
                                     stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round"
                                         stroke-linejoin="round" stroke-width="2"
-                                        d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                                        d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
                                 </svg>
-                                <svg
-                                    *ngIf="transaction.icon === 'currency-dollar'"
+                                <!-- Finance Icon -->
+                                <svg *ngIf="transaction.category === 'finance'"
                                     class="w-4 h-4 text-purple-600" fill="none"
                                     stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round"
                                         stroke-linejoin="round" stroke-width="2"
                                         d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                                 </svg>
+                                <!-- Food Icon -->
+                                <svg *ngIf="transaction.category === 'food'"
+                                    class="w-4 h-4 text-red-600" fill="none"
+                                    stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round"
+                                        stroke-linejoin="round" stroke-width="2"
+                                        d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+                                </svg>
+                                <!-- Housing Icon -->
+                                <svg *ngIf="transaction.category === 'housing'"
+                                    class="w-4 h-4 text-indigo-600" fill="none"
+                                    stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round"
+                                        stroke-linejoin="round" stroke-width="2"
+                                        d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+                                </svg>
+                                <!-- Entertainment Icon -->
+                                <svg
+                                    *ngIf="transaction.category === 'entertainment'"
+                                    class="w-4 h-4 text-blue-600" fill="none"
+                                    stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round"
+                                        stroke-linejoin="round" stroke-width="2"
+                                        d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"></path>
+                                </svg>
+                                <!-- Other Icon -->
+                                <svg
+                                    *ngIf="transaction.category === 'other' || !transaction.category"
+                                    class="w-4 h-4 text-gray-600" fill="none"
+                                    stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round"
+                                        stroke-linejoin="round" stroke-width="2"
+                                        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                                </svg>
                             </div>
                             <div>
                                 <p class="font-medium">{{ transaction.name
                                     }}</p>
                                 <p class="text-xs text-gray-500">{{
-                                    transaction.type }}</p>
+                                    transaction.type }}
+                                    <span
+                                        *ngIf="transaction.merchantName">&bull;
+                                        {{ transaction.merchantName }}</span>
+                                </p>
                             </div>
                         </div>
                     </td>
@@ -270,23 +329,27 @@
                         <span
                             class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
                             [ngClass]="{
-                  'bg-blue-100 text-blue-800': transaction.category === 'Software',
-                  'bg-green-100 text-green-800': transaction.category === 'Transfer',
-                  'bg-purple-100 text-purple-800': transaction.category === 'Finance'
-                }">
-                            {{ transaction.category }}
+                                'bg-blue-100 text-blue-800': transaction.category === 'software',
+                                'bg-green-100 text-green-800': transaction.category === 'transfer',
+                                'bg-purple-100 text-purple-800': transaction.category === 'finance',
+                                'bg-yellow-100 text-yellow-800': transaction.category === 'shopping',
+                                'bg-red-100 text-red-800': transaction.category === 'food',
+                                'bg-indigo-100 text-indigo-800': transaction.category === 'entertainment',
+                                'bg-gray-100 text-gray-800': transaction.category === 'other' || !transaction.category
+                            }">
+                            {{ transaction.category | titlecase }}
                         </span>
                     </td>
                     <td class="py-3 px-4 font-medium"
                         [ngClass]="{'text-red-600': transaction.amount < 0, 'text-green-600': transaction.amount > 0}">
-                        {{ transaction.amount | currency:'EUR':'symbol':'1.2-2'
-                        }}
+                        {{ transaction.amount |
+                        currency:transaction.currency:'symbol':'1.2-2' }}
                     </td>
                     <td class="py-3 px-4">
                         <span
                             class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
                             [ngClass]="getTransactionStatusClass(transaction.status)">
-                            {{ transaction.status }}
+                            {{ transaction.status | titlecase }}
                         </span>
                     </td>
                 </tr>

@@ -33,3 +33,16 @@ export interface TransferFormData {
   recurringFrequency?: 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'annually';
   type: 'domestic' | 'international' | 'internal';
 }
+
+// Ajout pour la cohérence
+export interface TransferRecipient {
+  id: string;
+  clientId: string;
+  name: string;
+  accountNumber: string;
+  bankCode?: string;
+  bankName?: string;
+  isFavorite: boolean;
+  lastUsed?: Date;
+  createdAt: Date;
+}

@@ -4,7 +4,7 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { BillService } from '../../../services/bill/bill.service';
 import { Bill, BillFormData } from '../../../shared/models/bill.model';
 import { AccountService } from '../../../services/account/account.service';
-import { Account } from '../../../shared/models/client.model';
+import { Account } from '../../../shared/models/account.model';
 
 @Component({
   selector: 'app-bills',

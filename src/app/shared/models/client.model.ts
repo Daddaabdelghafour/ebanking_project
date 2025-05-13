@@ -1,12 +1,7 @@
-export interface Account {
-  id: string;
-  accountNumber: string;
-  type: string;
-  balance: number;
-  currency: string;
-  status: 'active' | 'inactive' | 'blocked' | 'pending';
-  openedDate: Date;
-}
+import { Account } from './account.model';
+
+// Réexporter Account pour maintenir la compatibilité
+export type { Account } from './account.model';
 
 export interface Client {
   id: string;
@@ -29,9 +24,8 @@ export interface Client {
   birthDate: Date;
   occupation?: string;
   income?: number;
-  // Added these properties to fix the errors
   contactPreference?: string;
-  accounts?: Account[];
+  accounts: Account[];
 }
 
 export interface ClientFormData {
