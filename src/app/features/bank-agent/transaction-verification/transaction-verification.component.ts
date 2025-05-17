@@ -1,7 +1,8 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup } from '@angular/forms';
-
+import { TransactionService } from '../../../services/transaction/transaction.service';
+import { TransactionVerification } from '../../../shared/models/transactionVerification';
 @Component({
   selector: 'app-transaction-verification',
   standalone: true,
@@ -11,12 +12,17 @@ import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup } from '@angul
 })
 export class TransactionVerificationComponent implements OnInit {
   filterForm: FormGroup;
-  transactions: Transaction[] = [];
-  filteredTransactions: Transaction[] = [];
-  selectedTransaction: Transaction | null = null;
+  transactions: TransactionVerification[] = [];
+  filteredTransactions: TransactionVerification[] = [];
+  selectedTransaction: TransactionVerification | null = null;
   showDetailsModal = false;
+  isLoading = false;
+  errorMessage = '';
+  verificationNote = '';
+  Math = Math;
+  agentName = 'Agent Actuel'; // Par défaut
   
-  // Filter options
+  // Options pour le filtre
   statuses = [
     { value: 'all', label: 'Tous les statuts' },
     { value: 'success', label: 'Confirmé' },
@@ -30,10 +36,14 @@ export class TransactionVerificationComponent implements OnInit {
     { value: 'transfer', label: 'Virement' },
     { value: 'payment', label: 'Paiement' },
     { value: 'withdrawal', label: 'Retrait' },
-    { value: 'deposit', label: 'Dépôt' }
+    { value: 'deposit', label: 'Dépôt' },
+    { value: 'refund', label: 'Remboursement' }
   ];
 
-  constructor(private fb: FormBuilder) {
+  constructor(
+    private fb: FormBuilder,
+    private transactionService: TransactionService,
+  ) {
     this.filterForm = this.fb.group({
       searchTerm: [''],
       dateFrom: [''],
@@ -46,141 +56,61 @@ export class TransactionVerificationComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    this.loadSampleTransactions();
-    this.applyFilters(); // Initialize with all transactions
+    this.loadTransactions();
     
-    // Subscribe to form changes to filter in real time
+    // Obtenir le nom de l'agent connecté
+    this.getCurrentAgentName();
+    
+    // S'abonner aux changements de formulaire pour filtrer en temps réel
     this.filterForm.valueChanges.subscribe(() => {
       this.applyFilters();
     });
   }
 
-  loadSampleTransactions() {
-    this.transactions = [
-      {
-        id: 'TRX-12345',
-        date: new Date(2023, 4, 15, 10, 23),
-        amount: 1500.00,
-        currency: 'MAD',
-        type: 'transfer',
-        typeLabel: 'Virement',
-        status: 'success',
-        clientName: 'Ahmed Benjelloun',
-        clientId: '1',
-        accountNumber: '**** 4532',
-        recipient: 'Fatima El Alaoui',
-        recipientAccount: '**** 7890',
-        description: 'Virement mensuel',
-        reference: 'REF7823',
-        verifier: 'Auto',
-        flaggedReason: null
-      },
-      {
-        id: 'TRX-12346',
-        date: new Date(2023, 4, 15, 14, 45),
-        amount: 15000.00,
-        currency: 'MAD',
-        type: 'withdrawal',
-        typeLabel: 'Retrait',
-        status: 'flagged',
-        clientName: 'Karim Naciri',
-        clientId: '3',
-        accountNumber: '**** 6543',
-        recipient: null,
-        recipientAccount: null,
-        description: 'Retrait agence',
-        reference: 'REF7824',
-        verifier: null,
-        flaggedReason: 'Montant inhabituel'
-      },
-      {
-        id: 'TRX-12347',
-        date: new Date(2023, 4, 14, 9, 10),
-        amount: 750.00,
-        currency: 'MAD',
-        type: 'payment',
-        typeLabel: 'Paiement',
-        status: 'success',
-        clientName: 'Fatima El Alaoui',
-        clientId: '2',
-        accountNumber: '**** 7890',
-        recipient: 'Maroc Telecom',
-        recipientAccount: '**** 1111',
-        description: 'Facture téléphone',
-        reference: 'REF7825',
-        verifier: 'Auto',
-        flaggedReason: null
-      },
-      {
-        id: 'TRX-12348',
-        date: new Date(2023, 4, 14, 16, 30),
-        amount: 5000.00,
-        currency: 'MAD',
-        type: 'transfer',
-        typeLabel: 'Virement',
-        status: 'pending',
-        clientName: 'Ahmed Benjelloun',
-        clientId: '1',
-        accountNumber: '**** 4532',
-        recipient: 'Société XYZ',
-        recipientAccount: '**** 8888',
-        description: 'Paiement fournisseur',
-        reference: 'REF7826',
-        verifier: null,
-        flaggedReason: null
-      },
-      {
-        id: 'TRX-12349',
-        date: new Date(2023, 4, 13, 11, 20),
-        amount: 200.00,
-        currency: 'MAD',
-        type: 'deposit',
-        typeLabel: 'Dépôt',
-        status: 'success',
-        clientName: 'Karim Naciri',
-        clientId: '3',
-        accountNumber: '**** 6543',
-        recipient: null,
-        recipientAccount: null,
-        description: 'Dépôt espèces',
-        reference: 'REF7827',
-        verifier: 'Sarah Martin',
-        flaggedReason: null
-      },
-      {
-        id: 'TRX-12350',
-        date: new Date(2023, 4, 13, 15, 40),
-        amount: 1200.00,
-        currency: 'MAD',
-        type: 'payment',
-        typeLabel: 'Paiement',
-        status: 'failed',
-        clientName: 'Fatima El Alaoui',
-        clientId: '2',
-        accountNumber: '**** 7890',
-        recipient: 'REDAL',
-        recipientAccount: '**** 2222',
-        description: 'Facture électricité',
-        reference: 'REF7828',
-        verifier: 'System',
-        flaggedReason: 'Solde insuffisant'
-      }
-    ];
+  // Récupérer le nom de l'agent connecté (à adapter selon votre système d'authentification)
+  getCurrentAgentName(): void {
+  
   }
 
-  applyFilters() {
+  loadTransactions(): void {
+    this.isLoading = true;
+    this.errorMessage = '';
+    
+    this.transactionService.getPendingTransactions().subscribe({
+      next: (transactions) => {
+        this.transactions = transactions;
+        this.filteredTransactions = [...transactions];
+        this.isLoading = false;
+      },
+      error: (err) => {
+        console.error('Erreur lors du chargement des transactions', err);
+        this.errorMessage = 'Impossible de charger les transactions. Veuillez réessayer.';
+        this.isLoading = false;
+      }
+    });
+  }
+
+  applyFilters(): void {
     const filters = this.filterForm.value;
     
     this.filteredTransactions = this.transactions.filter(transaction => {
-      // Search term filter (check ID, client name, and description)
-      if (filters.searchTerm && !this.matchesSearchTerm(transaction, filters.searchTerm)) {
-        return false;
+      // Recherche par terme (ID, client, description, référence)
+      if (filters.searchTerm) {
+        const searchTerm = filters.searchTerm.toLowerCase();
+        if (!(transaction.id.toLowerCase().includes(searchTerm) ||
+              transaction.clientName.toLowerCase().includes(searchTerm) ||
+              (transaction.description && transaction.description.toLowerCase().includes(searchTerm)) ||
+              (transaction.reference && transaction.reference.toLowerCase().includes(searchTerm)) ||
+              (transaction.recipientName && transaction.recipientName.toLowerCase().includes(searchTerm)))) {
+          return false;
+        }
       }
       
-      // Date range filter
+      // Filtre par plage de dates
       if (filters.dateFrom && new Date(transaction.date) < new Date(filters.dateFrom)) {
         return false;
       }
+      
       if (filters.dateTo) {
         const toDate = new Date(filters.dateTo);
         toDate.setHours(23, 59, 59);
@@ -189,21 +119,23 @@ export class TransactionVerificationComponent implements OnInit {
         }
       }
       
-      // Status filter
-      if (filters.status !== 'all' && transaction.status !== filters.status) {
+      // Filtre par statut
+      if (filters.status && filters.status !== 'all' && transaction.status !== filters.status) {
         return false;
       }
       
-      // Type filter
-      if (filters.type !== 'all' && transaction.type !== filters.type) {
+      // Filtre par type
+      if (filters.type && filters.type !== 'all' && transaction.type !== filters.type) {
         return false;
       }
       
-      // Amount range filter
-      if (filters.amountMin && transaction.amount < parseFloat(filters.amountMin)) {
+      // Filtre par plage de montant (utiliser la valeur absolue pour comparer)
+      const absAmount = Math.abs(transaction.amount);
+      if (filters.amountMin && absAmount < Number(filters.amountMin)) {
         return false;
       }
-      if (filters.amountMax && transaction.amount > parseFloat(filters.amountMax)) {
+      
+      if (filters.amountMax && absAmount > Number(filters.amountMax)) {
         return false;
       }
       
@@ -211,17 +143,7 @@ export class TransactionVerificationComponent implements OnInit {
     });
   }
 
-  matchesSearchTerm(transaction: Transaction, term: string): boolean {
-    term = term.toLowerCase();
-    return !!(
-      transaction.id.toLowerCase().includes(term) ||
-      transaction.clientName.toLowerCase().includes(term) ||
-      (transaction.description && transaction.description.toLowerCase().includes(term)) ||
-      (transaction.reference && transaction.reference.toLowerCase().includes(term))
-    );
-  }
-
-  resetFilters() {
+  resetFilters(): void {
     this.filterForm.reset({
       searchTerm: '',
       dateFrom: '',
@@ -231,46 +153,154 @@ export class TransactionVerificationComponent implements OnInit {
       amountMin: '',
       amountMax: ''
     });
-    this.applyFilters();
   }
 
-  viewTransactionDetails(transaction: Transaction) {
-    this.selectedTransaction = transaction;
+  viewTransactionDetails(transaction: TransactionVerification): void {
+    this.selectedTransaction = { ...transaction }; // Clone pour éviter les modifications directes
+    this.verificationNote = '';
     this.showDetailsModal = true;
   }
 
-  closeDetailsModal() {
+  closeDetailsModal(): void {
     this.showDetailsModal = false;
     this.selectedTransaction = null;
+    this.verificationNote = '';
   }
 
-  approveTransaction(id: string) {
-    const transaction = this.transactions.find(t => t.id === id);
-    if (transaction) {
-      transaction.status = 'success';
-      transaction.verifier = 'Sarah Martin'; // Current agent
-      transaction.flaggedReason = null;
-    }
-    this.closeDetailsModal();
+  approveTransaction(id: string): void {
+    if (!this.selectedTransaction) return;
+    
+    this.isLoading = true;
+    
+    this.transactionService.approveTransaction(id, this.agentName).subscribe({
+      next: () => {
+        // Mettre à jour la transaction localement (côté frontend uniquement)
+        const updatedTransaction = {
+          ...this.selectedTransaction!,
+          status: 'success' as 'success',
+          verifier: this.agentName,
+          verificationDate: new Date(),
+          verificationNote: this.verificationNote
+        };
+        
+        // Mettre à jour l'interface
+        this.updateLocalTransaction(id, updatedTransaction);
+        
+        this.closeDetailsModal();
+        this.isLoading = false;
+      },
+      error: (err) => {
+        console.error('Erreur lors de l\'approbation de la transaction', err);
+        this.errorMessage = 'Impossible d\'approuver la transaction. Veuillez réessayer.';
+        this.isLoading = false;
+      }
+    });
   }
 
-  rejectTransaction(id: string) {
-    const transaction = this.transactions.find(t => t.id === id);
-    if (transaction) {
-      transaction.status = 'failed';
-      transaction.verifier = 'Sarah Martin'; // Current agent
-      transaction.flaggedReason = 'Rejeté par l\'agent';
-    }
-    this.closeDetailsModal();
+  rejectTransaction(id: string): void {
+    if (!this.selectedTransaction) return;
+    
+    const reason = this.verificationNote || 'Rejetée par l\'agent';
+    this.isLoading = true;
+    
+    this.transactionService.rejectTransaction(id, this.agentName, reason).subscribe({
+      next: () => {
+        // Mettre à jour la transaction localement (côté frontend uniquement)
+        const updatedTransaction = {
+          ...this.selectedTransaction!,
+          status: 'failed' as 'failed',
+          verifier: this.agentName,
+          verificationDate: new Date(),
+          verificationNote: reason
+        };
+        
+        // Mettre à jour l'interface
+        this.updateLocalTransaction(id, updatedTransaction);
+        
+        this.closeDetailsModal();
+        this.isLoading = false;
+      },
+      error: (err) => {
+        console.error('Erreur lors du rejet de la transaction', err);
+        this.errorMessage = 'Impossible de rejeter la transaction. Veuillez réessayer.';
+        this.isLoading = false;
+      }
+    });
   }
 
-  flagTransaction(id: string, reason: string) {
-    const transaction = this.transactions.find(t => t.id === id);
-    if (transaction) {
-      transaction.status = 'flagged';
-      transaction.flaggedReason = reason || 'Signalé pour vérification';
+  flagTransaction(id: string, reason: string): void {
+    if (!this.selectedTransaction) return;
+    
+    this.isLoading = true;
+    
+    this.transactionService.flagTransaction(id, reason, this.agentName).subscribe({
+      next: () => {
+        // Mettre à jour la transaction localement (côté frontend uniquement)
+        const updatedTransaction = {
+          ...this.selectedTransaction!,
+          status: 'flagged' as 'flagged',
+          verifier: this.agentName,
+          verificationDate: new Date(),
+          flaggedReason: reason,
+          verificationNote: this.verificationNote
+        };
+        
+        // Mettre à jour l'interface
+        this.updateLocalTransaction(id, updatedTransaction);
+        
+        this.closeDetailsModal();
+        this.isLoading = false;
+      },
+      error: (err) => {
+        console.error('Erreur lors du signalement de la transaction', err);
+        this.errorMessage = 'Impossible de signaler la transaction. Veuillez réessayer.';
+        this.isLoading = false;
+      }
+    });
+  }
+
+  // Mise à jour locale d'une transaction (pour l'affichage uniquement)
+  private updateLocalTransaction(id: string, updatedTransaction: TransactionVerification): void {
+    // Mettre à jour dans le tableau principal
+    const index = this.transactions.findIndex(t => t.id === id);
+    if (index !== -1) {
+      this.transactions[index] = updatedTransaction;
     }
-    this.closeDetailsModal();
+    
+    // Réappliquer les filtres pour mettre à jour l'affichage
+    this.applyFilters();
+  }
+
+  exportData(): void {
+    const csv = this.generateCSV();
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `transactions_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  generateCSV(): string {
+    const headers = ['ID', 'Date', 'Client', 'Type', 'Montant', 'Devise', 'Statut', 'Bénéficiaire', 'Référence', 'Description'];
+    const rows = this.filteredTransactions.map(t => [
+      t.id,
+      this.formatDateTime(t.date),
+      t.clientName,
+      this.getTypeLabel(t.type),
+      Math.abs(t.amount).toString(),
+      t.currency,
+      this.getStatusLabel(t.status),
+      t.recipientName || '',
+      t.reference || '',
+      t.description || ''
+    ]);
+    
+    return [
+      headers.join(','),
+      ...rows.map(row => row.join(','))
+    ].join('\n');
   }
 
   formatDate(date: Date): string {
@@ -287,21 +317,36 @@ export class TransactionVerificationComponent implements OnInit {
 
   getStatusClass(status: string): string {
     switch (status) {
-      case 'success': return 'bg-green-100 text-green-800';
+      case 'success':
+      case 'completed': return 'bg-green-100 text-green-800';
       case 'pending': return 'bg-yellow-100 text-yellow-800';
       case 'flagged': return 'bg-orange-100 text-orange-800';
       case 'failed': return 'bg-red-100 text-red-800';
+      case 'cancelled': return 'bg-gray-100 text-gray-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   }
 
   getStatusLabel(status: string): string {
     switch (status) {
-      case 'success': return 'Confirmé';
+      case 'success':
+      case 'completed': return 'Confirmé';
       case 'pending': return 'En attente';
       case 'flagged': return 'Signalé';
       case 'failed': return 'Échoué';
+      case 'cancelled': return 'Annulé';
       default: return status;
+    }
+  }
+
+  getTypeLabel(type: string): string {
+    switch (type) {
+      case 'transfer': return 'Virement';
+      case 'payment': return 'Paiement';
+      case 'withdrawal': return 'Retrait';
+      case 'deposit': return 'Dépôt';
+      case 'refund': return 'Remboursement';
+      default: return type;
     }
   }
 
@@ -311,31 +356,8 @@ export class TransactionVerificationComponent implements OnInit {
       case 'payment': return 'fa-solid fa-credit-card';
       case 'withdrawal': return 'fa-solid fa-arrow-up-from-bracket';
       case 'deposit': return 'fa-solid fa-arrow-down-to-bracket';
+      case 'refund': return 'fa-solid fa-rotate-left';
       default: return 'fa-solid fa-money-bill-transfer';
     }
   }
-
-  exportData() {
-    alert('Exportation des données...');
-    // Implement export functionality
-  }
-}
-
-interface Transaction {
-  id: string;
-  date: Date;
-  amount: number;
-  currency: string;
-  type: string;
-  typeLabel: string;
-  status: string;
-  clientName: string;
-  clientId: string;
-  accountNumber: string;
-  recipient: string | null;
-  recipientAccount: string | null;
-  description: string | null;
-  reference: string | null;
-  verifier: string | null;
-  flaggedReason: string | null;
 }

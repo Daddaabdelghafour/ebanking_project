@@ -1,0 +1,134 @@
+<div class="container mx-auto p-4">
+    <!-- Header -->
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold text-gray-800">Paramètres d'alerte</h1>
+        <p class="text-gray-600">Configurez comment et quand vous souhaitez être
+            alerté concernant votre activité bancaire</p>
+    </div>
+
+    <!-- Messages -->
+    <div *ngIf="error"
+        class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4"
+        role="alert">
+        <p>{{ error }}</p>
+    </div>
+
+    <div *ngIf="successMessage"
+        class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-4"
+        role="alert">
+        <p>{{ successMessage }}</p>
+    </div>
+
+    <!-- Loading indicator -->
+    <div *ngIf="isLoading" class="flex items-center justify-center py-8">
+        <div
+            class="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+        <span class="ml-2">Chargement...</span>
+    </div>
+
+    <!-- Alert settings form -->
+    <div *ngIf="!isLoading"
+        class="bg-white rounded-lg shadow-md overflow-hidden">
+        <div class="p-4 border-b border-gray-200">
+            <h2 class="text-lg font-medium text-gray-900">Alertes
+                disponibles</h2>
+            <p class="text-gray-600 text-sm">Activez les types d'alertes que
+                vous souhaitez recevoir et choisissez comment les recevoir</p>
+        </div>
+
+        <!-- Alert types -->
+        <div class="divide-y divide-gray-200">
+            <div *ngFor="let preference of alertPreferences"
+                class="p-4 hover:bg-gray-50">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center">
+                        <div
+                            class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center mr-3">
+                            <i
+                                [class]="'fa-solid ' + getAlertIcon(preference.type) + ' text-blue-600'"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-medium text-gray-900">
+                                {{ preference.description }}
+                            </h3>
+                        </div>
+                    </div>
+
+                    <!-- Toggle switch -->
+                    <div
+                        class="relative inline-block w-12 mr-2 align-middle select-none">
+                        <input type="checkbox"
+                            [id]="'toggle-' + preference.type"
+                            [checked]="preference.enabled"
+                            (change)="toggleAlertEnabled(preference)"
+                            [disabled]="isSaving"
+                            class="hidden">
+                        <label [for]="'toggle-' + preference.type"
+                            [ngClass]="preference.enabled ? 'bg-blue-600' : 'bg-gray-300'"
+                            class="block overflow-hidden h-6 rounded-full cursor-pointer transition-colors">
+                            <span
+                                [ngClass]="preference.enabled ? 'translate-x-6' : 'translate-x-0'"
+                                class="absolute block w-6 h-6 rounded-full bg-white border-2 transform transition-transform"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Settings (only visible when enabled) -->
+                <div *ngIf="preference.enabled" class="ml-14 mt-4 space-y-4">
+                    <!-- Threshold for financial alerts -->
+                    <div
+                        *ngIf="preference.type === 'balance_below' || preference.type === 'large_transaction'"
+                        class="flex items-center space-x-2">
+                        <label [for]="'threshold-' + preference.type"
+                            class="text-sm text-gray-700 w-28">
+                            {{ preference.type === 'balance_below' ?
+                            'Seuil minimal:' : 'Montant à partir de:' }}
+                        </label>
+                        <input type="number"
+                            [id]="'threshold-' + preference.type"
+                            [(ngModel)]="preference.threshold"
+                            (blur)="updateThreshold(preference)"
+                            min="0"
+                            class="border border-gray-300 rounded-md px-3 py-1 w-40">
+                        <span class="text-sm text-gray-500">MAD</span>
+                    </div>
+
+                    <!-- Notification channels -->
+                    <div class="flex items-center space-x-4">
+                        <p class="text-sm text-gray-700 w-28">Recevoir via:</p>
+                        <div class="flex space-x-4">
+                            <div class="flex items-center">
+                                <input type="checkbox"
+                                    [id]="'email-' + preference.type"
+                                    [(ngModel)]="preference.channels.email"
+                                    (change)="toggleChannel(preference, 'email')"
+                                    class="h-4 w-4 text-blue-600">
+                                <label [for]="'email-' + preference.type"
+                                    class="ml-2 text-sm text-gray-700">Email</label>
+                            </div>
+                            <div class="flex items-center">
+                                <input type="checkbox"
+                                    [id]="'sms-' + preference.type"
+                                    [(ngModel)]="preference.channels.sms"
+                                    (change)="toggleChannel(preference, 'sms')"
+                                    class="h-4 w-4 text-blue-600">
+                                <label [for]="'sms-' + preference.type"
+                                    class="ml-2 text-sm text-gray-700">SMS</label>
+                            </div>
+                            <div class="flex items-center">
+                                <input type="checkbox"
+                                    [id]="'push-' + preference.type"
+                                    [(ngModel)]="preference.channels.push"
+                                    (change)="toggleChannel(preference, 'push')"
+                                    class="h-4 w-4 text-blue-600">
+                                <label [for]="'push-' + preference.type"
+                                    class="ml-2 text-sm text-gray-700">Notification
+                                    push</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

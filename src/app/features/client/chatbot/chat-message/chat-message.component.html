@@ -1,0 +1,24 @@
+<div class="flex mb-3"
+    [ngClass]="{'justify-end': !message.isBot, 'justify-start': message.isBot}">
+    <div class="max-w-3/4" [ngClass]="{
+    'bg-blue-600 text-white rounded-lg py-2 px-4 rounded-tr-none': !message.isBot,
+    'bg-gray-200 text-gray-800 rounded-lg py-2 px-4 rounded-tl-none': message.isBot
+  }">
+        <!-- Message avec animation de typing si nécessaire -->
+        <div *ngIf="!isTyping">{{ message.message }}</div>
+
+        <!-- Animation "typing" -->
+        <div *ngIf="isTyping" class="flex space-x-1 items-center h-5">
+            <div class="w-2 h-2 bg-gray-600 rounded-full animate-pulse"></div>
+            <div class="w-2 h-2 bg-gray-600 rounded-full animate-pulse"
+                style="animation-delay: 0.2s;"></div>
+            <div class="w-2 h-2 bg-gray-600 rounded-full animate-pulse"
+                style="animation-delay: 0.4s;"></div>
+        </div>
+
+        <!-- Timestamp -->
+        <div class="text-xs mt-1 opacity-70 text-right">
+            {{ message.createdAt | date:'HH:mm' }}
+        </div>
+    </div>
+</div>

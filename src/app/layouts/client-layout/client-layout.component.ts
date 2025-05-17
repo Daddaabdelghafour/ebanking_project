@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { RouterModule, RouterOutlet } from '@angular/router';
 import { ClientService } from '../../services/client/client.service';
 import { Client } from '../../shared/models/client.model';
+import { ChatbotComponent } from '../../features/client/chatbot/chatbot.component';
 
 // Define sidebar item interface
 interface SidebarItem {
@@ -24,7 +25,7 @@ interface Notification {
 @Component({
   selector: 'app-client-layout',
   standalone: true,
-  imports: [CommonModule, RouterModule, RouterOutlet],
+  imports: [CommonModule, RouterModule, RouterOutlet,ChatbotComponent],
   templateUrl: './client-layout.component.html',
   styleUrls: ['./client-layout.component.css']
 })
@@ -83,11 +84,36 @@ export class ClientLayoutComponent implements OnInit {
       badge: 'New'
     },
     {
+  id: 'budget',
+  label: 'Gestion Budgétaire',
+  icon: 'fa-solid fa-chart-pie',
+  route: '/budget'
+},
+{
+    label: 'Documents',
+    icon: 'fa-solid fa-file-invoice',  // Ou un autre icône approprié
+    route: '/documents',
+    id: 'documents-nav'  // Ajout d'un ID unique pour le lien Documents
+  },
+  {
+  id: 'announcements',
+  label: 'Annonces',
+  icon: 'fa-solid fa-bullhorn',
+  route: 'announcements',
+},
+{
+  id: 'alert-settings',
+  label: 'Alertes',
+  icon: 'fa-solid fa-bell',
+  route: 'alert-settings',
+},
+    {
       id: 'settings',
       label: 'Paramètres',
       icon: 'fa-solid fa-gear',
       route: 'settings'
     },
+    
     { 
       id: 'divider-2',
       divider: true

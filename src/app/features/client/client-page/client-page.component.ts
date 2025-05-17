@@ -6,6 +6,10 @@ import { Client } from '../../../shared/models/client.model';
 import { Account } from '../../../shared/models/account.model';
 import { Card } from '../../../shared/models/card.model';
 import { Transaction } from '../../../shared/models/transaction';
+import { catchError, finalize, tap } from 'rxjs/operators';
+import { of } from 'rxjs';
+
+// Define clear types for display data
 interface DisplayCard {
   id: string;
   network: 'visa' | 'mastercard' | 'amex' | 'other';
@@ -36,26 +40,32 @@ interface FinancialSummary {
   styleUrls: ['./client-page.component.css']
 })
 export class ClientPageComponent implements OnInit {
+  // Core client data
   currentClient: Client | null = null;
   currentName: string = '';
   currentDate: Date = new Date();
+  
+  // Loading and error states
   isLoading: boolean = true;
   error: string | null = null;
   
-  // Financial data
+  // Financial data, all properly typed
   clientCards: Card[] = [];
   displayCards: DisplayCard[] = [];
   accounts: Account[] = [];
   financialSummary: FinancialSummary = {
     totalBalance: 0,
-    totalBalanceChange: 3.2,
+    totalBalanceChange: 0,
     monthlyIncome: 0,
-    monthlyIncomeChange: 5.1,
+    monthlyIncomeChange: 0,
     monthlyExpenses: 0,
-    monthlyExpensesChange: 2.4
+    monthlyExpensesChange: 0
   };
   transactions: Transaction[] = [];
-
+  
+  // Only show recent transactions by default
+  showAllTransactions: boolean = false;
+  
   constructor(
     private clientService: ClientService,
     private cardService: CardService
@@ -69,67 +79,66 @@ export class ClientPageComponent implements OnInit {
     this.isLoading = true;
     this.error = null;
     
-    // In a real app, you would get the current client ID from AuthService or similar
-    // For this example, we'll use a hardcoded ID (the first client)
+    // In a real app, you would get the current client ID from AuthService
     const clientId = 'cl1';
     
-    this.clientService.getClientById(clientId).subscribe({
-      next: (client) => {
+    this.clientService.getClientById(clientId).pipe(
+      tap(client => {
         if (client) {
           this.currentClient = client;
           this.currentName = `${client.firstName} ${client.lastName}`;
           
-          // Charge les comptes du client si disponibles
+          // Load accounts
           if (client.accounts && client.accounts.length > 0) {
             this.accounts = client.accounts;
           }
           
-          // Charge les cartes du client
-          this.loadClientCards(clientId);
-          
-          // Mettre à jour les données financières
+          // Update financial summary
           this.updateFinancialData(client);
-          
-          // Générer les transactions de test
-          this.generateTransactions();
         } else {
           this.error = "Client non trouvé";
-          this.isLoading = false;
         }
-      },
-      error: (err) => {
+      }),
+      catchError(err => {
         this.error = "Erreur lors du chargement des données client";
-        this.isLoading = false;
         console.error(err);
-      }
-    });
+        return of(null);
+      }),
+      finalize(() => {
+        // Continue loading other data regardless of success/failure
+        this.loadClientCards(clientId);
+      })
+    ).subscribe();
   }
 
   loadClientCards(clientId: string): void {
-    this.cardService.getCardsByClientId(clientId).subscribe({
-      next: (cards) => {
+    this.cardService.getCardsByClientId(clientId).pipe(
+      tap(cards => {
         this.clientCards = cards;
         this.prepareDisplayCards();
-        this.isLoading = false;
-      },
-      error: (err) => {
+        
+        // Generate test transactions after cards are loaded
+        this.generateTransactions();
+      }),
+      catchError(err => {
         this.error = "Erreur lors du chargement des cartes";
-        this.isLoading = false;
         console.error(err);
-      }
-    });
+        return of([]);
+      }),
+      finalize(() => {
+        this.isLoading = false;
+      })
+    ).subscribe();
   }
 
   prepareDisplayCards(): void {
-    // Code existant pour prepareDisplayCards...
     this.displayCards = [];
     
-    // Convertir les cartes en format d'affichage
+    // Convert cards to display format
     this.clientCards.forEach((card, index) => {
-      // Trouver le compte associé à cette carte
+      // Find the associated account
       const linkedAccount = this.accounts.find(acc => acc.id === card.accountId);
       
-      // Créer une carte d'affichage avec les informations combinées
       this.displayCards.push({
         id: card.id,
         network: card.network,
@@ -144,7 +153,7 @@ export class ClientPageComponent implements OnInit {
       });
     });
     
-    // Si aucune carte n'est trouvée, créez une carte virtuelle pour l'affichage
+    // Create a virtual card if none exists
     if (this.displayCards.length === 0 && this.currentClient) {
       this.displayCards.push({
         id: 'virtual',
@@ -162,146 +171,167 @@ export class ClientPageComponent implements OnInit {
   }
 
   getCardBackground(index: number, network: string): string {
-    // Code existant pour getCardBackground...
+    // Simplified card background logic
     if (network === 'visa') {
-      return index % 2 === 0 
-        ? 'bg-gradient-to-r from-blue-500 to-blue-700'
-        : 'bg-gradient-to-r from-indigo-500 to-indigo-700';
+      return 'bg-gradient-to-r from-blue-500 to-blue-700';
     } else if (network === 'mastercard') {
-      return index % 2 === 0 
-        ? 'bg-gradient-to-r from-red-500 to-orange-500'
-        : 'bg-gradient-to-r from-orange-500 to-yellow-500';
+      return 'bg-gradient-to-r from-red-500 to-orange-500';
     } else {
       return 'bg-gradient-to-r from-gray-700 to-gray-900';
     }
   }
 
   updateFinancialData(client: Client): void {
-    // Code existant pour updateFinancialData...
-    this.financialSummary.totalBalance = client.balance;
-    this.financialSummary.monthlyIncome = client.income || 0;
-    this.financialSummary.monthlyExpenses = this.financialSummary.monthlyIncome * 0.7;
+    if (!client) return;
+    
+    // Calculate total balance across all accounts
+    let totalBalance = client.balance || 0;
+    if (client.accounts && client.accounts.length > 0) {
+      totalBalance = client.accounts.reduce((sum, account) => sum + account.balance, 0);
+    }
+    
+    // Update financial summary
+    this.financialSummary = {
+      totalBalance: totalBalance,
+      totalBalanceChange: 2.5, // Example value, would be calculated from historical data
+      monthlyIncome: client.income || 0,
+      monthlyIncomeChange: 1.2, // Example value
+      monthlyExpenses: (client.income || 0) * 0.7, // Estimated expenses (70% of income)
+      monthlyExpensesChange: 0.5 // Example value
+    };
   }
 
   generateTransactions(): void {
-    // Utilisation du modèle Transaction standardisé
+    // Create sample transactions for demonstration
     this.transactions = [];
-
-    // Définir le compte principal (utiliser le premier compte ou créer un ID par défaut)
+    
+    // Use the first account or a default
     const mainAccountId = this.accounts.length > 0 ? this.accounts[0].id : 'acc1';
     const mainCurrency = this.currentClient?.currency || 'MAD';
     
-    // Ajouter des dépôts
-    this.transactions.push({
-      id: 'txn1',
-      accountId: mainAccountId,
-      name: 'Virement entrant',
-      type: 'deposit',
-      date: new Date(2023, 4, 15),
-      category: 'transfer',
-      amount: 1250.00,
-      currency: mainCurrency,
-      status: 'completed',
-      icon: 'mail',
-      reference: 'VIR-2023051501',
-      balanceAfterTransaction: 4500.00,
-      recipientName: this.currentName
-    });
+    // Add deposits
+    this.addTransaction('txn1', mainAccountId, 'Virement entrant', 'deposit', 
+      new Date(2023, 4, 15), 'transfer', 1250.00, mainCurrency, 
+      'completed', 4500.00, this.currentName);
     
-    // Ajouter le paiement de salaire
-    this.transactions.push({
-      id: 'txn2',
-      accountId: mainAccountId,
-      name: 'Salaire',
-      type: 'deposit',
-      date: new Date(2023, 4, 5),
-      category: 'finance',
-      amount: this.currentClient?.income || 3500.00,
-      currency: mainCurrency,
-      status: 'completed',
-      icon: 'currency-dollar',
-      description: 'Versement salaire mensuel',
-      merchantName: 'ACME Corporation',
-      reference: 'SAL-202305',
-      balanceAfterTransaction: 3250.00
-    });
+    this.addTransaction('txn2', mainAccountId, 'Salaire', 'deposit', 
+      new Date(2023, 4, 5), 'finance', this.currentClient?.income || 3500.00, 
+      mainCurrency, 'completed', 3250.00, 'ACME Corporation');
     
-    // Ajouter des retraits/paiements
-    const paymentDetails = [
-      { name: 'Carrefour', amount: 120.50, type: 'payment', category: 'shopping', status: 'pending', merchant: 'Carrefour' },
-      { name: 'Netflix', amount: 45.99, type: 'payment', category: 'entertainment', status: 'completed', merchant: 'Netflix Inc.' },
-      { name: 'Amazon', amount: 67.80, type: 'payment', category: 'shopping', status: 'completed', merchant: 'Amazon EU' },
-      { name: 'Loyer', amount: 255.30, type: 'payment', category: 'housing', status: 'completed', merchant: 'Régie Immobilière' },
-      { name: 'Restaurant', amount: 22.50, type: 'payment', category: 'food', status: 'failed', merchant: 'Au Bon Goût' }
+    // Add payments - simplified
+    const payments = [
+      { name: 'Carrefour', amount: 120.50, category: 'shopping', status: 'pending' },
+      { name: 'Netflix', amount: 45.99, category: 'entertainment', status: 'completed' },
+      { name: 'Amazon', amount: 67.80, category: 'shopping', status: 'completed' },
+      { name: 'Loyer', amount: 255.30, category: 'housing', status: 'completed' },
+      { name: 'Restaurant', amount: 22.50, category: 'food', status: 'failed' }
     ];
     
-    let currentBalance = 3250.00;
+    let balance = 3250.00;
     
-    for (let i = 0; i < paymentDetails.length; i++) {
-      const payment = paymentDetails[i];
-      currentBalance -= payment.amount;
+    payments.forEach((payment, i) => {
+      balance -= payment.amount;
       
-      this.transactions.push({
-        id: `txn${i+3}`,
-        accountId: mainAccountId,
-        name: payment.name,
-        type: payment.type as any,
-        date: new Date(2023, 4, 20 - i),
-        category: payment.category as any,
-        amount: -payment.amount, // Montant négatif pour les paiements
-        currency: mainCurrency,
-        status: payment.status as any,
-        icon: this.getCategoryIcon(payment.category),
-        merchantName: payment.merchant,
-        balanceAfterTransaction: currentBalance,
-        reference: `REF-${Date.now().toString().substring(5)}-${i}`
-      });
-    }
+      this.addTransaction(
+        `txn${i+3}`, 
+        mainAccountId, 
+        payment.name, 
+        'payment', 
+        new Date(2023, 4, 20 - i), 
+        payment.category, 
+        -payment.amount, 
+        mainCurrency, 
+        payment.status,
+        balance,
+        payment.name
+      );
+    });
     
-    // Trier par date, les plus récentes en premier
+    // Sort transactions by date (most recent first)
     this.transactions.sort((a, b) => b.date.getTime() - a.date.getTime());
+  }
+  
+  // Helper method to create transactions
+  private addTransaction(
+    id: string, 
+    accountId: string, 
+    name: string, 
+    type: string, 
+    date: Date, 
+    category: string, 
+    amount: number, 
+    currency: string, 
+    status: string, 
+    balanceAfter: number,
+    merchant: string
+  ): void {
+    this.transactions.push({
+      id: id,
+      accountId: accountId,
+      name: name,
+      type: type as any,
+      date: date,
+      category: category as any,
+      amount: amount,
+      currency: currency,
+      status: status as any,
+      icon: this.getCategoryIcon(category),
+      merchantName: merchant,
+      balanceAfterTransaction: balanceAfter,
+      reference: `REF-${Date.now().toString().substring(5)}-${id}`
+    });
   }
 
   getCategoryIcon(category: string): string {
-    switch (category) {
-      case 'shopping': return 'shopping-cart';
-      case 'entertainment': return 'film';
-      case 'housing': return 'home';
-      case 'food': return 'utensils';
-      case 'transfer': return 'exchange-alt';
-      case 'finance': return 'money-bill';
-      default: return 'tag';
-    }
+    const icons: Record<string, string> = {
+      'shopping': 'shopping-cart',
+      'entertainment': 'film',
+      'housing': 'home',
+      'food': 'utensils',
+      'transfer': 'exchange-alt',
+      'finance': 'money-bill'
+    };
+    
+    return icons[category] || 'tag';
+  }
+  
+  // Formatting helpers
+  formatCurrency(amount: number, currency: string = 'MAD'): string {
+    return new Intl.NumberFormat('fr-MA', { 
+      style: 'currency', 
+      currency: currency,
+      minimumFractionDigits: 2
+    }).format(amount);
   }
 
   formatDate(date: Date): string {
-    const options: Intl.DateTimeFormatOptions = { 
+    return new Date(date).toLocaleDateString('fr-FR', { 
       weekday: 'long', 
       year: 'numeric', 
       month: 'long', 
       day: 'numeric' 
-    };
-    return date.toLocaleDateString('fr-FR', options);
+    });
   }
 
   getTransactionStatusClass(status: string): string {
-    switch(status) {
-      case 'completed':
-        return 'bg-green-100 text-green-800';
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'failed':
-        return 'bg-red-100 text-red-800';
-      case 'cancelled':
-        return 'bg-gray-100 text-gray-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
+    const statusClasses: Record<string, string> = {
+      'completed': 'bg-green-100 text-green-800',
+      'pending': 'bg-yellow-100 text-yellow-800',
+      'failed': 'bg-red-100 text-red-800',
+      'cancelled': 'bg-gray-100 text-gray-800'
+    };
+    
+    return statusClasses[status] || 'bg-gray-100 text-gray-800';
   }
 
+  // UI helpers
+  toggleAllTransactions(): void {
+    this.showAllTransactions = !this.showAllTransactions;
+  }
+  
+  // Simplified export function
   exportData(): void {
-    console.log('Exporting data...');
-    // Implement export functionality as needed
-    alert('La fonction d\'exportation sera disponible prochainement.');
+    console.log('Export requested');
+    alert('Export functionality will be available in a future update.');
   }
 }

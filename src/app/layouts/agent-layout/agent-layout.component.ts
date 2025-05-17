@@ -35,14 +35,19 @@ export class AgentLayoutComponent {
       label: 'Enrôlement Clients',
       icon: 'fa-solid fa-user-plus',
       route: '/bank-agent/client-enrollment',
-      badge: '2'
     },
     {
       id: 'transactions',
       label: 'Vérification Transactions',
       icon: 'fa-solid fa-money-check-dollar',
       route: '/bank-agent/transaction-verification',
-      badge: '5'
+    },
+    {
+      id: 'tasks',
+      label: 'Gestion des Tâches',
+      icon: 'fa-solid fa-list-check',
+      route: '/bank-agent/task-management',
+
     },
     { 
       id: 'divider-1',

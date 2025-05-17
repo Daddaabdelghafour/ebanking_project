@@ -1,11 +1,14 @@
-<!-- Page header section -->
+<!-- En-tête de page -->
 <div class="bg-white rounded-lg shadow p-6 mb-6">
     <div class="flex justify-between items-center">
-        <div>
-            <h2 class="text-2xl font-bold text-gray-800">Vérification des
-                Transactions</h2>
-            <p class="text-gray-600">Gérer et vérifier les transactions des
-                clients</p>
+        <div class="flex items-center">
+            <i class="fa-solid fa-shield-check text-blue-600 text-2xl mr-3"></i>
+            <div>
+                <h2 class="text-2xl font-bold text-gray-800">Vérification des
+                    Transactions</h2>
+                <p class="text-gray-600">Gérer et vérifier les transactions des
+                    clients</p>
+            </div>
         </div>
         <button (click)="exportData()"
             class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center transition-all">
@@ -15,190 +18,139 @@
     </div>
 </div>
 
-<!-- Filters section -->
-<div class="bg-white rounded-lg shadow p-6 mb-6">
-    <form [formGroup]="filterForm" class="space-y-4">
-        <div class="flex flex-col md:flex-row gap-4 items-end">
-            <!-- Search bar -->
-            <div class="flex-1">
-                <label for="searchTerm"
-                    class="block text-sm font-medium text-gray-700 mb-1">Recherche</label>
-                <div class="relative">
-                    <div
-                        class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <i
-                            class="fa-solid fa-magnifying-glass text-gray-400"></i>
-                    </div>
-                    <input
-                        type="text"
-                        id="searchTerm"
-                        formControlName="searchTerm"
-                        placeholder="Rechercher par ID, client, référence..."
-                        class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
-                </div>
-            </div>
-
-            <!-- Status filter -->
-            <div class="w-full md:w-48">
-                <label for="status"
-                    class="block text-sm font-medium text-gray-700 mb-1">Statut</label>
-                <select
-                    id="status"
-                    formControlName="status"
-                    class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                    <option *ngFor="let status of statuses"
-                        [value]="status.value">{{ status.label }}</option>
-                </select>
-            </div>
-
-            <!-- Type filter -->
-            <div class="w-full md:w-48">
-                <label for="type"
-                    class="block text-sm font-medium text-gray-700 mb-1">Type</label>
-                <select
-                    id="type"
-                    formControlName="type"
-                    class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                    <option *ngFor="let type of transactionTypes"
-                        [value]="type.value">{{ type.label }}</option>
-                </select>
-            </div>
-
-            <!-- Reset button -->
-            <button
-                type="button"
-                (click)="resetFilters()"
-                class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg flex items-center transition-all h-10">
-                <i class="fa-solid fa-xmark mr-2"></i>
-                Réinitialiser
-            </button>
-        </div>
-
-        <div class="flex flex-col md:flex-row gap-4">
-            <!-- Date range filters -->
-            <div class="w-full md:w-1/4">
-                <label for="dateFrom"
-                    class="block text-sm font-medium text-gray-700 mb-1">Date
-                    début</label>
-                <input
-                    type="date"
-                    id="dateFrom"
-                    formControlName="dateFrom"
-                    class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
-            </div>
-            <div class="w-full md:w-1/4">
-                <label for="dateTo"
-                    class="block text-sm font-medium text-gray-700 mb-1">Date
-                    fin</label>
-                <input
-                    type="date"
-                    id="dateTo"
-                    formControlName="dateTo"
-                    class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
-            </div>
-
-            <!-- Amount range filters -->
-            <div class="w-full md:w-1/4">
-                <label for="amountMin"
-                    class="block text-sm font-medium text-gray-700 mb-1">Montant
-                    min.</label>
-                <input
-                    type="number"
-                    id="amountMin"
-                    formControlName="amountMin"
-                    placeholder="0"
-                    class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
-            </div>
-            <div class="w-full md:w-1/4">
-                <label for="amountMax"
-                    class="block text-sm font-medium text-gray-700 mb-1">Montant
-                    max.</label>
-                <input
-                    type="number"
-                    id="amountMax"
-                    formControlName="amountMax"
-                    placeholder="10000"
-                    class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
-            </div>
-        </div>
-    </form>
-</div>
-
-<!-- Results section -->
-<div class="bg-white rounded-lg shadow p-6">
-    <div class="flex justify-between items-center mb-6">
-        <h3 class="text-lg font-semibold text-gray-800">Résultats ({{
-            filteredTransactions.length }})</h3>
+<!-- Tableau des transactions -->
+<div class="bg-white rounded-lg shadow overflow-hidden">
+    <!-- Indicateur de chargement -->
+    <div *ngIf="isLoading" class="flex justify-center items-center p-12">
+        <div
+            class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+        <span class="ml-3 text-gray-700">Chargement des transactions...</span>
     </div>
 
-    <!-- Transactions table -->
-    <div class="overflow-x-auto">
-        <table class="min-w-full bg-white">
-            <thead>
-                <tr
-                    class="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    <th class="py-3 px-4 border-b">ID</th>
-                    <th class="py-3 px-4 border-b">Date</th>
-                    <th class="py-3 px-4 border-b">Type</th>
-                    <th class="py-3 px-4 border-b">Client</th>
-                    <th class="py-3 px-4 border-b text-right">Montant</th>
-                    <th class="py-3 px-4 border-b text-center">Statut</th>
-                    <th class="py-3 px-4 border-b text-center">Actions</th>
+    <!-- Message si aucune transaction -->
+    <div *ngIf="!isLoading && filteredTransactions.length === 0"
+        class="p-12 text-center">
+        <div class="text-gray-400 mb-4">
+            <i class="fa-solid fa-search text-5xl"></i>
+        </div>
+        <h3 class="text-lg font-medium text-gray-900">Aucune transaction
+            trouvée</h3>
+        <p class="mt-1 text-sm text-gray-500">Essayez de modifier vos filtres ou
+            vérifiez plus tard.</p>
+    </div>
+
+    <!-- Table avec données -->
+    <div *ngIf="!isLoading && filteredTransactions.length > 0"
+        class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th scope="col"
+                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Date
+                    </th>
+                    <th scope="col"
+                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Client/Compte
+                    </th>
+                    <th scope="col"
+                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Type/Détails
+                    </th>
+                    <th scope="col"
+                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Montant
+                    </th>
+                    <th scope="col"
+                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Statut
+                    </th>
+                    <th scope="col"
+                        class="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-center">
+                        Actions
+                    </th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-200">
+            <tbody class="bg-white divide-y divide-gray-200">
                 <tr *ngFor="let transaction of filteredTransactions"
                     class="hover:bg-gray-50">
-                    <td class="py-3 px-4">
-                        <span class="font-medium">{{ transaction.id }}</span>
-                    </td>
-                    <td class="py-3 px-4">
-                        <div>{{ formatDate(transaction.date) }}</div>
+                    <!-- Date -->
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm text-gray-900">{{
+                            formatDate(transaction.date) }}</div>
                         <div class="text-xs text-gray-500">{{
                             formatTime(transaction.date) }}</div>
                     </td>
-                    <td class="py-3 px-4">
-                        <div class="flex items-center">
-                            <i [class]="getTypeIcon(transaction.type)"
-                                class="mr-2 text-gray-600"></i>
-                            <span>{{ transaction.typeLabel }}</span>
-                        </div>
-                    </td>
-                    <td class="py-3 px-4">
-                        <div>{{ transaction.clientName }}</div>
+
+                    <!-- Client/Compte -->
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm font-medium text-gray-900">{{
+                            transaction.clientName }}</div>
                         <div class="text-xs text-gray-500">{{
                             transaction.accountNumber }}</div>
                     </td>
-                    <td class="py-3 px-4 text-right font-medium">
-                        {{ transaction.amount |
-                        currency:transaction.currency:'symbol':'1.2-2' }}
+
+                    <!-- Type/Détails -->
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm font-medium text-gray-900">{{
+                            transaction.typeLabel ||
+                            getTypeLabel(transaction.type) }}</div>
+                        <div class="text-xs text-gray-500">
+                            {{ transaction.recipient ||
+                            transaction.recipientName || transaction.description
+                            || 'N/A' }}
+                        </div>
                     </td>
-                    <td class="py-3 px-4 text-center">
-                        <span [ngClass]="getStatusClass(transaction.status)"
-                            class="px-2 py-1 text-xs rounded-full">
+
+                    <!-- Montant -->
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm font-medium"
+                            [ngClass]="transaction.amount >= 0 ? 'text-green-600' : 'text-red-600'">
+                            {{ transaction.amount | number:'1.2-2' }} {{
+                            transaction.currency }}
+                        </div>
+                        <div class="text-xs text-gray-500">{{
+                            transaction.reference || 'N/A' }}</div>
+                    </td>
+
+                    <!-- Statut avec icône -->
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span
+                            class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full items-center"
+                            [ngClass]="getStatusClass(transaction.status)">
+                            <i class="fa-solid mr-1"
+                                [ngClass]="{
+                                    'fa-check-circle': transaction.status === 'success',
+                                    'fa-clock': transaction.status === 'pending',
+                                    'fa-flag': transaction.status === 'flagged',
+                                    'fa-times-circle': transaction.status === 'failed'
+                                }"></i>
                             {{ getStatusLabel(transaction.status) }}
                         </span>
                     </td>
-                    <td class="py-3 px-4 text-center">
-                        <button
-                            (click)="viewTransactionDetails(transaction)"
-                            class="bg-blue-100 text-blue-700 hover:bg-blue-200 px-3 py-1 rounded text-xs font-medium transition-all">
-                            Détails
-                        </button>
-                    </td>
-                </tr>
 
-                <!-- Empty state -->
-                <tr *ngIf="filteredTransactions.length === 0">
-                    <td colspan="7" class="py-8 text-center text-gray-500">
-                        <div class="flex flex-col items-center">
-                            <i class="fa-solid fa-search text-3xl mb-2"></i>
-                            <p>Aucune transaction ne correspond à vos critères
-                                de recherche.</p>
+                    <!-- Actions -->
+                    <td class="px-6 py-4 whitespace-nowrap text-center">
+                        <div class="flex justify-center space-x-2">
+                            <!-- Bouton approbation rapide -->
+                            <button *ngIf="transaction.status === 'pending'"
+                                (click)="approveTransaction(transaction.id)"
+                                class="text-green-600 hover:text-green-900 bg-green-50 hover:bg-green-100 p-2 rounded">
+                                <i class="fa-solid fa-check"></i>
+                            </button>
+
+                            <!-- Bouton rejet rapide -->
+                            <button *ngIf="transaction.status === 'pending'"
+                                (click)="rejectTransaction(transaction.id)"
+                                class="text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100 p-2 rounded">
+                                <i class="fa-solid fa-times"></i>
+                            </button>
+
+                            <!-- Bouton détails -->
                             <button
-                                (click)="resetFilters()"
-                                class="mt-2 text-blue-600 hover:text-blue-800 underline text-sm">
-                                Réinitialiser les filtres
+                                (click)="viewTransactionDetails(transaction)"
+                                class="text-blue-600 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 p-2 rounded">
+                                <i class="fa-solid fa-eye"></i>
                             </button>
                         </div>
                     </td>
@@ -208,142 +160,246 @@
     </div>
 </div>
 
-<!-- Transaction Details Modal -->
-<div *ngIf="showDetailsModal"
-    class="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto flex items-center justify-center z-50">
-    <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4"
-        (click)="$event.stopPropagation()">
-        <!-- Modal Header -->
-        <div class="border-b px-6 py-4">
-            <div class="flex items-center justify-between">
-                <h3 class="text-lg font-medium text-gray-900">Détails de la
-                    Transaction</h3>
-                <button (click)="closeDetailsModal()"
-                    class="text-gray-400 hover:text-gray-500">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
-            </div>
+<!-- Modal de détails de transaction -->
+<div *ngIf="showDetailsModal && selectedTransaction"
+    class="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50">
+    <div
+        class="bg-white rounded-lg shadow-xl max-w-3xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+        <!-- En-tête Modal -->
+        <div class="border-b px-6 py-4 flex justify-between items-center">
+            <h3 class="text-lg font-medium text-gray-900">Détails de la
+                Transaction</h3>
+            <button (click)="closeDetailsModal()"
+                class="text-gray-400 hover:text-gray-500">
+                <i class="fa-solid fa-times"></i>
+            </button>
         </div>
 
-        <!-- Modal Content -->
-        <div class="px-6 py-4" *ngIf="selectedTransaction">
-            <!-- Transaction header info -->
-            <div
-                class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 pb-4 border-b">
-                <div>
-                    <h4 class="font-bold text-xl">{{ selectedTransaction.id
-                        }}</h4>
-                    <p class="text-gray-500">{{
-                        formatDateTime(selectedTransaction.date) }}</p>
+        <!-- Corps Modal -->
+        <div class="px-6 py-4">
+            <!-- Informations de base -->
+            <div class="flex flex-wrap mb-6">
+                <div class="w-full md:w-1/2 mb-4 md:mb-0">
+                    <p class="text-sm text-gray-500">ID de transaction</p>
+                    <p class="text-lg font-semibold">{{ selectedTransaction.id
+                        }}</p>
                 </div>
-                <div>
-                    <span [ngClass]="getStatusClass(selectedTransaction.status)"
-                        class="px-2 py-1 rounded-full text-sm font-medium">
+                <div class="w-full md:w-1/2 text-right">
+                    <p class="text-sm text-gray-500">Statut</p>
+                    <span
+                        class="px-3 py-1 inline-flex text-sm leading-5 font-semibold rounded-full items-center"
+                        [ngClass]="getStatusClass(selectedTransaction.status)">
+                        <i class="fa-solid mr-1"
+                            [ngClass]="{
+                               'fa-check-circle': selectedTransaction.status === 'success',
+                               'fa-clock': selectedTransaction.status === 'pending',
+                               'fa-flag': selectedTransaction.status === 'flagged',
+                               'fa-times-circle': selectedTransaction.status === 'failed'
+                           }"></i>
                         {{ getStatusLabel(selectedTransaction.status) }}
                     </span>
                 </div>
             </div>
 
-            <!-- Transaction details -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <!-- Détails de la transaction -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div>
-                    <h5 class="text-sm font-medium text-gray-500 mb-1">Type</h5>
-                    <p class="font-medium">{{ selectedTransaction.typeLabel
-                        }}</p>
+                    <h4
+                        class="text-sm font-medium text-gray-500 mb-2">Informations
+                        Transaction</h4>
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <p class="text-xs text-gray-500">Date</p>
+                                <p class="text-sm font-medium">{{
+                                    formatDateTime(selectedTransaction.date)
+                                    }}</p>
+                            </div>
+                            <div>
+                                <p class="text-xs text-gray-500">Type</p>
+                                <p class="text-sm font-medium">{{
+                                    selectedTransaction.typeLabel ||
+                                    getTypeLabel(selectedTransaction.type)
+                                    }}</p>
+                            </div>
+                            <div>
+                                <p class="text-xs text-gray-500">Montant</p>
+                                <p class="text-sm font-medium"
+                                    [ngClass]="selectedTransaction.amount >= 0 ? 'text-green-600' : 'text-red-600'">
+                                    {{ selectedTransaction.amount |
+                                    number:'1.2-2' }} {{
+                                    selectedTransaction.currency }}
+                                </p>
+                            </div>
+                            <div>
+                                <p class="text-xs text-gray-500">Référence</p>
+                                <p class="text-sm font-medium">{{
+                                    selectedTransaction.reference || 'N/A'
+                                    }}</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
+
                 <div>
-                    <h5
-                        class="text-sm font-medium text-gray-500 mb-1">Montant</h5>
-                    <p class="font-medium">{{ selectedTransaction.amount |
-                        currency:selectedTransaction.currency:'symbol':'1.2-2'
-                        }}</p>
-                </div>
-                <div>
-                    <h5
-                        class="text-sm font-medium text-gray-500 mb-1">Client</h5>
-                    <p class="font-medium">{{ selectedTransaction.clientName
-                        }}</p>
-                </div>
-                <div>
-                    <h5
-                        class="text-sm font-medium text-gray-500 mb-1">Compte</h5>
-                    <p class="font-medium">{{ selectedTransaction.accountNumber
-                        }}</p>
-                </div>
-                <div *ngIf="selectedTransaction.recipient">
-                    <h5
-                        class="text-sm font-medium text-gray-500 mb-1">Bénéficiaire</h5>
-                    <p class="font-medium">{{ selectedTransaction.recipient
-                        }}</p>
-                </div>
-                <div *ngIf="selectedTransaction.recipientAccount">
-                    <h5 class="text-sm font-medium text-gray-500 mb-1">Compte
-                        Bénéficiaire</h5>
-                    <p class="font-medium">{{
-                        selectedTransaction.recipientAccount }}</p>
-                </div>
-                <div *ngIf="selectedTransaction.description">
-                    <h5
-                        class="text-sm font-medium text-gray-500 mb-1">Description</h5>
-                    <p>{{ selectedTransaction.description }}</p>
-                </div>
-                <div *ngIf="selectedTransaction.reference">
-                    <h5
-                        class="text-sm font-medium text-gray-500 mb-1">Référence</h5>
-                    <p>{{ selectedTransaction.reference }}</p>
+                    <h4
+                        class="text-sm font-medium text-gray-500 mb-2">Informations
+                        Client</h4>
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <p class="text-xs text-gray-500">Client</p>
+                                <p class="text-sm font-medium">{{
+                                    selectedTransaction.clientName }}</p>
+                            </div>
+                            <div>
+                                <p class="text-xs text-gray-500">Compte</p>
+                                <p class="text-sm font-medium">{{
+                                    selectedTransaction.accountNumber }}</p>
+                            </div>
+                            <div
+                                *ngIf="selectedTransaction.recipient || selectedTransaction.recipientName">
+                                <p
+                                    class="text-xs text-gray-500">Bénéficiaire</p>
+                                <p class="text-sm font-medium">{{
+                                    selectedTransaction.recipient ||
+                                    selectedTransaction.recipientName }}</p>
+                            </div>
+                            <div
+                                *ngIf="selectedTransaction.recipientAccount || selectedTransaction.recipientAccountId">
+                                <p class="text-xs text-gray-500">Compte
+                                    bénéficiaire</p>
+                                <p class="text-sm font-medium">{{
+                                    selectedTransaction.recipientAccount ||
+                                    selectedTransaction.recipientAccountId
+                                    }}</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <!-- Verification information -->
-            <div class="bg-gray-50 p-3 rounded-lg mb-4">
-                <h5 class="text-sm font-medium text-gray-500 mb-2">Informations
-                    de vérification</h5>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <h6 class="text-xs text-gray-500">Vérifié par</h6>
-                        <p>{{ selectedTransaction.verifier || 'Non vérifié'
-                            }}</p>
+            <!-- Description -->
+            <div class="mb-6">
+                <h4
+                    class="text-sm font-medium text-gray-500 mb-2">Description</h4>
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <p class="text-sm">{{ selectedTransaction.description ||
+                        'Aucune description disponible' }}</p>
+                </div>
+            </div>
+
+            <!-- Actions (vérification) -->
+            <div class="mb-6"
+                *ngIf="selectedTransaction.status === 'pending' || selectedTransaction.status === 'flagged'">
+                <h4
+                    class="text-sm font-medium text-gray-500 mb-2">Vérification</h4>
+
+                <!-- Alerte pour transaction en attente -->
+                <div *ngIf="selectedTransaction.status === 'pending'"
+                    class="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-lg mb-4">
+                    <div class="flex items-center">
+                        <i
+                            class="fa-solid fa-exclamation-circle text-yellow-500 mr-2"></i>
+                        <p class="text-sm text-yellow-700">Cette transaction
+                            nécessite une vérification.</p>
                     </div>
-                    <div *ngIf="selectedTransaction.flaggedReason">
-                        <h6 class="text-xs text-gray-500">Raison du
-                            signalement</h6>
-                        <p class="text-orange-700">{{
-                            selectedTransaction.flaggedReason }}</p>
+                </div>
+
+                <!-- Alerte pour transaction signalée -->
+                <div *ngIf="selectedTransaction.status === 'flagged'"
+                    class="bg-red-50 border-l-4 border-red-400 p-4 rounded-lg mb-4">
+                    <div class="flex items-center">
+                        <i class="fa-solid fa-flag text-red-500 mr-2"></i>
+                        <p class="text-sm text-red-700">
+                            Raison du signalement: {{
+                            selectedTransaction.flaggedReason || 'Non spécifiée'
+                            }}
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Champ de notes -->
+                <div class="mb-4">
+                    <label for="verificationNote"
+                        class="block text-sm font-medium text-gray-700 mb-1">Notes
+                        de vérification</label>
+                    <textarea id="verificationNote" rows="3"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
+                        placeholder="Ajoutez des notes pour cette vérification..."
+                        [(ngModel)]="verificationNote"></textarea>
+                </div>
+
+                <!-- Boutons d'action -->
+                <div class="flex justify-between mt-6">
+                    <button
+                        (click)="flagTransaction(selectedTransaction.id, verificationNote || 'Signalé pour vérification supplémentaire')"
+                        class="px-4 py-2 bg-yellow-100 border border-yellow-400 text-yellow-700 rounded-lg flex items-center">
+                        <i class="fa-solid fa-flag mr-2"></i>
+                        Signaler
+                    </button>
+                    <div>
+                        <button
+                            (click)="rejectTransaction(selectedTransaction.id)"
+                            class="px-4 py-2 bg-red-100 border border-red-400 text-red-700 rounded-lg flex items-center mr-3">
+                            <i class="fa-solid fa-times mr-2"></i>
+                            Rejeter
+                        </button>
+                        <button
+                            (click)="approveTransaction(selectedTransaction.id)"
+                            class="px-4 py-2 bg-green-100 border border-green-400 text-green-700 rounded-lg flex items-center">
+                            <i class="fa-solid fa-check mr-2"></i>
+                            Approuver
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Historique de vérification -->
+            <div
+                *ngIf="selectedTransaction.verifier || selectedTransaction.verificationDate">
+                <h4
+                    class="text-sm font-medium text-gray-500 mb-2 flex items-center">
+                    <i class="fa-solid fa-history mr-2"></i>
+                    Historique de Vérification
+                </h4>
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div *ngIf="selectedTransaction.verifier">
+                            <p class="text-xs text-gray-500 flex items-center">
+                                <i class="fa-solid fa-user mr-1"></i>
+                                Vérifié par
+                            </p>
+                            <p class="text-sm font-medium">{{
+                                selectedTransaction.verifier }}</p>
+                        </div>
+                        <div *ngIf="selectedTransaction.verificationDate">
+                            <p class="text-xs text-gray-500 flex items-center">
+                                <i class="fa-solid fa-calendar mr-1"></i>
+                                Date de vérification
+                            </p>
+                            <p class="text-sm font-medium">{{
+                                formatDateTime(selectedTransaction.verificationDate)
+                                }}</p>
+                        </div>
+                        <div *ngIf="selectedTransaction.verificationNote"
+                            class="col-span-2">
+                            <p class="text-xs text-gray-500 flex items-center">
+                                <i class="fa-solid fa-comment mr-1"></i>
+                                Notes
+                            </p>
+                            <p class="text-sm">{{
+                                selectedTransaction.verificationNote }}</p>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Modal Footer with action buttons -->
-        <div class="border-t px-6 py-4 flex justify-end space-x-3"
-            *ngIf="selectedTransaction">
-            <!-- Show different actions based on status -->
-            <ng-container
-                *ngIf="selectedTransaction.status === 'pending' || selectedTransaction.status === 'flagged'">
-                <button
-                    (click)="approveTransaction(selectedTransaction.id)"
-                    class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors">
-                    Approuver
-                </button>
-                <button
-                    (click)="rejectTransaction(selectedTransaction.id)"
-                    class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors">
-                    Rejeter
-                </button>
-            </ng-container>
-
-            <ng-container
-                *ngIf="selectedTransaction.status === 'success' && !selectedTransaction.flaggedReason">
-                <button
-                    (click)="flagTransaction(selectedTransaction.id, 'Transaction suspecte')"
-                    class="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 transition-colors">
-                    Signaler
-                </button>
-            </ng-container>
-
-            <button
-                (click)="closeDetailsModal()"
-                class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 transition-colors">
+        <!-- Pied Modal -->
+        <div class="border-t px-6 py-4 flex justify-end">
+            <button (click)="closeDetailsModal()"
+                class="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300">
                 Fermer
             </button>
         </div>

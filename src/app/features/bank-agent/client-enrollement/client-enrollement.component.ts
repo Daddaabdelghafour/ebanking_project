@@ -1,7 +1,9 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
-
+import { ClientService } from '../../../services/client/client.service';
+import { Client, ClientFormData } from '../../../shared/models/client.model';
+import { CurrencyApiService } from '../../../services/currency/currency-api.service';
 @Component({
   selector: 'app-client-enrollment',
   standalone: true,
@@ -11,129 +13,267 @@ import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } 
 })
 export class ClientEnrollmentComponent implements OnInit {
   enrollmentForm: FormGroup;
-  enrolledClients: EnrolledClient[] = [];
-  showModal = false;
+  clients: Client[] = [];
+  filteredClients: Client[] = [];
+  isLoading = true;
+  isSubmitting = false;
+  errorMessage = '';
+  successMessage = '';
   isEditing = false;
   currentClientId: string | null = null;
   
-  // Account types
-  accountTypes = [
-    { id: 'current', name: 'Compte Courant' },
-    { id: 'savings', name: 'Compte Épargne' },
-    { id: 'premium', name: 'Compte Premium' },
-    { id: 'business', name: 'Compte Professionnel' }
+  // Options pour les listes déroulantes
+  accountTypes: string[] = [];
+  currencies: string[] = [];
+  cities: string[] = [];
+  identityTypes: { id: string, name: string }[] = [
+    { id: 'CIN', name: 'Carte d\'Identité Nationale' },
+    { id: 'Passport', name: 'Passeport' },
+    { id: 'Residence Card', name: 'Carte de Séjour' }
   ];
 
-  constructor(private fb: FormBuilder) {
-    this.enrollmentForm = this.fb.group({
-      fullName: ['', [Validators.required, Validators.minLength(3)]],
-      cin: ['', [Validators.required, Validators.pattern(/^[A-Z]{1,2}[0-9]{5,6}$/)]],
-      phone: ['', [Validators.required, Validators.pattern(/^(0|\+212)[5-7][0-9]{8}$/)]],
-      email: ['', [Validators.required, Validators.email]],
-      accountType: ['', Validators.required],
-      address: ['', Validators.required],
-      birthDate: ['', Validators.required],
-      occupation: [''],
-      notes: ['']
-    });
+  constructor(
+    private fb: FormBuilder, 
+    private clientService: ClientService,
+    private currencyService: CurrencyApiService
+  ) {
+    this.enrollmentForm = this.createForm();
   }
 
   ngOnInit(): void {
-    // Load sample enrolled clients
-    this.loadSampleClients();
+    this.loadClients();
+    this.loadAccountTypes();
+    this.loadCurrencies();
+    this.loadCities();
   }
 
-  loadSampleClients() {
-    this.enrolledClients = [
-      {
-        id: '1',
-        fullName: 'Ahmed Benjelloun',
-        cin: 'BK12345',
-        phone: '+212612345678',
-        email: 'ahmed.b@example.com',
-        accountType: 'current',
-        isActive: true,
-        enrollmentDate: new Date(2023, 3, 15),
-        address: '123 Rue Mohammed V, Casablanca',
-        birthDate: new Date(1985, 5, 12),
-        occupation: 'Ingénieur',
-        notes: 'Client référé par un autre client'
+  createForm(): FormGroup {
+    return this.fb.group({
+      firstName: ['', [Validators.required, Validators.minLength(2)]],
+      lastName: ['', [Validators.required, Validators.minLength(2)]],
+      email: ['', [Validators.required, Validators.email]],
+      phone: ['', [Validators.required, Validators.pattern(/^(\+[0-9]{1,3}|0)[0-9]{9}$/)]],
+      address: ['', Validators.required],
+      city: ['', Validators.required],
+      status: ['pending', Validators.required],
+      accountType: ['', Validators.required],
+      currency: ['', Validators.required],
+      identityNumber: ['', [Validators.required, Validators.pattern(/^[A-Z0-9]{5,10}$/)]],
+      identityType: ['CIN', Validators.required],
+      birthDate: ['', Validators.required],
+      occupation: [''],
+      income: [null, [Validators.min(0)]],
+      password: ['', [Validators.required, Validators.minLength(8)]],
+      confirmPassword: ['', Validators.required]
+    }, {
+      validators: this.passwordMatchValidator
+    });
+  }
+
+  passwordMatchValidator(form: FormGroup) {
+    const password = form.get('password')?.value;
+    const confirmPassword = form.get('confirmPassword')?.value;
+    return password === confirmPassword ? null : { passwordMismatch: true };
+  }
+
+  loadClients(): void {
+    this.isLoading = true;
+    this.clientService.getClients().subscribe({
+      next: (clients) => {
+        this.clients = clients;
+        this.filteredClients = [...clients];
+        this.isLoading = false;
       },
-      {
-        id: '2',
-        fullName: 'Fatima El Alaoui',
-        cin: 'CD56789',
-        phone: '+212698765432',
-        email: 'fatima.e@example.com',
-        accountType: 'savings',
-        isActive: true,
-        enrollmentDate: new Date(2023, 4, 3),
-        address: '45 Avenue Hassan II, Rabat',
-        birthDate: new Date(1990, 8, 23),
-        occupation: 'Médecin',
-        notes: ''
-      },
-      {
-        id: '3',
-        fullName: 'Karim Naciri',
-        cin: 'EF98765',
-        phone: '+212654321987',
-        email: 'karim.n@example.com',
-        accountType: 'business',
-        isActive: false,
-        enrollmentDate: new Date(2023, 2, 7),
-        address: '78 Boulevard Zerktouni, Marrakech',
-        birthDate: new Date(1975, 2, 5),
-        occupation: 'Entrepreneur',
-        notes: 'Documents à compléter'
+      error: (error) => {
+        console.error('Error loading clients', error);
+        this.errorMessage = 'Erreur lors du chargement des clients. Veuillez réessayer.';
+        this.isLoading = false;
       }
-    ];
+    });
   }
 
-  submitForm() {
+  loadAccountTypes(): void {
+    this.clientService.getAccountTypes().subscribe({
+      next: (accountTypes) => {
+        this.accountTypes = accountTypes;
+      },
+      error: (error) => {
+        console.error('Error loading account types', error);
+      }
+    });
+  }
+
+  loadCities(): void {
+    this.clientService.getCities().subscribe({
+      next: (cities) => {
+        this.cities = cities;
+      },
+      error: (error) => {
+        console.error('Error loading cities', error);
+      }
+    });
+  }
+
+  loadCurrencies(): void {
+    this.clientService.getCurrencies().subscribe({
+      next: (currencies) => {
+        this.currencies = currencies;
+      },
+      error: (error) => {
+        console.error('Error loading currencies', error);
+      }
+    });
+  }
+
+  submitForm(): void {
     if (this.enrollmentForm.invalid) {
-      // Mark all fields as touched to trigger validation messages
+      // Marquer tous les champs comme touchés pour afficher les messages d'erreur
       Object.keys(this.enrollmentForm.controls).forEach(key => {
         this.enrollmentForm.get(key)?.markAsTouched();
       });
       return;
     }
 
-    const formData = this.enrollmentForm.value;
-    
-    if (this.isEditing && this.currentClientId) {
-      // Update existing client
-      const index = this.enrolledClients.findIndex(c => c.id === this.currentClientId);
-      if (index !== -1) {
-        this.enrolledClients[index] = {
-          ...this.enrolledClients[index],
-          ...formData
-        };
-      }
-      this.isEditing = false;
-      this.currentClientId = null;
-    } else {
-      // Add new client
-      const newClient: EnrolledClient = {
-        id: Date.now().toString(),
-        ...formData,
-        isActive: true,
-        enrollmentDate: new Date()
-      };
-      this.enrolledClients.unshift(newClient);
-    }
+    this.isSubmitting = true;
+    this.errorMessage = '';
+    this.successMessage = '';
 
-    // Reset form
+    // Préparer les données
+    const formData: ClientFormData = {
+      ...this.enrollmentForm.value
+    };
+
+    // Ajouter/mettre à jour le client
+    if (this.isEditing && this.currentClientId) {
+      this.clientService.updateClient(this.currentClientId, formData).subscribe({
+        next: (client) => {
+          this.successMessage = 'Client mis à jour avec succès';
+          this.isSubmitting = false;
+          this.resetForm();
+          this.loadClients();
+        },
+        error: (error) => {
+          console.error('Error updating client', error);
+          this.errorMessage = 'Erreur lors de la mise à jour du client';
+          this.isSubmitting = false;
+        }
+      });
+    } else {
+      this.clientService.createClient(formData).subscribe({
+        next: (client) => {
+          this.successMessage = 'Client enregistré avec succès';
+          this.isSubmitting = false;
+          this.resetForm();
+          this.loadClients();
+        },
+        error: (error) => {
+          console.error('Error creating client', error);
+          this.errorMessage = 'Erreur lors de l\'enregistrement du client';
+          this.isSubmitting = false;
+        }
+      });
+    }
+  }
+
+  resetForm(): void {
     this.enrollmentForm.reset();
-    // Select the first account type as default
+    this.isEditing = false;
+    this.currentClientId = null;
+    // Définir les valeurs par défaut
     this.enrollmentForm.patchValue({
-      accountType: ''
+      status: 'pending',
+      identityType: 'CIN'
     });
   }
 
-  getAccountTypeName(typeId: string): string {
-    const accountType = this.accountTypes.find(type => type.id === typeId);
-    return accountType ? accountType.name : 'Unknown';
+  searchClients(query: string): void {
+    query = query.toLowerCase().trim();
+    if (!query) {
+      this.filteredClients = [...this.clients];
+      return;
+    }
+
+    this.filteredClients = this.clients.filter(client => 
+      client.firstName.toLowerCase().includes(query) ||
+      client.lastName.toLowerCase().includes(query) ||
+      client.email.toLowerCase().includes(query) ||
+      client.phone.toLowerCase().includes(query) ||
+      client.identityNumber.toLowerCase().includes(query)
+    );
+  }
+
+  editClient(client: Client): void {
+    this.isEditing = true;
+    this.currentClientId = client.id;
+    
+    // Formatage de la date pour l'élément input date
+    const birthDate = this.formatDateForInput(client.birthDate);
+
+    this.enrollmentForm.patchValue({
+      firstName: client.firstName,
+      lastName: client.lastName,
+      email: client.email,
+      phone: client.phone,
+      address: client.address,
+      city: client.city,
+      status: client.status,
+      accountType: client.accountType,
+      currency: client.currency,
+      identityNumber: client.identityNumber,
+      identityType: client.identityType,
+      birthDate: birthDate,
+      occupation: client.occupation,
+      income: client.income
+    });
+    
+    // Les champs de mot de passe ne sont pas remplis lors de l'édition
+    this.enrollmentForm.get('password')?.clearValidators();
+    this.enrollmentForm.get('confirmPassword')?.clearValidators();
+    this.enrollmentForm.get('password')?.updateValueAndValidity();
+    this.enrollmentForm.get('confirmPassword')?.updateValueAndValidity();
+    
+    // Scroll to form
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  cancelEdit(): void {
+    this.resetForm();
+  }
+
+  deleteClient(id: string): void {
+    if (confirm('Êtes-vous sûr de vouloir supprimer ce client ?')) {
+      this.clientService.deleteClient(id).subscribe({
+        next: (success) => {
+          if (success) {
+            this.successMessage = 'Client supprimé avec succès';
+            this.loadClients();
+          } else {
+            this.errorMessage = 'Erreur lors de la suppression du client';
+          }
+        },
+        error: (error) => {
+          console.error('Error deleting client', error);
+          this.errorMessage = 'Erreur lors de la suppression du client';
+        }
+      });
+    }
+  }
+
+  toggleClientStatus(client: Client): void {
+    const newStatus = client.status === 'active' ? 'inactive' : 'active';
+    
+    this.clientService.updateClient(client.id, {
+      ...client,
+      status: newStatus
+    } as ClientFormData).subscribe({
+      next: () => {
+        this.loadClients();
+      },
+      error: (error) => {
+        console.error('Error updating client status', error);
+        this.errorMessage = 'Erreur lors de la modification du statut';
+      }
+    });
   }
 
   showValidationError(controlName: string): boolean {
@@ -141,40 +281,16 @@ export class ClientEnrollmentComponent implements OnInit {
     return control ? control.invalid && (control.dirty || control.touched) : false;
   }
 
-  editClient(client: EnrolledClient) {
-    this.isEditing = true;
-    this.currentClientId = client.id;
-    
-    this.enrollmentForm.patchValue({
-      fullName: client.fullName,
-      cin: client.cin,
-      phone: client.phone,
-      email: client.email,
-      accountType: client.accountType,
-      address: client.address,
-      birthDate: client.birthDate ? this.formatDateForInput(client.birthDate) : '',
-      occupation: client.occupation,
-      notes: client.notes
-    });
-    
-    // Scroll to form
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
-
-  deleteClient(id: string) {
-    if (confirm('Êtes-vous sûr de vouloir supprimer ce client?')) {
-      this.enrolledClients = this.enrolledClients.filter(client => client.id !== id);
+  getStatusClass(status: string): string {
+    switch (status) {
+      case 'active': return 'bg-green-100 text-green-800';
+      case 'inactive': return 'bg-gray-100 text-gray-800';
+      case 'blocked': return 'bg-red-100 text-red-800';
+      case 'pending': return 'bg-yellow-100 text-yellow-800';
+      default: return 'bg-gray-100 text-gray-800';
     }
   }
 
-  toggleClientStatus(id: string) {
-    const index = this.enrolledClients.findIndex(client => client.id === id);
-    if (index !== -1) {
-      this.enrolledClients[index].isActive = !this.enrolledClients[index].isActive;
-    }
-  }
-
-  // Format date for input field (YYYY-MM-DD)
   formatDateForInput(date: Date): string {
     const d = new Date(date);
     const month = `${d.getMonth() + 1}`.padStart(2, '0');
@@ -182,41 +298,16 @@ export class ClientEnrollmentComponent implements OnInit {
     return `${d.getFullYear()}-${month}-${day}`;
   }
 
-  // For display in the table
   formatDate(date: Date): string {
     return new Date(date).toLocaleDateString('fr-FR');
   }
 
-  cancelEdit() {
-    this.isEditing = false;
-    this.currentClientId = null;
-    this.enrollmentForm.reset();
-    this.enrollmentForm.patchValue({
-      accountType: ''
-    });
+  getFullName(client: Client): string {
+    return `${client.firstName} ${client.lastName}`;
   }
 
-  getStatusClass(isActive: boolean): string {
-    return isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
+  getIdentityTypeName(type: string): string {
+    const identityType = this.identityTypes.find(t => t.id === type);
+    return identityType ? identityType.name : type;
   }
-
-  openClientDetails(client: EnrolledClient) {
-    console.log('View details for client', client);
-    // Implement client details modal/page navigation
-  }
-}
-
-interface EnrolledClient {
-  id: string;
-  fullName: string;
-  cin: string;
-  phone: string;
-  email: string;
-  accountType: string;
-  isActive: boolean;
-  enrollmentDate: Date;
-  address: string;
-  birthDate?: Date;
-  occupation?: string;
-  notes?: string;
 }

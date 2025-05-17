@@ -1,0 +1,54 @@
+<div class="goal-tracker">
+    <!-- Progress Bar -->
+    <div class="relative pt-1">
+        <div class="flex items-center justify-between">
+            <div>
+                <span class="text-xs font-semibold inline-block text-blue-600">
+                    {{ percentComplete }}% Complété
+                </span>
+            </div>
+            <div>
+                <span *ngIf="daysRemaining > 0"
+                    class="text-xs font-semibold inline-block text-gray-600">
+                    {{ daysRemaining }} jours restants
+                </span>
+                <span *ngIf="isExpired"
+                    class="text-xs font-semibold inline-block text-red-600">
+                    Date dépassée
+                </span>
+            </div>
+        </div>
+        <div class="overflow-hidden h-2 mb-1 text-xs flex rounded bg-blue-100">
+            <div [style.width.%]="percentComplete"
+                [style.background-color]="goal.color"
+                class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center transition-all duration-500"></div>
+        </div>
+        <div class="flex justify-between text-xs text-gray-500">
+            <span>{{ goal.currentAmount | currency:'MAD ' }}</span>
+            <span>{{ goal.targetAmount | currency:'MAD ' }}</span>
+        </div>
+    </div>
+
+    <!-- Suggestions Section -->
+    <div *ngIf="getRemainingAmount() > 0"
+        class="mt-3 p-2 bg-blue-50 rounded-md">
+        <p class="text-xs text-blue-700">
+            <span *ngIf="daysRemaining > 30">Épargnez {{ (getRemainingAmount() /
+                (daysRemaining/30)) | currency:'MAD ' }} par mois pour atteindre
+                votre objectif.</span>
+            <span *ngIf="daysRemaining <= 30 && daysRemaining > 0">Épargnez {{
+                (getRemainingAmount() / daysRemaining) | currency:'MAD ' }} par
+                jour pour atteindre votre objectif.</span>
+            <span *ngIf="isExpired">Il vous manque {{ getRemainingAmount() |
+                currency:'MAD ' }} pour atteindre votre objectif.</span>
+        </p>
+    </div>
+
+    <!-- Completion Message -->
+    <div *ngIf="percentComplete >= 100" class="mt-3 p-2 bg-green-50 rounded-md">
+        <p class="text-xs text-green-700 flex items-center">
+            <i class="fa-solid fa-check-circle mr-1"></i>
+            Félicitations ! Vous avez atteint votre objectif d'épargne.
+        </p>
+    </div>
+</div>

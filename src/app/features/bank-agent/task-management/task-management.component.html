@@ -1,0 +1,380 @@
+<!-- À placer dans: c:\Users\dadda\Desktop\Ebanking_Project\e-banking-app\src\app\features\bank-agent\task-management\task-management.component.html -->
+<!-- En-tête -->
+<div class="bg-white rounded-lg shadow p-6 mb-6">
+    <div class="flex justify-between items-center">
+        <div>
+            <h2 class="text-2xl font-bold text-gray-800">Gestion des Tâches</h2>
+            <p class="text-gray-600">Gérez et suivez l'état de vos tâches
+                quotidiennes</p>
+        </div>
+        <button (click)="openNewTaskModal()"
+            class="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg flex items-center transition-all">
+            <i class="fa-solid fa-plus mr-2"></i>
+            Créer une tâche
+        </button>
+    </div>
+</div>
+
+<!-- Filtres -->
+<div class="bg-white rounded-lg shadow p-6 mb-6">
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div>
+            <label for="statusFilter"
+                class="block text-sm font-medium text-gray-700 mb-1">Statut</label>
+            <select
+                id="statusFilter"
+                [(ngModel)]="statusFilter"
+                (change)="applyFilters()"
+                class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500">
+                <option value="all">Tous les statuts</option>
+                <option value="pending">En attente</option>
+                <option value="in_progress">En cours</option>
+                <option value="completed">Terminée</option>
+                <option value="cancelled">Annulée</option>
+            </select>
+        </div>
+
+        <div>
+            <label for="priorityFilter"
+                class="block text-sm font-medium text-gray-700 mb-1">Priorité</label>
+            <select
+                id="priorityFilter"
+                [(ngModel)]="priorityFilter"
+                (change)="applyFilters()"
+                class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500">
+                <option value="all">Toutes les priorités</option>
+                <option value="high">Haute</option>
+                <option value="medium">Moyenne</option>
+                <option value="low">Basse</option>
+            </select>
+        </div>
+
+        <div>
+            <label for="categoryFilter"
+                class="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
+            <select
+                id="categoryFilter"
+                [(ngModel)]="categoryFilter"
+                (change)="applyFilters()"
+                class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500">
+                <option value="all">Toutes les catégories</option>
+                <option value="verification">Vérification</option>
+                <option value="approval">Approbation</option>
+                <option value="customer_service">Service client</option>
+                <option value="other">Autre</option>
+            </select>
+        </div>
+
+        <div>
+            <label for="searchTerm"
+                class="block text-sm font-medium text-gray-700 mb-1">Recherche</label>
+            <div class="relative">
+                <input
+                    type="text"
+                    id="searchTerm"
+                    [(ngModel)]="searchTerm"
+                    (input)="applyFilters()"
+                    placeholder="Rechercher..."
+                    class="w-full border border-gray-300 rounded-md pl-10 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500">
+                <i
+                    class="fa-solid fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Liste des tâches -->
+<div class="bg-white rounded-lg shadow overflow-hidden">
+    <!-- État vide -->
+    <div *ngIf="filteredTasks.length === 0" class="p-12 text-center">
+        <div class="text-gray-400 mb-4">
+            <i class="fa-solid fa-clipboard-check text-5xl"></i>
+        </div>
+        <h3 class="text-lg font-medium text-gray-900">Aucune tâche trouvée</h3>
+        <p class="mt-1 text-sm text-gray-500">Essayez de modifier vos filtres ou
+            créez une nouvelle tâche.</p>
+    </div>
+
+    <!-- Tableau des tâches -->
+    <div *ngIf="filteredTasks.length > 0" class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th scope="col"
+                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Tâche/Description
+                    </th>
+                    <th scope="col"
+                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Client
+                    </th>
+                    <th scope="col"
+                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Priorité/Catégorie
+                    </th>
+                    <th scope="col"
+                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Échéance
+                    </th>
+                    <th scope="col"
+                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Statut
+                    </th>
+                    <th scope="col"
+                        class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                    </th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                <tr *ngFor="let task of filteredTasks" class="hover:bg-gray-50">
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm font-medium text-gray-900">{{
+                            task.title }}</div>
+                        <div class="text-sm text-gray-500">{{ task.description
+                            }}</div>
+                    </td>
+
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm text-gray-900">Client ID: {{
+                            task.client_id }}</div>
+                    </td>
+
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span [ngClass]="getPriorityClass(task.priority)"
+                            class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full">
+                            {{ task.priority === 'high' ? 'Haute' :
+                            task.priority === 'medium' ? 'Moyenne' : 'Basse' }}
+                        </span>
+                        <div class="text-sm text-gray-500 mt-1">{{ task.category
+                            }}</div>
+                    </td>
+
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm text-gray-900">{{ task.due_date |
+                            date: 'dd/MM/yyyy' }}</div>
+                        <div class="text-sm text-gray-500">Assigné à: {{
+                            task.assigned_to }}</div>
+                    </td>
+
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span [ngClass]="getStatusClass(task.status)"
+                            class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full">
+                            {{ task.status === 'pending' ? 'En attente' :
+                            task.status === 'in_progress' ? 'En cours' :
+                            task.status === 'completed' ? 'Terminée' : 'Annulée'
+                            }}
+                        </span>
+                    </td>
+
+                    <td
+                        class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <div class="flex justify-end space-x-2">
+                            <!-- Actions selon le statut -->
+                            <ng-container
+                                *ngIf="task.status !== 'completed' && task.status !== 'cancelled'">
+                                <button
+                                    *ngIf="task.status === 'pending'"
+                                    (click)="updateTaskStatus(task.id, 'in_progress')"
+                                    class="text-blue-600 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 p-2 rounded"
+                                    title="Commencer">
+                                    <i class="fa-solid fa-play"></i>
+                                </button>
+
+                                <button
+                                    (click)="updateTaskStatus(task.id, 'completed')"
+                                    class="text-green-600 hover:text-green-900 bg-green-50 hover:bg-green-100 p-2 rounded"
+                                    title="Terminer">
+                                    <i class="fa-solid fa-check"></i>
+                                </button>
+                            </ng-container>
+
+                            <!-- Boutons toujours disponibles -->
+                            <button
+                                (click)="openEditTaskModal(task)"
+                                class="text-teal-600 hover:text-teal-900 bg-teal-50 hover:bg-teal-100 p-2 rounded"
+                                title="Modifier">
+                                <i class="fa-solid fa-edit"></i>
+                            </button>
+
+                            <button
+                                (click)="deleteTask(task.id)"
+                                class="text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100 p-2 rounded"
+                                title="Supprimer">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal pour la création/édition de tâche -->
+<div *ngIf="showTaskModal"
+    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full">
+        <div class="border-b px-6 py-4 flex justify-between items-center">
+            <h3 class="text-lg font-medium text-gray-900">{{ isEditMode ?
+                'Modifier la tâche' : 'Nouvelle tâche' }}</h3>
+            <button (click)="closeTaskModal()"
+                class="text-gray-400 hover:text-gray-500">
+                <i class="fa-solid fa-times"></i>
+            </button>
+        </div>
+
+        <form [formGroup]="taskForm" (ngSubmit)="submitTaskForm()">
+            <div class="px-6 py-4 max-h-[70vh] overflow-y-auto">
+                <!-- Titre -->
+                <div class="mb-4">
+                    <label for="title"
+                        class="block text-sm font-medium text-gray-700 mb-1">Titre</label>
+                    <input
+                        type="text"
+                        id="title"
+                        formControlName="title"
+                        class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500">
+                    <div
+                        *ngIf="taskForm.get('title')?.invalid && taskForm.get('title')?.touched"
+                        class="text-xs text-red-600 mt-1">
+                        Le titre est requis
+                    </div>
+                </div>
+
+                <!-- Description -->
+                <div class="mb-4">
+                    <label for="description"
+                        class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                    <textarea
+                        id="description"
+                        formControlName="description"
+                        rows="3"
+                        class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500"></textarea>
+                    <div
+                        *ngIf="taskForm.get('description')?.invalid && taskForm.get('description')?.touched"
+                        class="text-xs text-red-600 mt-1">
+                        La description est requise
+                    </div>
+                </div>
+
+                <!-- Client ID -->
+                <div class="mb-4">
+                    <label for="client_id"
+                        class="block text-sm font-medium text-gray-700 mb-1">ID
+                        Client</label>
+                    <input
+                        type="text"
+                        id="client_id"
+                        formControlName="client_id"
+                        class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500">
+                    <div
+                        *ngIf="taskForm.get('client_id')?.invalid && taskForm.get('client_id')?.touched"
+                        class="text-xs text-red-600 mt-1">
+                        L'ID du client est requis
+                    </div>
+                </div>
+
+                <!-- Priorité et Catégorie -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label for="priority"
+                            class="block text-sm font-medium text-gray-700 mb-1">Priorité</label>
+                        <select
+                            id="priority"
+                            formControlName="priority"
+                            class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500">
+                            <option *ngFor="let p of priorities" [value]="p">
+                                {{ p === 'high' ? 'Haute' : p === 'medium' ?
+                                'Moyenne' : 'Basse' }}
+                            </option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="category"
+                            class="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
+                        <select
+                            id="category"
+                            formControlName="category"
+                            class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500">
+                            <option *ngFor="let c of categories" [value]="c">
+                                {{ c === 'verification' ? 'Vérification' :
+                                c === 'approval' ? 'Approbation' :
+                                c === 'customer_service' ? 'Service client' :
+                                'Autre' }}
+                            </option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Date d'échéance et Statut -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label for="due_date"
+                            class="block text-sm font-medium text-gray-700 mb-1">Date
+                            d'échéance</label>
+                        <input
+                            type="date"
+                            id="due_date"
+                            formControlName="due_date"
+                            class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500">
+                        <div
+                            *ngIf="taskForm.get('due_date')?.invalid && taskForm.get('due_date')?.touched"
+                            class="text-xs text-red-600 mt-1">
+                            La date d'échéance est requise
+                        </div>
+                    </div>
+
+                    <div>
+                        <label for="status"
+                            class="block text-sm font-medium text-gray-700 mb-1">Statut</label>
+                        <select
+                            id="status"
+                            formControlName="status"
+                            class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500">
+                            <option *ngFor="let s of statuses" [value]="s">
+                                {{ s === 'pending' ? 'En attente' :
+                                s === 'in_progress' ? 'En cours' :
+                                s === 'completed' ? 'Terminée' : 'Annulée' }}
+                            </option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Assigné à -->
+                <div class="mb-4">
+                    <label for="assigned_to"
+                        class="block text-sm font-medium text-gray-700 mb-1">Assigné
+                        à (ID Agent)</label>
+                    <input
+                        type="text"
+                        id="assigned_to"
+                        formControlName="assigned_to"
+                        class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500">
+                    <div
+                        *ngIf="taskForm.get('assigned_to')?.invalid && taskForm.get('assigned_to')?.touched"
+                        class="text-xs text-red-600 mt-1">
+                        L'assignation est requise
+                    </div>
+                </div>
+            </div>
+
+            <div class="border-t px-6 py-4 flex justify-end">
+                <button
+                    type="button"
+                    (click)="closeTaskModal()"
+                    class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md mr-3 hover:bg-gray-300 transition-all">
+                    Annuler
+                </button>
+                <button
+                    type="submit"
+                    [disabled]="taskForm.invalid"
+                    class="px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 transition-all"
+                    [ngClass]="{'opacity-50 cursor-not-allowed': taskForm.invalid}">
+                    {{ isEditMode ? 'Mettre à jour' : 'Créer' }}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>

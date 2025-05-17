@@ -1,19 +1,52 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterModule } from '@angular/router';
+
+// Type definitions for proper typing
+interface SystemStats {
+  totalUsers: number;
+  activeUsers: number;
+  userGrowth: number;
+  totalTransactions: number;
+  transactionVolume: number;
+  volumeChange: number;
+  systemUptime: number;
+  alertsCount: number;
+}
+
+interface AdminActivity {
+  id?: string;
+  user: string;
+  action: string;
+  date: Date;
+  status: 'Completed' | 'Pending' | 'Alert' | 'Failed';
+  icon: string;
+}
+
+interface ChartDataset {
+  label: string;
+  data: number[];
+  color: string;
+}
+
+interface ChartData {
+  labels: string[];
+  datasets: ChartDataset[];
+}
 
 @Component({
   selector: 'app-admin-dashboard',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, RouterModule],
   templateUrl: './admin-dashboard.component.html',
   styleUrls: ['./admin-dashboard.component.css']
 })
-export class AdminDashboardComponent {
+export class AdminDashboardComponent implements OnInit {
   currentDate = new Date();
   currentAdminName = 'Admin User';
   
-  // System statistics
-  systemStats = {
+  // System statistics with proper typing
+  systemStats: SystemStats = {
     totalUsers: 254,
     activeUsers: 142,
     userGrowth: 5.3,
@@ -24,9 +57,10 @@ export class AdminDashboardComponent {
     alertsCount: 2
   };
   
-  // Recent activities
-  recentActivities = [
+  // Recent activities with proper typing
+  recentActivities: AdminActivity[] = [
     {
+      id: 'ACT001',
       user: 'Nick Karam',
       action: 'Password Reset',
       date: new Date(2023, 4, 12),
@@ -34,6 +68,7 @@ export class AdminDashboardComponent {
       icon: 'fa-solid fa-key'
     },
     {
+      id: 'ACT002',
       user: 'Sarah Johnson',
       action: 'Account Creation',
       date: new Date(2023, 4, 11),
@@ -41,6 +76,7 @@ export class AdminDashboardComponent {
       icon: 'fa-solid fa-user-plus'
     },
     {
+      id: 'ACT003',
       user: 'Michael Brown',
       action: 'Failed Login Attempt',
       date: new Date(2023, 4, 10),
@@ -48,6 +84,7 @@ export class AdminDashboardComponent {
       icon: 'fa-solid fa-triangle-exclamation'
     },
     {
+      id: 'ACT004',
       user: 'Emma Wilson',
       action: 'Profile Update',
       date: new Date(2023, 4, 9),
@@ -56,36 +93,8 @@ export class AdminDashboardComponent {
     }
   ];
   
-  // Pending approvals
-  pendingApprovals = [
-    {
-      id: 'TR78945',
-      type: 'Large Withdrawal',
-      amount: 15000,
-      requester: 'Nick Karam',
-      date: new Date(2023, 4, 12),
-      status: 'Pending Review'
-    },
-    {
-      id: 'TR78946',
-      type: 'New Account',
-      amount: null,
-      requester: 'Sarah Johnson',
-      date: new Date(2023, 4, 11),
-      status: 'Pending Review'
-    },
-    {
-      id: 'TR78947',
-      type: 'Wire Transfer',
-      amount: 7500,
-      requester: 'Michael Brown',
-      date: new Date(2023, 4, 10),
-      status: 'Pending Review'
-    }
-  ];
-  
-  // User growth chart data
-  userChartData = {
+  // User growth chart data with proper typing
+  userChartData: ChartData = {
     labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May'],
     datasets: [
       {
@@ -96,8 +105,8 @@ export class AdminDashboardComponent {
     ]
   };
   
-  // Transaction volume chart data
-  transactionChartData = {
+  // Transaction volume chart data with proper typing
+  transactionChartData: ChartData = {
     labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May'],
     datasets: [
       {
@@ -107,6 +116,58 @@ export class AdminDashboardComponent {
       }
     ]
   };
+
+  // Loading states to handle async data loading
+  loading = {
+    stats: false,
+    activities: false,
+    charts: false
+  };
+
+  // Error states to handle failed data loading
+  error = {
+    stats: false,
+    activities: false,
+    charts: false
+  };
+  
+  constructor() {}
+
+  ngOnInit(): void {
+    // In production, these would fetch data from services
+    // this.loadSystemStats();
+    // this.loadRecentActivities();
+    // this.loadChartData();
+  }
+
+  // Methods that would be implemented to load data from services
+  loadSystemStats(): void {
+    // Example implementation that would be used with real services
+    this.loading.stats = true;
+    this.error.stats = false;
+    
+    // Example service call
+    // this.adminService.getSystemStats().pipe(
+    //   catchError(err => {
+    //     console.error('Error loading system stats', err);
+    //     this.error.stats = true;
+    //     return of(null);
+    //   })
+    // ).subscribe(stats => {
+    //   if (stats) {
+    //     this.systemStats = stats;
+    //   }
+    //   this.loading.stats = false;
+    // });
+  }
+
+  loadRecentActivities(): void {
+    // Would be implemented with real service
+  }
+
+  loadChartData(): void {
+    // Would be implemented with real service
+  }
   
   formatDate(date: Date): string {
     const options: Intl.DateTimeFormatOptions = {
@@ -122,9 +183,10 @@ export class AdminDashboardComponent {
     switch (status) {
       case 'Completed':
         return 'bg-green-100 text-green-800';
-      case 'Pending Review':
+      case 'Pending':
         return 'bg-yellow-100 text-yellow-800';
       case 'Alert':
+      case 'Failed':
         return 'bg-red-100 text-red-800';
       default:
         return 'bg-gray-100 text-gray-800';
@@ -139,18 +201,19 @@ export class AdminDashboardComponent {
     return 'text-gray-600';
   }
   
-  exportData() {
+  exportData(): void {
     alert('Exporting data...');
     // Implement export functionality
-  }
-  
-  approveRequest(id: string) {
-    alert(`Approving request ${id}`);
-    // Implement approval logic
-  }
-  
-  rejectRequest(id: string) {
-    alert(`Rejecting request ${id}`);
-    // Implement rejection logic
+    // In production:
+    // this.adminService.exportDashboardData().subscribe(response => {
+    //   // Handle download of exported data
+    //   const blob = new Blob([response], { type: 'application/pdf' });
+    //   const url = window.URL.createObjectURL(blob);
+    //   const a = document.createElement('a');
+    //   a.href = url;
+    //   a.download = `admin-report-${new Date().toISOString().slice(0, 10)}.pdf`;
+    //   a.click();
+    //   window.URL.revokeObjectURL(url);
+    // });
   }
 }

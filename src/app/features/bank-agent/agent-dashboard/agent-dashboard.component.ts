@@ -1,6 +1,25 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
+import { Task } from '../../../shared/models/task.model';
+import { TaskService } from '../../../services/task/task.service';
+import { Client } from '../../../shared/models/client.model';
+import { Announcement } from '../../../shared/models/Announcement.model';
+import { TransactionVerification, createVerificationTransaction } from '../../../shared/models/transactionVerification';
+
+interface AgentInfo {
+  name: string;
+  branch: string;
+  dailyGoal: number;
+  dailyProgress: number;
+}
+
+interface DailyStats {
+  clientsServed: number;
+  transactionsProcessed: number;
+  newAccounts: number;
+  pendingTasks: number;
+}
 
 @Component({
   selector: 'app-agent-dashboard',
@@ -11,15 +30,27 @@ import { RouterModule } from '@angular/router';
 })
 export class AgentDashboardComponent implements OnInit {
   // Agent information
-  agentInfo = {
+  agentInfo: AgentInfo = {
     name: 'Sarah Martin',
     branch: 'Agence Casablanca Centre',
     dailyGoal: 85,
     dailyProgress: 62
   };
 
+  clientMap: { [key: string]: string } = {
+    'CLT123': 'Hicham Alaoui',
+    'CLT456': 'Amina El Mansouri',
+    'CLT789': 'Karim Benzarti',
+    'CLT101': 'Fatima Zahra Karimi',
+    'CLT112': 'Youssef Tahiri'
+  };
+
+  getClientName(clientId: string): string {
+    return this.clientMap[clientId] || clientId;
+  }
+
   // Daily statistics
-  dailyStats = {
+  dailyStats: DailyStats = {
     clientsServed: 14,
     transactionsProcessed: 23,
     newAccounts: 3,
@@ -27,110 +58,188 @@ export class AgentDashboardComponent implements OnInit {
   };
 
   // Tasks to complete
-  pendingTasks = [
+  pendingTasks: Task[] = [
     {
       id: 'TSK001',
       title: 'Vérification KYC',
-      client: 'Hicham Alaoui',
+      description: 'Vérifier les documents d\'identité du client',
+      client_id: 'CLT123',
       priority: 'high',
-      dueDate: new Date(2023, 4, 15)
+      status: 'pending',
+      created_at: new Date(2023, 4, 14),
+      due_date: new Date(2023, 4, 15),
+      assigned_to: 'AGT001',
+      category: 'verification'
     },
     {
       id: 'TSK002',
       title: 'Activation de compte',
-      client: 'Amina El Mansouri',
+      description: 'Activer le compte bancaire après vérification des documents',
+      client_id: 'CLT456',
       priority: 'medium',
-      dueDate: new Date(2023, 4, 15)
+      status: 'pending',
+      created_at: new Date(2023, 4, 14),
+      due_date: new Date(2023, 4, 15),
+      assigned_to: 'AGT001',
+      category: 'approval'
     },
     {
       id: 'TSK003',
       title: 'Remplacement carte bancaire',
-      client: 'Karim Benzarti',
+      description: 'Traiter la demande de remplacement de carte bancaire',
+      client_id: 'CLT789',
       priority: 'low',
-      dueDate: new Date(2023, 4, 16)
+      status: 'pending',
+      created_at: new Date(2023, 4, 14),
+      due_date: new Date(2023, 4, 16),
+      assigned_to: 'AGT001',
+      category: 'customer_service'
     },
     {
       id: 'TSK004',
       title: 'Validation transaction',
-      client: 'Fatima Zahra Karimi',
+      description: 'Valider la transaction internationale de montant élevé',
+      client_id: 'CLT101',
       priority: 'high',
-      dueDate: new Date(2023, 4, 15)
+      status: 'pending',
+      created_at: new Date(2023, 4, 14),
+      due_date: new Date(2023, 4, 15),
+      assigned_to: 'AGT001',
+      category: 'approval'
     },
     {
       id: 'TSK005',
       title: 'Changement d\'adresse',
-      client: 'Youssef Tahiri',
+      description: 'Mettre à jour l\'adresse du client dans le système',
+      client_id: 'CLT112',
       priority: 'medium',
-      dueDate: new Date(2023, 4, 17)
+      status: 'pending',
+      created_at: new Date(2023, 4, 14),
+      due_date: new Date(2023, 4, 17),
+      assigned_to: 'AGT001',
+      category: 'customer_service'
     }
   ];
 
   // Recent clients
-  recentClients = [
+  recentClients: Client[] = [
     {
       id: 'CLT001',
-      name: 'Mehdi Belhaj',
+      firstName: 'Mehdi',
+      lastName: 'Belhaj',
+      email: 'mehdi.belhaj@mail.com',
+      phone: '+212612345678',
+      clientId: 'CLT001',
+      address: '123 Rue Mohammed V',
+      city: 'Casablanca',
+      status: 'active',
       accountType: 'Compte Courant',
-      date: new Date(2023, 4, 14),
-      status: 'active'
+      balance: 15000,
+      currency: 'MAD',
+      imageUrl: '',
+      dateJoined: new Date(2023, 4, 14),
+      identityNumber: 'AB123456',
+      identityType: 'CIN',
+      birthDate: new Date(1985, 5, 15),
+      accounts: []
     },
     {
       id: 'CLT002',
-      name: 'Souad El Idrissi',
+      firstName: 'Souad',
+      lastName: 'El Idrissi',
+      email: 'souad.idrissi@mail.com',
+      phone: '+212623456789',
+      clientId: 'CLT002',
+      address: '45 Av Hassan II',
+      city: 'Rabat',
+      status: 'pending',
       accountType: 'Compte Épargne',
-      date: new Date(2023, 4, 14),
-      status: 'pending'
+      balance: 25000,
+      currency: 'MAD',
+      imageUrl: '',
+      dateJoined: new Date(2023, 4, 14),
+      identityNumber: 'CD789012',
+      identityType: 'CIN',
+      birthDate: new Date(1990, 8, 20),
+      accounts: []
     },
     {
       id: 'CLT003',
-      name: 'Omar Chraibi',
+      firstName: 'Omar',
+      lastName: 'Chraibi',
+      email: 'omar.chraibi@mail.com',
+      phone: '+212634567890',
+      clientId: 'CLT003',
+      address: '78 Rue Ibn Battouta',
+      city: 'Marrakech',
+      status: 'active',
       accountType: 'Compte Professionnel',
-      date: new Date(2023, 4, 13),
-      status: 'active'
+      balance: 50000,
+      currency: 'MAD',
+      imageUrl: '',
+      dateJoined: new Date(2023, 4, 13),
+      identityNumber: 'EF345678',
+      identityType: 'CIN',
+      birthDate: new Date(1978, 3, 10),
+      accounts: []
     }
   ];
 
   // Transactions requiring verification
-  pendingTransactions = [
-    {
+  pendingTransactions: TransactionVerification[] = [
+    createVerificationTransaction({
       id: 'TRX43219',
-      client: 'Nadia El Fassi',
-      type: 'Retrait',
+      clientName: 'Nadia El Fassi',
+      type: 'withdrawal',
+      typeLabel: 'Retrait',
       amount: 12000,
+      currency: 'MAD',
       date: new Date(2023, 4, 14, 10, 23),
       status: 'pending'
-    },
-    {
+    }),
+    createVerificationTransaction({
       id: 'TRX43217',
-      client: 'Redouane Khalid',
-      type: 'Virement International',
+      clientName: 'Redouane Khalid',
+      type: 'transfer',
+      typeLabel: 'Virement International',
       amount: 35000,
+      currency: 'MAD',
       date: new Date(2023, 4, 14, 9, 15),
       status: 'flagged'
-    },
-    {
+    }),
+    createVerificationTransaction({
       id: 'TRX43215',
-      client: 'Samir Bennani',
-      type: 'Dépôt',
+      clientName: 'Samir Bennani',
+      type: 'deposit',
+      typeLabel: 'Dépôt',
       amount: 50000,
+      currency: 'MAD',
       date: new Date(2023, 4, 14, 8, 45),
       status: 'pending'
-    }
+    })
   ];
 
   // Announcements
-  announcements = [
+  announcements: Announcement[] = [
     {
-      id: 1,
+      id: '1',
       title: 'Nouvelle offre: Épargne Avenir',
+      content: 'Lancement de notre nouveau produit d\'épargne avec un taux préférentiel de 3,2%.',
       date: new Date(2023, 4, 10),
-      content: 'Lancement de notre nouveau produit d\'épargne avec un taux préférentiel de 3,2%.'
+      author: 'Direction Commerciale',
+      isImportant: true,
+      category: 'promotion',
+      createdAt: new Date(2023, 4, 10)
     },
     {
-      id: 2,
+      id: '2',
       title: 'Maintenance système',
+      content: 'Une maintenance système est prévue ce weekend, de samedi 22h à dimanche 6h.',
       date: new Date(2023, 4, 13),
-      content: 'Une maintenance système est prévue ce weekend, de samedi 22h à dimanche 6h.'
+      author: 'Direction Informatique',
+      isImportant: true,
+      category: 'maintenance',
+      createdAt: new Date(2023, 4, 13)
     }
   ];
 
@@ -141,8 +250,26 @@ export class AgentDashboardComponent implements OnInit {
   timePeriods = ['Aujourd\'hui', 'Cette Semaine', 'Ce Mois'];
   selectedPeriod = 'Aujourd\'hui';
 
+  constructor(private taskService: TaskService) {}
+
   ngOnInit(): void {
     // Initialize data
+    // this.loadTasks();
+  }
+
+  loadTasks(): void {
+    // Dans un environnement de production
+    this.taskService.getTasksByAgent('AGT001').subscribe(tasks => {
+      this.pendingTasks = tasks.filter(task => task.status !== 'completed' && task.status !== 'cancelled');
+      this.dailyStats.pendingTasks = this.pendingTasks.length;
+    });
+  }
+
+  markTaskComplete(taskId: string): void {
+    // Pour le développement
+    this.pendingTasks = this.pendingTasks.filter(task => task.id !== taskId);
+    this.dailyStats.pendingTasks = this.pendingTasks.length;
+    console.log(`Task ${taskId} marked as complete`);
   }
 
   // Helper methods
@@ -179,6 +306,10 @@ export class AgentDashboardComponent implements OnInit {
       case 'active': return 'bg-green-100 text-green-800';
       case 'pending': return 'bg-yellow-100 text-yellow-800';
       case 'flagged': return 'bg-red-100 text-red-800';
+      case 'success': 
+      case 'completed': return 'bg-green-100 text-green-800';
+      case 'failed': return 'bg-red-100 text-red-800';
+      case 'cancelled': return 'bg-gray-100 text-gray-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   }
@@ -190,10 +321,5 @@ export class AgentDashboardComponent implements OnInit {
       case 'low': return 'fa-solid fa-circle-check';
       default: return 'fa-solid fa-circle';
     }
-  }
-
-  markTaskComplete(taskId: string) {
-    console.log(`Task ${taskId} marked as complete`);
-    this.pendingTasks = this.pendingTasks.filter(task => task.id !== taskId);
   }
 }

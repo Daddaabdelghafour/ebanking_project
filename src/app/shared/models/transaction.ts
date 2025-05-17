@@ -34,3 +34,25 @@ export interface CategorySummary {
   amount: number;
   percentage: number;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

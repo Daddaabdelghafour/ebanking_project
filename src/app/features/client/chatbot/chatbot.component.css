@@ -1,0 +1,42 @@
+/* filepath: c:\Users\dadda\Desktop\Ebanking_Project\e-banking-app\src\app\features\client\chatbot\chatbot.component.css */
+/* Animations pour l'ouverture/fermeture du chat */
+:host {
+  --chat-animation-duration: 0.3s;
+}
+
+button {
+  transition: all 0.2s ease-in-out;
+}
+
+button:hover {
+  transform: scale(1.05);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1; 
+}
+ 
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1; 
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a1a1a1; 
+}
+
+/* Animation pour le typing */
+@keyframes typing {
+  0% { opacity: 0.4; }
+  50% { opacity: 1; }
+  100% { opacity: 0.4; }
+}
+
+.animate-pulse {
+  animation: typing 1.4s infinite;
+}

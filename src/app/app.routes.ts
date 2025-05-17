@@ -49,6 +49,31 @@ export const routes: Routes = [
         loadComponent: () => import('./features/client/settings/settings.component')
           .then(c => c.SettingsComponent)
       },
+      {
+        path: 'chatbot',
+        loadComponent: () => import('./features/client/chatbot/chatbot.component')
+          .then(c => c.ChatbotComponent)
+      },
+      {
+        path: 'budget',
+        loadComponent: () => import('./features/client/budget-management/budget-management.component')
+          .then(c => c.BudgetManagementComponent)
+      },
+      {
+  path: 'documents',
+  loadComponent: () => import('./features/client/documents/documents.component')
+    .then(c => c.DocumentsComponent)
+},
+{
+  path: 'announcements',
+  loadComponent: () => import('./features/client/announcements/announcements.component')
+    .then(c => c.AnnouncementsComponent)
+},
+{
+  path: 'alert-settings',
+  loadComponent: () => import('./features/client/alert-settings/alert-settings.component')
+    .then(c => c.AlertSettingsComponent)
+},
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' }
     ]
   },
@@ -100,6 +125,12 @@ export const routes: Routes = [
         loadComponent: () => import('./features/bank-agent/transaction-verification/transaction-verification.component')
           .then(c => c.TransactionVerificationComponent)
       },
+      {
+        path: 'task-management',
+        loadComponent: () => import('./features/bank-agent/task-management/task-management.component')
+          .then(c => c.TaskManagementComponent)
+      },
+
       {
         path: 'settings',
         loadComponent: () => import('./features/bank-agent/bank-agent-settings/bank-agent-settings.component')

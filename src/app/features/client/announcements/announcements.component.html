@@ -1,0 +1,184 @@
+<div class="container mx-auto p-4">
+    <!-- Header -->
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold text-gray-800">Annonces</h1>
+        <p class="text-gray-600">Restez informé des actualités et événements
+            importants concernant votre banque</p>
+    </div>
+
+    <!-- Error message -->
+    <div *ngIf="error"
+        class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4">
+        <p>{{ error }}</p>
+    </div>
+
+    <!-- Filters -->
+    <div class="bg-white rounded-lg shadow p-4 mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+                <label
+                    class="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
+                <select [(ngModel)]="filter.category"
+                    class="w-full border border-gray-300 rounded-md p-2">
+                    <option [ngValue]="undefined">Toutes les catégories</option>
+                    <option *ngFor="let cat of categories" [ngValue]="cat">
+                        {{ getCategoryLabel(cat) }}
+                    </option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">À
+                    partir de</label>
+                <input type="date" [(ngModel)]="filter.startDate"
+                    class="w-full border border-gray-300 rounded-md p-2">
+            </div>
+            <div>
+                <label
+                    class="block text-sm font-medium text-gray-700 mb-1">Jusqu'à</label>
+                <input type="date" [(ngModel)]="filter.endDate"
+                    class="w-full border border-gray-300 rounded-md p-2">
+            </div>
+        </div>
+        <div class="flex items-center space-x-4 mt-4">
+            <div class="flex items-center">
+                <input type="checkbox" id="important"
+                    [(ngModel)]="filter.isImportant"
+                    class="h-4 w-4 text-blue-600">
+                <label for="important"
+                    class="ml-2 text-sm text-gray-700">Annonces importantes
+                    uniquement</label>
+            </div>
+            <input type="text" [(ngModel)]="filter.search"
+                placeholder="Rechercher..."
+                class="flex-grow border border-gray-300 rounded-md p-2">
+        </div>
+        <div class="flex justify-end mt-4">
+            <button (click)="resetFilters()"
+                class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 mr-3">
+                Réinitialiser
+            </button>
+            <button (click)="applyFilters()"
+                class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700">
+                Filtrer
+            </button>
+        </div>
+    </div>
+
+    <!-- Loading indicator -->
+    <div *ngIf="isLoading" class="flex items-center justify-center py-8">
+        <div
+            class="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+        <span class="ml-2">Chargement...</span>
+    </div>
+
+    <!-- Announcements List -->
+    <div *ngIf="!isLoading">
+        <!-- Empty state -->
+        <div *ngIf="filteredAnnouncements.length === 0"
+            class="bg-white rounded-lg shadow p-8 text-center">
+            <div
+                class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 mb-4">
+                <i class="fa-solid fa-bullhorn text-gray-400 text-xl"></i>
+            </div>
+            <h3 class="text-lg font-medium text-gray-900 mb-1">Aucune
+                annonce</h3>
+            <p class="text-gray-500">
+                Il n'y a actuellement aucune annonce correspondant à vos
+                critères.
+            </p>
+            <button (click)="resetFilters()"
+                class="mt-4 px-4 py-2 text-sm font-medium text-blue-600 border border-blue-600 rounded-md hover:bg-blue-50">
+                Réinitialiser les filtres
+            </button>
+        </div>
+
+        <!-- List of announcements -->
+        <div *ngIf="filteredAnnouncements.length > 0" class="space-y-4">
+            <div *ngFor="let announcement of filteredAnnouncements"
+                class="bg-white rounded-lg shadow hover:shadow-md transition-shadow cursor-pointer"
+                [ngClass]="{'border-l-4 border-red-500': announcement.isImportant}"
+                (click)="viewAnnouncementDetails(announcement)">
+                <div class="p-4">
+                    <div class="flex items-center mb-2">
+                        <div
+                            [ngClass]="'bg-' + getCategoryColor(announcement.category) + '-100 text-' + getCategoryColor(announcement.category) + '-800'"
+                            class="w-8 h-8 rounded-full flex items-center justify-center mr-3">
+                            <i
+                                [class]="'fa-solid ' + getCategoryIcon(announcement.category)"></i>
+                        </div>
+                        <div class="flex-1">
+                            <h3
+                                class="text-lg font-medium text-gray-900 flex items-center">
+                                {{ announcement.title }}
+                                <span *ngIf="announcement.isImportant"
+                                    class="ml-2 px-2 py-0.5 text-xs font-semibold rounded-full bg-red-100 text-red-800">
+                                    Important
+                                </span>
+                            </h3>
+                            <div
+                                class="text-sm text-gray-500 flex items-center">
+                                <span>{{ announcement.date | date:'dd/MM/yyyy'
+                                    }}</span>
+                                <span class="mx-1">•</span>
+                                <span>{{ getCategoryLabel(announcement.category)
+                                    }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="text-gray-600 line-clamp-2">{{
+                        announcement.content }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Announcement Details Modal -->
+    <div *ngIf="showAnnouncementDetails && selectedAnnouncement"
+        class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-lg max-w-2xl w-full mx-4">
+            <div
+                class="p-4 border-b border-gray-200 flex justify-between items-center">
+                <div class="flex items-center">
+                    <div
+                        [ngClass]="'bg-' + getCategoryColor(selectedAnnouncement.category) + '-100 text-' + getCategoryColor(selectedAnnouncement.category) + '-800'"
+                        class="w-8 h-8 rounded-full flex items-center justify-center mr-3">
+                        <i
+                            [class]="'fa-solid ' + getCategoryIcon(selectedAnnouncement.category)"></i>
+                    </div>
+                    <h3 class="text-lg font-medium text-gray-900">{{
+                        selectedAnnouncement.title }}</h3>
+                    <span *ngIf="selectedAnnouncement.isImportant"
+                        class="ml-2 px-2 py-0.5 text-xs font-semibold rounded-full bg-red-100 text-red-800">
+                        Important
+                    </span>
+                </div>
+                <button (click)="closeAnnouncementDetails()"
+                    class="text-gray-500 hover:text-gray-700">
+                    <i class="fa-solid fa-times"></i>
+                </button>
+            </div>
+            <div class="p-4 max-h-96 overflow-y-auto">
+                <div
+                    class="mb-4 flex items-center justify-between text-sm text-gray-500">
+                    <div>
+                        <span>{{ selectedAnnouncement.date | date:'dd MMMM yyyy'
+                            }}</span>
+                        <span class="mx-1">•</span>
+                        <span>{{ getCategoryLabel(selectedAnnouncement.category)
+                            }}</span>
+                    </div>
+                    <div>Par: {{ selectedAnnouncement.author }}</div>
+                </div>
+                <div class="prose max-w-none">
+                    <p>{{ selectedAnnouncement.content }}</p>
+                </div>
+            </div>
+            <div class="p-4 border-t border-gray-200 flex justify-end">
+                <button (click)="closeAnnouncementDetails()"
+                    class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200">
+                    Fermer
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
