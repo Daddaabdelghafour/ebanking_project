@@ -13,7 +13,7 @@
                 (click)="toggleNewAccountForm()"
                 class="px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 flex items-center">
                 <i class="fa-solid fa-plus mr-2"></i>
-                Nouveau compte
+                Demander un compte
             </button>
 
             <button
@@ -69,18 +69,35 @@
         </div>
     </div>
 
-    <!-- Nouveau compte (Modal) -->
+    <!-- Demande de compte (Modal) -->
     <div *ngIf="showNewAccountForm"
         class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
         <div class="bg-white rounded-lg shadow-lg max-w-md w-full">
             <div class="p-6">
                 <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-lg font-medium text-gray-900">Nouveau
-                        compte</h3>
+                    <h3 class="text-lg font-medium text-gray-900">Demande d'ouverture de compte</h3>
                     <button (click)="toggleNewAccountForm()"
                         class="text-gray-400 hover:text-gray-500">
                         <i class="fa-solid fa-xmark"></i>
                     </button>
+                </div>
+
+                <!-- Message de succès -->
+                <div *ngIf="accountRequestSuccess" 
+                     class="mb-4 bg-green-100 border-l-4 border-green-500 text-green-700 p-4">
+                    <div class="flex items-center">
+                        <i class="fa-solid fa-check-circle mr-2"></i>
+                        <p>Votre demande a été envoyée avec succès! Notre équipe l'examinera dans les plus brefs délais.</p>
+                    </div>
+                </div>
+
+                <!-- Message d'erreur -->
+                <div *ngIf="errorMessage"
+                    class="mb-4 bg-red-100 border-l-4 border-red-500 text-red-700 p-4">
+                    <div class="flex items-center">
+                        <i class="fa-solid fa-circle-exclamation mr-2"></i>
+                        <p>{{ errorMessage }}</p>
+                    </div>
                 </div>
 
                 <div class="space-y-4">
@@ -121,7 +138,7 @@
                     <div>
                         <label for="initial-deposit"
                             class="block text-sm font-medium text-gray-700 mb-1">Dépôt
-                            initial (facultatif)</label>
+                            initial souhaité</label>
                         <input
                             type="number"
                             id="initial-deposit"
@@ -129,33 +146,47 @@
                             min="0"
                             class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-teal-500 focus:border-teal-500">
                     </div>
+
+                    <!-- Motif de la demande -->
+                    <div>
+                        <label for="account-reason"
+                            class="block text-sm font-medium text-gray-700 mb-1">Motif de la demande</label>
+                        <textarea
+                            id="account-reason"
+                            [(ngModel)]="newAccountData.reason"
+                            rows="3"
+                            placeholder="Précisez pourquoi vous souhaitez ouvrir ce compte..."
+                            class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-teal-500 focus:border-teal-500"></textarea>
+                    </div>
                 </div>
 
                 <div class="mt-6">
                     <button
-                        (click)="createNewAccount()"
-                        [disabled]="isCreatingAccount"
+                        (click)="requestNewAccount()"
+                        [disabled]="isCreatingAccount || accountRequestSuccess"
                         class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 disabled:bg-gray-300 disabled:cursor-not-allowed">
                         <span *ngIf="isCreatingAccount"
                             class="inline-block mr-2">
                             <i class="fa-solid fa-spinner fa-spin"></i>
                         </span>
-                        {{ isCreatingAccount ? 'Création en cours...' :
-                        'Créer le compte' }}
+                        {{ isCreatingAccount ? 'Envoi en cours...' : 'Envoyer la demande' }}
                     </button>
+                </div>
+                
+                <div class="mt-4 text-sm text-gray-600">
+                    <p><i class="fa-solid fa-info-circle mr-1"></i> Votre demande sera traitée par notre équipe bancaire. Un conseiller pourrait vous contacter pour des informations complémentaires.</p>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Transfert rapide (Modal) -->
+    <!-- Transfert rapide (Reste inchangé) -->
     <div *ngIf="showQuickTransferForm"
         class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
         <div class="bg-white rounded-lg shadow-lg max-w-md w-full">
             <div class="p-6">
                 <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-lg font-medium text-gray-900">Transfert
-                        rapide</h3>
+                    <h3 class="text-lg font-medium text-gray-900">Transfert rapide</h3>
                     <button (click)="toggleQuickTransferForm()"
                         class="text-gray-400 hover:text-gray-500">
                         <i class="fa-solid fa-xmark"></i>
@@ -184,8 +215,7 @@
                     <!-- Compte source -->
                     <div>
                         <label for="source-account"
-                            class="block text-sm font-medium text-gray-700 mb-1">Compte
-                            source</label>
+                            class="block text-sm font-medium text-gray-700 mb-1">Compte source</label>
                         <select
                             id="source-account"
                             [(ngModel)]="quickTransfer.sourceAccountId"
@@ -202,8 +232,7 @@
                     <!-- Compte destination -->
                     <div>
                         <label for="destination-account"
-                            class="block text-sm font-medium text-gray-700 mb-1">Compte
-                            destination</label>
+                            class="block text-sm font-medium text-gray-700 mb-1">Compte destination</label>
                         <select
                             id="destination-account"
                             [(ngModel)]="quickTransfer.destinationAccountId"
@@ -233,8 +262,7 @@
                     <!-- Description -->
                     <div>
                         <label for="transfer-desc"
-                            class="block text-sm font-medium text-gray-700 mb-1">Description
-                            (facultatif)</label>
+                            class="block text-sm font-medium text-gray-700 mb-1">Description (facultatif)</label>
                         <input
                             type="text"
                             id="transfer-desc"
@@ -266,14 +294,12 @@
         <div class="mb-4">
             <i class="fa-solid fa-wallet text-6xl text-gray-300"></i>
         </div>
-        <h2 class="text-xl font-medium text-gray-900 mb-2">Vous n'avez pas
-            encore de compte</h2>
-        <p class="text-gray-600 mb-6">Commencez par créer votre premier compte
-            bancaire</p>
+        <h2 class="text-xl font-medium text-gray-900 mb-2">Vous n'avez pas encore de compte</h2>
+        <p class="text-gray-600 mb-6">Commencez par demander l'ouverture d'un compte bancaire</p>
         <button
             (click)="toggleNewAccountForm()"
             class="px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500">
-            Créer un compte
+            Demander un compte
         </button>
     </div>
 
@@ -314,34 +340,26 @@
             <div class="p-4 md:p-6">
                 <div class="flex flex-col md:flex-row justify-between">
                     <div class="mb-4 md:mb-0">
-                        <div class="text-sm text-gray-500 mb-1">Solde
-                            disponible</div>
+                        <div class="text-sm text-gray-500 mb-1">Solde disponible</div>
                         <div class="flex items-baseline">
                             <span class="text-2xl font-bold text-gray-900">{{
-                                formatCurrency(account.balance,
-                                account.currency) }}</span>
+                                formatCurrency(account.balance, account.currency) }}</span>
                             <span
                                 *ngIf="account.availableBalance !== undefined && account.availableBalance !== account.balance"
                                 class="ml-2 text-sm text-gray-500">
-                                Disponible: {{
-                                formatCurrency(account.availableBalance,
-                                account.currency) }}
+                                Disponible: {{ formatCurrency(account.availableBalance, account.currency) }}
                             </span>
                         </div>
                     </div>
 
                     <div class="grid grid-cols-2 gap-4">
                         <div>
-                            <div class="text-sm text-gray-500 mb-1">Date
-                                d'ouverture</div>
-                            <div class="text-gray-900">{{
-                                formatDate(account.openedDate) }}</div>
+                            <div class="text-sm text-gray-500 mb-1">Date d'ouverture</div>
+                            <div class="text-gray-900">{{ formatDate(account.openedDate) }}</div>
                         </div>
                         <div>
-                            <div class="text-sm text-gray-500 mb-1">Dernière
-                                opération</div>
-                            <div class="text-gray-900">{{
-                                formatDate(account.lastTransactionDate) }}</div>
+                            <div class="text-sm text-gray-500 mb-1">Dernière opération</div>
+                            <div class="text-gray-900">{{ formatDate(account.lastTransactionDate) }}</div>
                         </div>
                     </div>
                 </div>
@@ -352,21 +370,15 @@
                     class="mt-6 pt-6 border-t border-gray-200 grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div *ngIf="account.iban">
                         <div class="text-sm text-gray-500 mb-1">IBAN</div>
-                        <div class="text-gray-900 font-mono text-sm">{{
-                            account.iban }}</div>
+                        <div class="text-gray-900 font-mono text-sm">{{ account.iban }}</div>
                     </div>
                     <div *ngIf="account.dailyLimit">
-                        <div class="text-sm text-gray-500 mb-1">Limite
-                            journalière</div>
-                        <div class="text-gray-900">{{
-                            formatCurrency(account.dailyLimit, account.currency)
-                            }}</div>
+                        <div class="text-sm text-gray-500 mb-1">Limite journalière</div>
+                        <div class="text-gray-900">{{ formatCurrency(account.dailyLimit, account.currency) }}</div>
                     </div>
                     <div *ngIf="account.interestRate">
-                        <div class="text-sm text-gray-500 mb-1">Taux
-                            d'intérêt</div>
-                        <div class="text-gray-900">{{ account.interestRate
-                            }}%</div>
+                        <div class="text-sm text-gray-500 mb-1">Taux d'intérêt</div>
+                        <div class="text-gray-900">{{ account.interestRate }}%</div>
                     </div>
                 </div>
 

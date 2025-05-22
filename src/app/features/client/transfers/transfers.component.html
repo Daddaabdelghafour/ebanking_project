@@ -274,29 +274,6 @@
                             caractères
                         </div>
                     </div>
-
-                    <!-- Bank Code (for international transfers) -->
-                    <div
-                        *ngIf="transferForm.get('transferType')?.value === 'international'"
-                        class="mb-4">
-                        <label for="recipientBankCode"
-                            class="block text-sm font-medium text-gray-700 mb-1">Code
-                            bancaire (BIC/SWIFT)</label>
-                        <select id="recipientBankCode"
-                            formControlName="recipientBankCode"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                            [ngClass]="{'border-red-500': hasError('recipientBankCode', 'required')}">
-                            <option value>Sélectionnez une banque</option>
-                            <option *ngFor="let bank of banks"
-                                [value]="bank.code">{{ bank.name }} ({{
-                                bank.code }})</option>
-                        </select>
-                        <div *ngIf="hasError('recipientBankCode', 'required')"
-                            class="mt-1 text-sm text-red-500">
-                            Le code bancaire est obligatoire pour les virements
-                            internationaux
-                        </div>
-                    </div>
                 </div>
 
                 <!-- Transfer Details Section -->

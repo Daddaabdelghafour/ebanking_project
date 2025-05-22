@@ -2,13 +2,53 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { FormsModule, ReactiveFormsModule, FormGroup, FormBuilder, Validators } from '@angular/forms';
-import { ClientService } from '../../../services/client/client.service';
-import { TransferService } from '../../../services/transfer/transfer.service';
-import { Client } from '../../../shared/models/client.model';
-import { Account } from '../../../shared/models/account.model';
-import { Transfer, TransferFormData } from '../../../shared/models/transfer.model';
+import { HttpClient } from '@angular/common/http';
 import { catchError, finalize, tap } from 'rxjs/operators';
 import { of } from 'rxjs';
+
+interface Account {
+  id: string;
+  accountNumber: string;
+  type: string;
+  balance: number;
+  availableBalance: number;
+  currency: string;
+  status: string;
+  iban?: string;
+}
+
+interface Transfer {
+  id: string;
+  reference: string;
+  senderAccountId: string;
+  senderAccountNumber: string;
+  recipientAccountNumber: string;
+  recipientName: string;
+  amount: number;
+  currency: string;
+  status: string;
+  type: string;
+  reason?: string;
+  executedDate?: string;
+  scheduledDate?: string;
+  createdAt: string;
+  transactionFees?: number;
+  isRecurring?: boolean;
+  recurringFrequency?: string;
+}
+
+interface TransferFormData {
+  senderAccountId: string;
+  recipientAccountNumber: string;
+  recipientName: string;
+  amount: number;
+  currency: string;
+  reason?: string;
+  scheduledDate?: string;
+  isRecurring?: boolean;
+  recurringFrequency?: string;
+  type: string;
+}
 
 @Component({
   selector: 'app-transfers',
@@ -19,9 +59,10 @@ import { of } from 'rxjs';
 })
 export class TransfersComponent implements OnInit {
   // Client and account data
-  currentClient: Client | null = null;
+  clientId: string = 'fe6f2c00-b906-454a-b57d-f79c8e4f9da4'; // ID de client fixe pour le développement
   clientAccounts: Account[] = [];
   selectedAccount: Account | null = null;
+  availableRecipientAccounts: Account[] = []; // Comptes disponibles dans la base de données
   
   // Transfers data
   transfers: Transfer[] = [];
@@ -29,41 +70,47 @@ export class TransfersComponent implements OnInit {
   
   // Form data
   transferForm: FormGroup;
-  banks: {code: string, name: string}[] = [];
-  currencies: string[] = [];
-  transferTypes: {id: string, label: string}[] = [];
-  recurringFrequencies: {id: string, label: string}[] = [];
+  currencies: string[] = ['MAD', 'EUR', 'USD'];
+  transferTypes: {id: string, label: string}[] = [
+    { id: 'internal', label: 'Entre mes comptes' },
+    { id: 'domestic', label: 'Virement national' }
+  ];
+  recurringFrequencies: {id: string, label: string}[] = [
+    { id: 'weekly', label: 'Hebdomadaire' },
+    { id: 'monthly', label: 'Mensuel' },
+    { id: 'quarterly', label: 'Trimestriel' },
+    { id: 'annually', label: 'Annuel' }
+  ];
   
   // UI state
   isLoading = true;
   isSubmitting = false;
-  showTransferForm = false;
   showTransferDetails = false;
   showSuccess = false;
   showError = false;
   errorMessage = '';
-  currentTab = 'history'; // 'history' or 'new'
+  currentTab = 'history'; // 'history' ou 'new'
+  
+  private apiUrl = 'http://localhost:8085/E-BANKING1/api';
   
   constructor(
-    private clientService: ClientService,
-    private transferService: TransferService,
+    private http: HttpClient,
     private fb: FormBuilder
   ) {
     this.transferForm = this.createTransferForm();
   }
   
   ngOnInit(): void {
-    this.loadClientData();
-    this.loadReferenceData();
+    this.loadClientAccounts();
+    this.loadAllAvailableAccounts(); // Pour simuler les transferts vers d'autres comptes
   }
   
   createTransferForm(): FormGroup {
     return this.fb.group({
       senderAccountId: ['', Validators.required],
-      transferType: ['domestic', Validators.required],
+      transferType: ['internal', Validators.required],
       recipientAccountNumber: ['', [Validators.required, Validators.minLength(4)]],
       recipientName: ['', [Validators.required, Validators.minLength(3)]],
-      recipientBankCode: [''],
       amount: ['', [Validators.required, Validators.min(1)]],
       currency: ['MAD', Validators.required],
       reason: [''],
@@ -74,100 +121,142 @@ export class TransfersComponent implements OnInit {
     });
   }
   
-  loadClientData(): void {
+  loadClientAccounts(): void {
     this.isLoading = true;
     
-    // Utiliser le client de test du service client
-    this.clientService.getCurrentClient().pipe(
-      tap(client => {
-        if (client) {
-          this.currentClient = client;
+    this.http.get<any>(`${this.apiUrl}/clients/${this.clientId}`).pipe(
+      tap((response: any) => {
+        // Si la réponse est un tableau, prendre le premier élément
+        const client = Array.isArray(response) ? response[0] : response;
+        
+        if (client && client.accounts && Array.isArray(client.accounts)) {
+          this.clientAccounts = client.accounts;
           
-          // Charger ensuite les comptes du client
-          this.clientService.getClientAccounts(client.id).subscribe({
-            next: (accounts) => {
-              this.clientAccounts = accounts;
-              
-              if (accounts && accounts.length > 0) {
-                this.selectedAccount = accounts.find(acc => acc.isPrimary) || accounts[0];
-                
-                // Set default sender account
-                this.transferForm.patchValue({
-                  senderAccountId: this.selectedAccount.id,
-                  currency: this.selectedAccount.currency
-                });
-                
-                // Load transfers for the selected account
-                this.loadTransfers(this.selectedAccount.id);
-              } else {
-                this.isLoading = false;
-                this.showError = true;
-                this.errorMessage = "Aucun compte trouvé pour effectuer des virements.";
-              }
-            },
-            error: (err) => {
-              console.error('Erreur lors du chargement des comptes', err);
-              this.isLoading = false;
-              this.showError = true;
-              this.errorMessage = "Erreur lors du chargement des comptes.";
-            }
-          });
+          // Sélectionner le premier compte par défaut
+          if (this.clientAccounts.length > 0) {
+            this.selectedAccount = this.clientAccounts[0];
+            
+            // Initialiser le formulaire avec le compte source
+            this.transferForm.patchValue({
+              senderAccountId: this.selectedAccount.id,
+              currency: this.selectedAccount.currency
+            });
+            
+            // Charger les transferts pour ce compte
+            this.loadTransfers(this.selectedAccount.id);
+          } else {
+            this.isLoading = false;
+          }
         } else {
           this.isLoading = false;
           this.showError = true;
-          this.errorMessage = "Client non trouvé.";
+          this.errorMessage = "Aucun compte client trouvé.";
         }
       }),
       catchError(err => {
-        console.error('Erreur lors du chargement des données client', err);
+        console.error('Erreur lors du chargement des comptes client:', err);
         this.isLoading = false;
         this.showError = true;
-        this.errorMessage = "Erreur lors du chargement des données client.";
+        this.errorMessage = "Impossible de charger vos comptes. Veuillez réessayer.";
         return of(null);
+      })
+    ).subscribe();
+  }
+  
+  // Charger d'autres comptes disponibles pour simuler les transferts
+  loadAllAvailableAccounts(): void {
+    // Simulation - en production, ce serait un appel API pour récupérer des comptes valides
+    this.http.get<any>(`${this.apiUrl}/accounts`).pipe(
+      tap((accounts: any[]) => {
+        // Filtrer pour exclure les comptes du client actuel
+        this.availableRecipientAccounts = accounts.filter(account => 
+          !this.clientAccounts.some(clientAccount => clientAccount.id === account.id)
+        );
       }),
-      finalize(() => {
-        if (!this.currentClient) {
-          this.isLoading = false;
-        }
+      catchError(err => {
+        console.error('Erreur lors du chargement des comptes disponibles:', err);
+        // Créer quelques comptes fictifs pour la simulation
+        this.availableRecipientAccounts = [
+          {
+            id: 'other-account-1',
+            accountNumber: '9876543210',
+            type: 'current',
+            balance: 15000,
+            availableBalance: 15000,
+            currency: 'MAD',
+            status: 'active',
+            iban: 'MA9876543210'
+          },
+          {
+            id: 'other-account-2',
+            accountNumber: '5432167890',
+            type: 'savings',
+            balance: 25000,
+            availableBalance: 25000,
+            currency: 'EUR',
+            status: 'active',
+            iban: 'FR5432167890'
+          }
+        ];
+        return of(null);
       })
     ).subscribe();
   }
   
   loadTransfers(accountId: string): void {
-    this.transferService.getTransfers(accountId).subscribe({
-      next: (transfers) => {
+    this.http.get<Transfer[]>(`${this.apiUrl}/transfers/account/${accountId}`).pipe(
+      tap((transfers: Transfer[]) => {
         this.transfers = transfers;
+      }),
+      catchError(err => {
+        console.error('Erreur lors du chargement des transferts:', err);
+        // Créer des transferts de démonstration
+        this.transfers = this.generateDemoTransfers(accountId);
+        return of([]);
+      }),
+      finalize(() => {
         this.isLoading = false;
-      },
-      error: (err) => {
-        console.error('Erreur lors du chargement des transferts', err);
-        this.isLoading = false;
-        this.showError = true;
-        this.errorMessage = "Erreur lors du chargement des transferts.";
-      }
-    });
+      })
+    ).subscribe();
   }
   
-  loadReferenceData(): void {
-    // Load banks
-    this.transferService.getBanks().subscribe(banks => {
-      this.banks = banks;
-    });
+  generateDemoTransfers(accountId: string): Transfer[] {
+    // Créer quelques transferts de démonstration
+    const account = this.clientAccounts.find(acc => acc.id === accountId);
+    if (!account) return [];
     
-    // Load currencies
-    this.clientService.getCurrencies().subscribe(currencies => {
-      this.currencies = currencies;
-    });
-    
-    // Load transfer types
-    this.transferService.getTransferTypes().subscribe(types => {
-      this.transferTypes = types;
-    });
-    
-    // Load recurring frequencies
-    this.transferService.getRecurringFrequencies().subscribe(frequencies => {
-      this.recurringFrequencies = frequencies;
-    });
+    return [
+      {
+        id: 'transfer-1',
+        reference: 'TRF-' + Math.floor(Math.random() * 1000000),
+        senderAccountId: accountId,
+        senderAccountNumber: account.accountNumber,
+        recipientAccountNumber: '9876543210',
+        recipientName: 'Mohamed Amine',
+        amount: 1500,
+        currency: account.currency,
+        status: 'completed',
+        type: 'domestic',
+        reason: 'Paiement facture',
+        executedDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+        createdAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString()
+      },
+      {
+        id: 'transfer-2',
+        reference: 'TRF-' + Math.floor(Math.random() * 1000000),
+        senderAccountId: accountId,
+        senderAccountNumber: account.accountNumber,
+        recipientAccountNumber: '5432167890',
+        recipientName: 'Fatima Zahra',
+        amount: 2500,
+        currency: account.currency,
+        status: 'pending',
+        type: 'domestic',
+        reason: 'Loyer',
+        scheduledDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+        createdAt: new Date().toISOString()
+      }
+    ];
   }
   
   onSubmitTransfer(): void {
@@ -179,50 +268,79 @@ export class TransfersComponent implements OnInit {
     this.isSubmitting = true;
     const formData = this.transferForm.value;
     
-    // Prepare transfer data
+    // Préparer les données du transfert
     const transferData: TransferFormData = {
       senderAccountId: formData.senderAccountId,
       recipientAccountNumber: formData.recipientAccountNumber,
       recipientName: formData.recipientName,
-      recipientBankCode: formData.transferType === 'international' ? formData.recipientBankCode : undefined,
       amount: Number(formData.amount),
       currency: formData.currency,
-      reason: formData.reason,
+      reason: formData.reason || '',
       scheduledDate: formData.isScheduled ? formData.scheduledDate : undefined,
       isRecurring: formData.isRecurring,
       recurringFrequency: formData.isRecurring ? formData.recurringFrequency : undefined,
       type: formData.transferType
     };
     
-    this.transferService.createTransfer(transferData).subscribe({
-      next: (transfer) => {
-        this.isSubmitting = false;
-        this.showSuccess = true;
-        
-        // Reset form and reload transfers
-        this.transferForm.reset({
-          senderAccountId: this.selectedAccount?.id,
-          transferType: 'domestic',
-          currency: this.selectedAccount?.currency || 'MAD',
-          isScheduled: false,
-          isRecurring: false,
-          recurringFrequency: 'monthly'
-        });
-        
-        // Switch to history tab after success
-        setTimeout(() => {
-          this.currentTab = 'history';
-          this.showSuccess = false;
-          this.loadTransfers(this.selectedAccount?.id || '');
-        }, 3000);
-      },
-      error: (err) => {
-        console.error('Erreur lors de la création du virement', err);
+    // Simuler un appel API pour créer le transfert
+    setTimeout(() => {
+      // Vérifier le solde disponible
+      const senderAccount = this.clientAccounts.find(acc => acc.id === transferData.senderAccountId);
+      if (senderAccount && senderAccount.balance < transferData.amount) {
         this.isSubmitting = false;
         this.showError = true;
-        this.errorMessage = "Erreur lors de la création du virement.";
+        this.errorMessage = "Solde insuffisant pour effectuer ce transfert.";
+        return;
       }
-    });
+      
+      // Simulation d'un transfert réussi
+      this.isSubmitting = false;
+      this.showSuccess = true;
+      
+      // Réinitialiser le formulaire
+      this.transferForm.reset({
+        senderAccountId: this.selectedAccount?.id,
+        transferType: 'internal',
+        currency: this.selectedAccount?.currency || 'MAD',
+        isScheduled: false,
+        isRecurring: false,
+        recurringFrequency: 'monthly'
+      });
+      
+      // Passer à l'onglet historique après 3 secondes
+      setTimeout(() => {
+        this.currentTab = 'history';
+        this.showSuccess = false;
+        
+        // Ajouter le nouveau transfert à la liste et simuler la mise à jour du solde
+        const newTransfer: Transfer = {
+          id: 'new-transfer-' + Date.now(),
+          reference: 'TRF-' + Math.floor(Math.random() * 1000000),
+          senderAccountId: transferData.senderAccountId,
+          senderAccountNumber: senderAccount?.accountNumber || '',
+          recipientAccountNumber: transferData.recipientAccountNumber,
+          recipientName: transferData.recipientName,
+          amount: transferData.amount,
+          currency: transferData.currency,
+          status: formData.isScheduled ? 'pending' : 'completed',
+          type: transferData.type,
+          reason: transferData.reason,
+          executedDate: formData.isScheduled ? undefined : new Date().toISOString(),
+          scheduledDate: formData.isScheduled ? formData.scheduledDate : undefined,
+          createdAt: new Date().toISOString(),
+          isRecurring: transferData.isRecurring,
+          recurringFrequency: transferData.recurringFrequency
+        };
+        
+        this.transfers.unshift(newTransfer);
+        
+        // Simuler la mise à jour du solde si le transfert est immédiat
+        if (!formData.isScheduled && senderAccount) {
+          senderAccount.balance -= transferData.amount;
+          senderAccount.availableBalance -= transferData.amount;
+        }
+      }, 3000);
+    }, 1500);
   }
   
   viewTransferDetails(transfer: Transfer): void {
@@ -239,28 +357,28 @@ export class TransfersComponent implements OnInit {
     if (!transferId) return;
     
     if (confirm('Êtes-vous sûr de vouloir annuler ce virement ?')) {
-      this.transferService.cancelTransfer(transferId).subscribe({
-        next: (success) => {
-          if (success) {
-            // Reload transfers
-            this.loadTransfers(this.selectedAccount?.id || '');
-          } else {
-            this.showError = true;
-            this.errorMessage = "Impossible d'annuler ce virement.";
+      // Simuler l'annulation
+      const index = this.transfers.findIndex(t => t.id === transferId);
+      if (index !== -1) {
+        this.transfers[index].status = 'cancelled';
+        
+        // Si le transfert était en attente, restaurer le solde
+        if (this.transfers[index].status === 'pending') {
+          const senderAccount = this.clientAccounts.find(
+            acc => acc.id === this.transfers[index].senderAccountId
+          );
+          if (senderAccount) {
+            senderAccount.balance += this.transfers[index].amount;
+            senderAccount.availableBalance += this.transfers[index].amount;
           }
-        },
-        error: (err) => {
-          console.error('Erreur lors de l\'annulation du virement', err);
-          this.showError = true;
-          this.errorMessage = "Erreur lors de l'annulation du virement.";
         }
-      });
+      }
     }
   }
   
   selectAccount(account: Account): void {
     this.selectedAccount = account;
-    // Update form sender account and load transfers
+    // Mettre à jour le compte source dans le formulaire et charger les transferts
     this.transferForm.patchValue({
       senderAccountId: account.id,
       currency: account.currency
@@ -271,7 +389,7 @@ export class TransfersComponent implements OnInit {
   switchTab(tab: string): void {
     this.currentTab = tab;
     if (tab === 'new') {
-      // Reset any previous success/error messages
+      // Réinitialiser les messages d'erreur/succès
       this.showSuccess = false;
       this.showError = false;
     }
@@ -280,33 +398,42 @@ export class TransfersComponent implements OnInit {
   onTransferTypeChange(): void {
     const transferType = this.transferForm.get('transferType')?.value;
     
-    // If international, require bank code
-    if (transferType === 'international') {
-      this.transferForm.get('recipientBankCode')?.setValidators([Validators.required]);
-    } else {
-      this.transferForm.get('recipientBankCode')?.clearValidators();
-    }
-    this.transferForm.get('recipientBankCode')?.updateValueAndValidity();
-    
-    // If internal, pre-set recipient to client's other accounts
+    // Si c'est un transfert interne, précharger les informations d'un autre compte du client
     if (transferType === 'internal' && this.clientAccounts.length > 1) {
-      // Find accounts other than the selected sender account
-      const otherAccounts = this.clientAccounts.filter(
-        acc => acc.id !== this.transferForm.get('senderAccountId')?.value
-      );
+      // Trouver un compte différent du compte source
+      const sourceAccountId = this.transferForm.get('senderAccountId')?.value;
+      const otherAccounts = this.clientAccounts.filter(acc => acc.id !== sourceAccountId);
       
       if (otherAccounts.length > 0) {
-        const recipientAccount = otherAccounts[0];
+        const destinationAccount = otherAccounts[0];
         this.transferForm.patchValue({
-          recipientAccountNumber: recipientAccount.accountNumber,
-          recipientName: `${this.currentClient?.firstName} ${this.currentClient?.lastName}`,
-          currency: recipientAccount.currency
+          recipientAccountNumber: destinationAccount.accountNumber,
+          recipientName: 'Moi-même', // Le transfert est vers un autre compte du même client
+          currency: destinationAccount.currency
+        });
+      }
+    } else if (transferType === 'domestic') {
+      // Simuler un bénéficiaire externe
+      if (this.availableRecipientAccounts.length > 0) {
+        const randomIndex = Math.floor(Math.random() * this.availableRecipientAccounts.length);
+        const externalAccount = this.availableRecipientAccounts[randomIndex];
+        
+        this.transferForm.patchValue({
+          recipientAccountNumber: externalAccount.accountNumber,
+          recipientName: '', // Le client doit entrer le nom du bénéficiaire
+          currency: this.transferForm.get('currency')?.value // Conserver la devise actuelle
+        });
+      } else {
+        // Réinitialiser les champs
+        this.transferForm.patchValue({
+          recipientAccountNumber: '',
+          recipientName: '',
         });
       }
     }
   }
   
-  // Helper methods for form validation
+  // Utilitaires pour la validation du formulaire
   hasError(controlName: string, errorName: string): boolean {
     const control = this.transferForm.get(controlName);
     return !!control && control.touched && control.hasError(errorName);
@@ -316,7 +443,7 @@ export class TransfersComponent implements OnInit {
     this.showError = false;
   }
   
-  // Formatting helper methods
+  // Méthodes pour le formatage
   formatCurrency(amount: number, currency: string): string {
     return new Intl.NumberFormat('fr-MA', { 
       style: 'currency', 
@@ -363,21 +490,19 @@ export class TransfersComponent implements OnInit {
     }
   }
   
-handleCancelTransfer(): void {
-  if (this.selectedTransfer && this.selectedTransfer.id) {
-    this.cancelTransfer(this.selectedTransfer.id);
+  handleCancelTransfer(): void {
+    if (this.selectedTransfer && this.selectedTransfer.id) {
+      this.cancelTransfer(this.selectedTransfer.id);
+    }
+    this.closeTransferDetails();
   }
-  this.closeTransferDetails();
-}
   
   getTransferTypeText(type: string): string {
     switch(type) {
       case 'domestic':
         return 'National';
-      case 'international':
-        return 'International';
       case 'internal':
-        return 'Interne';
+        return 'Entre mes comptes';
       default:
         return type;
     }
