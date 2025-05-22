@@ -1,16 +1,17 @@
 export interface Agent {
   id: string;
+  employeeId: string;
   firstName: string;
   lastName: string;
   email: string;
   phone: string;
-  employeeId: string;
   branch: string;
   role: string;
   status: 'active' | 'inactive' | 'pending';
-  imageUrl?: string;
-  dateJoined: Date;
-  lastLogin?: Date;
+  dateJoined: string;
+  lastLogin?: string | null;
+  isActive: boolean;
+  userId?: string | null;
 }
 
 export interface AgentFormData {

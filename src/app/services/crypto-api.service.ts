@@ -23,6 +23,7 @@ export interface CryptoAsset {
   balance: number;
   valueInFiat: number;
   change24h: number;
+
 }
 
 export interface CryptoMarketChart {

@@ -1,8 +1,9 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, FormsModule, ReactiveFormsModule, AbstractControl } from '@angular/forms';
-import { HttpClientModule } from '@angular/common/http';
-import { ClientService } from '../../../services/client/client.service';
+import { HttpClient, HttpClientModule, HttpParams } from '@angular/common/http';
+import { catchError, map, switchMap } from 'rxjs/operators';
+import { Observable, of, forkJoin } from 'rxjs';
 import { Client, ClientFormData } from '../../../shared/models/client.model';
 
 @Component({
@@ -10,15 +11,22 @@ import { Client, ClientFormData } from '../../../shared/models/client.model';
   standalone: true,
   imports: [CommonModule, FormsModule, ReactiveFormsModule, HttpClientModule],
   templateUrl: './client-management.component.html',
-  styleUrls: ['./client-management.component.css'],
-  providers: [ClientService]
+  styleUrls: ['./client-management.component.css']
 })
 export class ClientManagementComponent implements OnInit {
+  // API base URL - Correction de l'URL
+  private apiUrl = 'http://localhost:8085/E-BANKING1/api';
+  
   // Client data
   clients: Client[] = [];
-  cities: string[] = [];
-  accountTypes: string[] = [];
-  currencies: string[] = [];
+  cities: string[] = [
+    'Casablanca', 'Rabat', 'Marrakech', 'Fès', 'Tanger', 'Agadir', 
+    'Meknès', 'Oujda', 'Kenitra', 'Tétouan', 'Salé', 'Nador', 'Mohammedia'
+  ];
+  accountTypes: string[] = [
+    'Compte Standard', 'Compte Épargne', 'Compte Premium', 'Compte Étudiant', 'Compte Professionnel'
+  ];
+  currencies: string[] = ['MAD', 'EUR', 'USD', 'GBP'];
   Math = Math;
   
   // UI state
@@ -29,6 +37,7 @@ export class ClientManagementComponent implements OnInit {
   isDeleting = false;
   isViewingDetails = false;
   selectedClient: Client | null = null;
+  debugMode = false;
   
   // Form
   clientForm: FormGroup;
@@ -45,7 +54,7 @@ export class ClientManagementComponent implements OnInit {
   
   constructor(
     private fb: FormBuilder,
-    private clientService: ClientService
+    private http: HttpClient
   ) {
     this.clientForm = this.fb.group({
       firstName: ['', [Validators.required]],
@@ -56,7 +65,7 @@ export class ClientManagementComponent implements OnInit {
       city: ['', [Validators.required]],
       postalCode: ['', [Validators.required]],
       country: ['Maroc', [Validators.required]],
-      accountType: ['Standard', [Validators.required]],
+      accountType: ['Compte Standard', [Validators.required]],
       status: ['active', [Validators.required]],
       currency: ['MAD', [Validators.required]],
       identityNumber: ['', [Validators.required]],
@@ -68,7 +77,6 @@ export class ClientManagementComponent implements OnInit {
       gdprConsent: [false],
       password: ['', [
         Validators.minLength(8),
-        // Only required when creating a new client
         (control: AbstractControl) => !this.isEditing && !control.value ? { required: true } : null
       ]],
       confirmPassword: ['']
@@ -79,67 +87,149 @@ export class ClientManagementComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadClients();
-    this.loadCities();
-    this.loadAccountTypes();
-    this.loadCurrencies();
   }
 
+  /**
+   * Charge les clients depuis l'API
+   */
   loadClients(): void {
     this.isLoading = true;
     this.error = null;
+
+    this.http.get<any[]>(`${this.apiUrl}/clients`)
+      .pipe(
+        switchMap(clients => {
+          if (!clients || clients.length === 0) {
+            return of([]);
+          }
+
+          console.log('Clients from API:', clients);
+
+          // Pour chaque client, récupérer l'utilisateur associé
+          const enrichedClientRequests = clients.map(client => {
+            const userId = client.userId;
+            
+            if (!userId) {
+              console.warn(`Client ${client.id} has no userId`);
+              return of(this.mapClientData(client, {}));
+            }
+            
+            // Requête pour obtenir les détails de l'utilisateur
+            return this.http.get<any>(`${this.apiUrl}/users/${userId}`).pipe(
+              map(userData => {
+                console.log(`User data for client ${client.id}:`, userData);
+                return this.mapClientData(client, userData);
+              }),
+              catchError(error => {
+                console.error(`Error fetching user ${userId} for client ${client.id}:`, error);
+                return of(this.mapClientData(client, {}));
+              })
+            );
+          });
+
+          return enrichedClientRequests.length > 0 ? forkJoin(enrichedClientRequests) : of([]);
+        }),
+        catchError(error => {
+          console.error('Error fetching clients:', error);
+          this.error = 'Impossible de charger les clients. Veuillez réessayer.';
+          return of([]);
+        })
+      )
+      .subscribe({
+        next: (enrichedClients) => {
+          this.clients = enrichedClients;
+          this.isLoading = false;
+          console.log('Final enriched clients:', this.clients);
+        },
+        error: (err) => {
+          this.error = 'Impossible de charger les clients. Veuillez réessayer.';
+          this.isLoading = false;
+          console.error('Error loading clients:', err);
+        }
+      });
+  }
+
+  /**
+   * Mappe les données client et utilisateur
+   */
+  private mapClientData(client: any, userData: any): Client {
+    return {
+      id: client.id,
+      userId: userData.id || client.userId,
+      firstName: userData.firstName || client.firstName || '',
+      lastName: userData.lastName || client.lastName || '',
+      email: userData.email || client.email || '',
+      phone: userData.phoneNumber || client.phone || '',
+      phoneNumber: userData.phoneNumber || client.phoneNumber || '',
+      clientId: client.clientId || client.id || '',
+      identityNumber: userData.identityNumber || client.identityNumber || '',
+      identityType: userData.identityType || client.identityType || '',
+      address: client.address || '',
+      city: client.city || '',
+      postalCode: client.postalCode || '',
+      country: client.country || 'Maroc',
+      status: client.status || (userData.isActive ? 'active' : 'inactive'),
+      isActive: userData.isActive,
+      accountType: client.accountType || 'Compte Standard',
+      dateJoined: client.createdAt || userData.createdAt,
+      createdAt: client.createdAt || userData.createdAt,
+      updatedAt: client.updatedAt || userData.updatedAt,
+      language: userData.language || client.language || 'fr',
+      role: userData.role || client.role || 'CLIENT',
+      gdprConsent: userData.gdprConsent !== undefined ? userData.gdprConsent : client.gdprConsent || false,
+      gdprConsentDate: userData.gdprConsentDate || null,
+      twoFactorEnabled: userData.twoFactorEnabled !== undefined ? userData.twoFactorEnabled : false,
+      twoFactorMethod: userData.twoFactorMethod || '',
+      lastLogin: userData.lastLogin || client.lastLogin,
+      balance: client.balance || 0,
+      currency: client.currency || 'MAD',
+      birthDate: userData.birthDate || client.birthDate,
+      occupation: client.occupation || ''
+    };
+  }
+
+  /**
+   * Affiche les détails complets d'un client
+   */
+  viewClientDetails(client: Client): void {
+    this.isLoading = true;
+    console.log('View details for client:', client);
     
-    this.clientService.getClients().subscribe({
-      next: (clients) => {
-        this.clients = clients;
+    const userId = client.userId;
+    
+    if (!userId) {
+      this.selectedClient = client;
+      this.isViewingDetails = true;
+      this.isLoading = false;
+      return;
+    }
+    
+    // Récupérer les informations complètes de l'utilisateur
+    this.http.get<any>(`${this.apiUrl}/users/${userId}`)
+      .pipe(
+        map(userData => {
+          console.log(`Complete user data for client ${client.id}:`, userData);
+          return this.mapClientData(client, userData);
+        }),
+        catchError(error => {
+          console.error(`Error fetching user ${userId} for client details:`, error);
+          return of(client);
+        })
+      )
+      .subscribe(enrichedClient => {
+        this.selectedClient = enrichedClient;
+        this.isViewingDetails = true;
         this.isLoading = false;
-      },
-      error: (err) => {
-        this.error = 'Impossible de charger les clients. Veuillez réessayer.';
-        this.isLoading = false;
-        console.error('Error loading clients:', err);
-      }
-    });
+      });
   }
-
-  loadCities(): void {
-    this.clientService.getCities().subscribe({
-      next: (cities) => {
-        this.cities = cities;
-      },
-      error: (err) => {
-        console.error('Error loading cities:', err);
-      }
-    });
-  }
-
-  loadAccountTypes(): void {
-    this.clientService.getAccountTypes().subscribe({
-      next: (types) => {
-        this.accountTypes = types;
-      },
-      error: (err) => {
-        console.error('Error loading account types:', err);
-      }
-    });
-  }
-
-  loadCurrencies(): void {
-    this.clientService.getCurrencies().subscribe({
-      next: (currencies) => {
-        this.currencies = currencies;
-      },
-      error: (err) => {
-        console.error('Error loading currencies:', err);
-      }
-    });
-  }
-
+  
   openAddModal(): void {
     this.isEditing = false;
     this.selectedClient = null;
+    this.error = null; // Réinitialiser les erreurs
     this.clientForm.reset({
       status: 'active',
-      accountType: 'Standard',
+      accountType: 'Compte Standard',
       currency: 'MAD',
       identityType: 'CIN',
       country: 'Maroc',
@@ -152,29 +242,31 @@ export class ClientManagementComponent implements OnInit {
   openEditModal(client: Client): void {
     this.isEditing = true;
     this.selectedClient = client;
+    this.error = null; // Réinitialiser les erreurs
     
+    // Pré-remplir le formulaire avec les données du client
     this.clientForm.patchValue({
-      firstName: client.firstName,
-      lastName: client.lastName,
-      email: client.email,
-      phone: client.phone,
-      address: client.address,
-      city: client.city,
+      firstName: client.firstName || '',
+      lastName: client.lastName || '',
+      email: client.email || '',
+      phone: client.phone || '',
+      address: client.address || '',
+      city: client.city || '',
       postalCode: client.postalCode || '',
       country: client.country || 'Maroc',
-      accountType: client.accountType,
-      status: client.status,
-      currency: client.currency,
-      identityNumber: client.identityNumber,
-      identityType: client.identityType,
-      birthDate: client.birthDate ? new Date(client.birthDate) : null,
+      accountType: client.accountType || 'Compte Standard',
+      status: client.status || 'active',
+      currency: client.currency || 'MAD',
+      identityNumber: client.identityNumber || '',
+      identityType: client.identityType || 'CIN',
+      birthDate: client.birthDate || '',
       occupation: client.occupation || '',
       income: client.income || null,
       language: client.language || 'fr',
-      gdprConsent: !!client.gdprConsent
+      gdprConsent: client.gdprConsent || false
     });
     
-    // Remove validators for password fields when editing
+    // Supprimer les validateurs de mot de passe lors de la modification
     const passwordControl = this.clientForm.get('password');
     const confirmPasswordControl = this.clientForm.get('confirmPassword');
     
@@ -186,11 +278,6 @@ export class ClientManagementComponent implements OnInit {
     }
     
     this.showModal = true;
-  }
-
-  viewClientDetails(client: Client): void {
-    this.selectedClient = client;
-    this.isViewingDetails = true;
   }
 
   closeDetailsView(): void {
@@ -213,32 +300,43 @@ export class ClientManagementComponent implements OnInit {
     
     this.isLoading = true;
     
-    this.clientService.deleteClient(this.selectedClient.id).subscribe({
-      next: (success) => {
-        if (success) {
+    this.http.delete<void>(`${this.apiUrl}/clients/${this.selectedClient.id}`)
+      .subscribe({
+        next: () => {
           this.loadClients();
           this.cancelDelete();
-        } else {
+        },
+        error: (err) => {
           this.error = "Impossible de supprimer le client. Veuillez réessayer.";
           this.isLoading = false;
+          console.error('Error deleting client:', err);
         }
-      },
-      error: (err) => {
-        this.error = "Une erreur s'est produite lors de la suppression du client.";
-        this.isLoading = false;
-        console.error('Error deleting client:', err);
-      }
-    });
+      });
   }
 
   closeModal(): void {
     this.showModal = false;
-    this.clientForm.reset();
+    this.selectedClient = null;
+    this.isEditing = false;
+    this.error = null; // Réinitialiser les erreurs
+    this.clientForm.reset({
+      status: 'active',
+      accountType: 'Compte Standard',
+      currency: 'MAD',
+      identityType: 'CIN',
+      country: 'Maroc',
+      language: 'fr',
+      gdprConsent: false
+    });
+  }
+
+  // Méthode pour fermer les messages d'erreur
+  clearError(): void {
+    this.error = null;
   }
 
   saveClient(): void {
     if (this.clientForm.invalid) {
-      // Marquer tous les champs comme touchés pour afficher les erreurs
       Object.keys(this.clientForm.controls).forEach(key => {
         this.clientForm.get(key)?.markAsTouched();
       });
@@ -246,64 +344,184 @@ export class ClientManagementComponent implements OnInit {
     }
     
     const formValues = this.clientForm.value;
-    
-    // Créer un objet ClientFormData correctement formaté pour l'API utilisateur
-    const clientData: ClientFormData = {
-      firstName: formValues.firstName,
-      lastName: formValues.lastName,
-      email: formValues.email,
-      phone: formValues.phone,
-      address: formValues.address,
-      city: formValues.city,
-      postalCode: formValues.postalCode,
-      country: formValues.country,
-      identityNumber: formValues.identityNumber,
-      identityType: formValues.identityType,
-      accountType: formValues.accountType,
-      birthDate: formValues.birthDate,
-      occupation: formValues.occupation,
-      income: formValues.income,
-      currency: formValues.currency,
-      status: formValues.status,
-      
-      // Champs nécessaires pour l'API utilisateur
-      password: formValues.password,
-      language: formValues.language || 'fr',
-      gdprConsent: formValues.gdprConsent || false
-    };
-    
     this.isLoading = true;
+    this.error = null; // Réinitialiser les erreurs avant l'opération
     
     if (this.isEditing && this.selectedClient) {
-      this.clientService.updateClient(this.selectedClient.id, clientData).subscribe({
-        next: () => {
-          this.loadClients();
-          this.closeModal();
-          this.isLoading = false;
-        },
-        error: (err) => {
-          this.error = "Impossible de mettre à jour le client. Veuillez réessayer.";
-          this.isLoading = false;
-          console.error('Error updating client:', err);
-        }
-      });
+      // Mise à jour d'un client existant
+      this.updateExistingClient(formValues);
     } else {
-      this.clientService.createClient(clientData).subscribe({
-        next: () => {
-          this.loadClients();
-          this.closeModal();
-          this.isLoading = false;
-        },
-        error: (err) => {
-          this.error = "Impossible de créer le client. Veuillez réessayer.";
-          this.isLoading = false;
-          console.error('Error creating client:', err);
-        }
-      });
+      // Création d'un nouveau client
+      this.createNewClient(formValues);
     }
   }
 
-  // Helper methods
+  // Remplacez la méthode createNewClient par cette version simplifiée :
+private createNewClient(formValues: any): void {
+  // Étape 1: Créer l'utilisateur
+  const userDto = {
+    email: formValues.email,
+    firstName: formValues.firstName,
+    lastName: formValues.lastName,
+    phoneNumber: formValues.phone,
+    role: 'CLIENT',
+    isActive: formValues.status === 'active',
+    language: formValues.language,
+    gdprConsent: formValues.gdprConsent,
+    gdprConsentDate: formValues.gdprConsent ? new Date().toISOString() : null,
+    identityType: formValues.identityType,
+    identityNumber: formValues.identityNumber,
+    twoFactorEnabled: false,
+    twoFactorMethod: 'email',
+    passwordHash: formValues.password
+  };
+  
+  this.http.post<any>(`${this.apiUrl}/users`, userDto)
+    .pipe(
+      switchMap(user => {
+        console.log('Created user:', user);
+        // Étape 2: Créer le client avec l'ID utilisateur
+        return this.http.post<any>(`${this.apiUrl}/clients/${user.id}`, {}).pipe(
+          map(client => ({ user, client })) // Retourner les deux objets
+        );
+      }),
+      switchMap(({ user, client }) => {
+        console.log('Created client:', client);
+        // Étape 3: Mettre à jour le client avec les informations supplémentaires
+        const clientUpdateDto = {
+          address: formValues.address,
+          city: formValues.city,
+          postalCode: formValues.postalCode,
+          country: formValues.country,
+          accountType: formValues.accountType,
+          occupation: formValues.occupation,
+          income: formValues.income,
+          currency: formValues.currency,
+          status: formValues.status
+        };
+        return this.http.put<any>(`${this.apiUrl}/clients/${client.id}`, clientUpdateDto);
+      })
+    )
+    .subscribe({
+      next: (result) => {
+        console.log('Client creation completed successfully:', result);
+        // Simplement recharger la page complète
+        window.location.reload();
+      },
+      error: (err) => {
+        console.error('Error in client creation process:', err);
+        this.error = "Une erreur s'est produite lors de la création du client.";
+        this.isLoading = false;
+      }
+    });
+}
+
+  private updateExistingClient(formValues: any): void {
+    if (!this.selectedClient) return;
+
+    const userId = this.selectedClient.userId;
+
+    // Mise à jour des données utilisateur
+    const userDto = {
+      id: userId, // Ajouter l'ID pour la mise à jour
+      email: formValues.email,
+      firstName: formValues.firstName,
+      lastName: formValues.lastName,
+      phoneNumber: formValues.phone,
+      isActive: formValues.status === 'active',
+      language: formValues.language,
+      gdprConsent: formValues.gdprConsent,
+      identityType: formValues.identityType,
+      identityNumber: formValues.identityNumber
+    };
+    
+    this.http.put<any>(`${this.apiUrl}/users/${userId}`, userDto)
+      .pipe(
+        switchMap(() => {
+          // Mise à jour des données client
+          const clientDto = {
+            address: formValues.address,
+            city: formValues.city,
+            postalCode: formValues.postalCode,
+            country: formValues.country,
+            accountType: formValues.accountType,
+            occupation: formValues.occupation,
+            income: formValues.income,
+            currency: formValues.currency,
+            status: formValues.status
+          };
+          return this.http.put<any>(`${this.apiUrl}/clients/${this.selectedClient!.id}`, clientDto);
+        }),
+        catchError(error => {
+          console.error('Error updating client:', error);
+          this.error = "Impossible de mettre à jour le client. Veuillez réessayer.";
+          this.isLoading = false;
+          return of(null);
+        })
+      )
+      .subscribe({
+        next: (result) => {
+          if (result) {
+            console.log('Client update completed successfully');
+            this.closeModal();
+            this.isLoading = false;
+            // Recharger avec un petit délai
+            setTimeout(() => {
+              this.loadClients();
+            }, 500);
+          }
+        },
+        error: (err) => {
+          console.error('Error updating client:', err);
+          this.error = "Une erreur s'est produite lors de la mise à jour du client.";
+          this.isLoading = false;
+        }
+      });
+  }
+
+  updateClientStatus(client: Client, newStatus: string): void {
+    this.isLoading = true;
+    
+    const params = new HttpParams().set('status', newStatus);
+    
+    this.http.put<any>(`${this.apiUrl}/clients/${client.id}/status`, null, { params })
+      .subscribe({
+        next: () => {
+          // Mise à jour locale du statut
+          client.status = newStatus;
+          if (newStatus === 'active') {
+            client.isActive = true;
+          } else if (newStatus === 'inactive' || newStatus === 'blocked') {
+            client.isActive = false;
+          }
+          this.isLoading = false;
+        },
+        error: (err) => {
+          this.error = "Impossible de mettre à jour le statut du client.";
+          this.isLoading = false;
+          console.error('Error updating client status:', err);
+        }
+      });
+  }
+
+  verifyClient(client: Client): void {
+    this.isLoading = true;
+    
+    this.http.put<any>(`${this.apiUrl}/clients/${client.id}/verify`, {})
+      .subscribe({
+        next: () => {
+          this.loadClients(); // Recharger pour obtenir les données mises à jour
+          this.isLoading = false;
+        },
+        error: (err) => {
+          this.error = "Impossible de vérifier le client.";
+          this.isLoading = false;
+          console.error('Error verifying client:', err);
+        }
+      });
+  }
+
+  // Méthodes utilitaires (inchangées)
   passwordMatchValidator(group: FormGroup): null | { passwordMismatch: true } {
     const password = group.get('password')?.value;
     const confirmPassword = group.get('confirmPassword')?.value;
@@ -340,19 +558,22 @@ export class ClientManagementComponent implements OnInit {
     }
   }
 
-  getFullName(client: Client): string {
-    return `${client.firstName || ''} ${client.lastName || ''}`.trim() || 'N/A';
+  getFullName(client: Client | null): string {
+    if (!client) return 'N/A';
+    
+    const firstName = client.firstName || '';
+    const lastName = client.lastName || '';
+    
+    const fullName = `${firstName} ${lastName}`.trim();
+    return fullName || 'N/A';
   }
 
-  /**
-   * Formate un montant en devise
-   */
   formatCurrency(amount: number | undefined, currency: string = 'MAD'): string {
     if (amount === undefined || amount === null) return '-';
     try {
       return new Intl.NumberFormat('fr-MA', {
         style: 'currency',
-        currency: currency || 'MAD' // Ajouter une valeur par défaut si currency est undefined
+        currency: currency || 'MAD'
       }).format(amount);
     } catch (e) {
       console.error('Error formatting currency', e);
@@ -393,7 +614,6 @@ export class ClientManagementComponent implements OnInit {
   getFilteredClients(): Client[] {
     let filtered = [...this.clients];
     
-    // Apply text filter
     if (this.filterText) {
       const searchTerm = this.filterText.toLowerCase();
       filtered = filtered.filter(client => 
@@ -406,12 +626,10 @@ export class ClientManagementComponent implements OnInit {
       );
     }
     
-    // Apply status filter
     if (this.statusFilter !== 'all') {
       filtered = filtered.filter(client => client.status === this.statusFilter);
     }
     
-    // Apply sorting
     filtered.sort((a, b) => {
       let comparison = 0;
       

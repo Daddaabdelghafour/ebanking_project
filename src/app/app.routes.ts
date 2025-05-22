@@ -60,20 +60,20 @@ export const routes: Routes = [
           .then(c => c.BudgetManagementComponent)
       },
       {
-  path: 'documents',
-  loadComponent: () => import('./features/client/documents/documents.component')
-    .then(c => c.DocumentsComponent)
-},
-{
-  path: 'announcements',
-  loadComponent: () => import('./features/client/announcements/announcements.component')
-    .then(c => c.AnnouncementsComponent)
-},
-{
-  path: 'alert-settings',
-  loadComponent: () => import('./features/client/alert-settings/alert-settings.component')
-    .then(c => c.AlertSettingsComponent)
-},
+        path: 'documents',
+        loadComponent: () => import('./features/client/documents/documents.component')
+          .then(c => c.DocumentsComponent)
+      },
+      {
+        path: 'announcements',
+        loadComponent: () => import('./features/client/announcements/announcements.component')
+          .then(c => c.AnnouncementsComponent)
+      },
+      {
+        path: 'alert-settings',
+        loadComponent: () => import('./features/client/alert-settings/alert-settings.component')
+          .then(c => c.AlertSettingsComponent)
+      },
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' }
     ]
   },
@@ -106,6 +106,8 @@ export const routes: Routes = [
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' }
     ]
   },
+  
+  // Bank Agent routes with agent layout
   {
     path: 'bank-agent',
     component: AgentLayoutComponent,
@@ -130,7 +132,16 @@ export const routes: Routes = [
         loadComponent: () => import('./features/bank-agent/task-management/task-management.component')
           .then(c => c.TaskManagementComponent)
       },
-
+      {
+        path: 'document-management',
+        loadComponent: () => import('./features/bank-agent/document-management/document-management.component')
+          .then(c => c.DocumentManagementComponent)
+      },
+      {
+        path: 'client/:clientId/documents',
+        loadComponent: () => import('./features/bank-agent/document-management/document-management.component')
+          .then(c => c.DocumentManagementComponent)
+      },
       {
         path: 'settings',
         loadComponent: () => import('./features/bank-agent/bank-agent-settings/bank-agent-settings.component')
@@ -145,6 +156,5 @@ export const routes: Routes = [
     ]
   },
 
- 
   { path: '**', redirectTo: '/dashboard' }
 ];

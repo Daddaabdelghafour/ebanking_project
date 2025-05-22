@@ -4,6 +4,8 @@ import { FormBuilder, FormGroup, Validators, FormsModule, ReactiveFormsModule } 
 import { HttpClientModule } from '@angular/common/http';
 import { AgentService } from '../../../services/agent/agent.service';
 import { Agent, AgentFormData } from '../../../shared/models/agent.model';
+import { catchError, finalize } from 'rxjs/operators';
+import { of } from 'rxjs';
 
 @Component({
   selector: 'app-agent-management',
@@ -18,7 +20,7 @@ export class AgentManagementComponent implements OnInit {
   agents: Agent[] = [];
   branches: string[] = [];
   roles: string[] = [];
-    Math = Math;
+  Math = Math;
 
   // UI state
   isLoading = true;
@@ -26,21 +28,26 @@ export class AgentManagementComponent implements OnInit {
   showModal = false;
   isEditing = false;
   isDeleting = false;
+  isDebugMode = false; // Nouvelle propriété pour le mode debug
+  apiResponse: any = null; // Pour stocker la réponse de l'API
+
+  // Agent sélectionné pour modification ou suppression
   selectedAgent: Agent | null = null;
-  
-  // Form
+
+  // Formulaire
   agentForm: FormGroup;
   
-  // Pagination
-  currentPage = 1;
-  itemsPerPage = 5;
-  
-  // Filter & Sort
-  filterText = '';
-  sortBy = 'dateJoined';
-  sortOrder: 'asc' | 'desc' = 'desc';
+  // Filtre et pagination
   statusFilter: 'all' | 'active' | 'inactive' | 'pending' = 'all';
+  filterText: string = '';
+  currentPage = 1;
+  itemsPerPage = 10;
+  totalPages = 1;
   
+  // Tri
+  sortField: string = 'name';
+  sortDirection: 'asc' | 'desc' = 'asc';
+
   constructor(
     private fb: FormBuilder,
     private agentService: AgentService
@@ -71,81 +78,69 @@ export class AgentManagementComponent implements OnInit {
     this.loadRoles();
   }
 
+  // Chargement des données
   loadAgents(): void {
     this.isLoading = true;
     this.error = null;
-    
-    this.agentService.getAgents().subscribe({
-      next: (agents) => {
+
+    this.agentService.getAgents()
+      .pipe(
+        catchError(error => {
+          this.error = "Impossible de charger la liste des agents: " + error.message;
+          console.error("Erreur lors du chargement des agents:", error);
+          return of([]);
+        }),
+        finalize(() => {
+          this.isLoading = false;
+        })
+      )
+      .subscribe(agents => {
         this.agents = agents;
-        this.isLoading = false;
-      },
-      error: (err) => {
-        this.error = 'Impossible de charger les agents. Veuillez réessayer.';
-        this.isLoading = false;
-        console.error('Error loading agents:', err);
-      }
-    });
+        this.updatePagination();
+      });
   }
 
   loadBranches(): void {
-    this.agentService.getBranches().subscribe({
-      next: (branches) => {
-        this.branches = branches;
-      },
-      error: (err) => {
-        console.error('Error loading branches:', err);
-      }
+    this.agentService.getBranches().subscribe(branches => {
+      this.branches = branches;
     });
   }
-
+  
+logAgents(): void {
+  console.log('Current agents:', this.agents);
+  
+  if (this.isDebugMode) {
+    this.apiResponse = {
+      status: 'info',
+      action: 'log',
+      data: this.agents
+    };
+  }
+}
   loadRoles(): void {
-    this.agentService.getRoles().subscribe({
-      next: (roles) => {
-        this.roles = roles;
-      },
-      error: (err) => {
-        console.error('Error loading roles:', err);
-      }
+    this.agentService.getRoles().subscribe(roles => {
+      this.roles = roles;
     });
   }
 
+  // Actions sur les agents
   openAddModal(): void {
     this.isEditing = false;
     this.selectedAgent = null;
-    this.agentForm.reset({
-      status: 'active'
-    });
+    this.resetForm();
     this.showModal = true;
   }
 
   openEditModal(agent: Agent): void {
     this.isEditing = true;
     this.selectedAgent = agent;
-    
-    this.agentForm.patchValue({
-      firstName: agent.firstName,
-      lastName: agent.lastName,
-      email: agent.email,
-      phone: agent.phone,
-      employeeId: agent.employeeId,
-      branch: agent.branch,
-      role: agent.role,
-      status: agent.status
-    });
-    
-    // Remove validators for password fields when editing
-    const passwordControl = this.agentForm.get('password');
-    const confirmPasswordControl = this.agentForm.get('confirmPassword');
-    
-    if (passwordControl && confirmPasswordControl) {
-      passwordControl.clearValidators();
-      passwordControl.updateValueAndValidity();
-      confirmPasswordControl.clearValidators();
-      confirmPasswordControl.updateValueAndValidity();
-    }
-    
+    this.populateForm(agent);
     this.showModal = true;
+  }
+
+  closeModal(): void {
+    this.showModal = false;
+    this.resetForm();
   }
 
   confirmDeleteAgent(agent: Agent): void {
@@ -158,77 +153,305 @@ export class AgentManagementComponent implements OnInit {
     this.selectedAgent = null;
   }
 
-  deleteAgent(): void {
-    if (!this.selectedAgent) return;
-    
-    this.isLoading = true;
-    
-    this.agentService.deleteAgent(this.selectedAgent.id).subscribe({
-      next: (success) => {
-        if (success) {
+  // Dans la méthode saveAgent, modifiez légèrement la gestion des erreurs :
+saveAgent(): void {
+  if (this.agentForm.invalid) {
+    this.markFormGroupTouched(this.agentForm);
+    return;
+  }
+
+  const formData: AgentFormData = this.agentForm.value;
+  this.isLoading = true;
+  
+  if (this.isDebugMode) {
+    console.log('Form data to be sent:', formData);
+    this.apiResponse = { status: 'pending', data: formData };
+  }
+
+  if (this.isEditing && this.selectedAgent) {
+    this.agentService.updateAgent(this.selectedAgent.id, formData)
+      .subscribe({
+        next: (response) => {
+          if (this.isDebugMode) {
+            console.log('Update response:', response);
+            this.apiResponse = { 
+              status: 'success', 
+              data: response,
+              request: formData,
+              action: 'update'
+            };
+          }
           this.loadAgents();
-          this.cancelDelete();
-        } else {
-          this.error = "Impossible de supprimer l'agent. Veuillez réessayer.";
+          this.closeModal();
+          this.isLoading = false;
+        },
+        error: (error) => {
+          this.error = "Erreur lors de la mise à jour: " + error.message;
+          if (this.isDebugMode) {
+            console.error('Update error details:', error);
+            this.apiResponse = { 
+              status: 'error', 
+              error: error,
+              request: formData,
+              action: 'update'
+            };
+          }
           this.isLoading = false;
         }
-      },
-      error: (err) => {
-        this.error = "Une erreur s'est produite lors de la suppression de l'agent.";
-        this.isLoading = false;
-        console.error('Error deleting agent:', err);
+      });
+  } else {
+    this.agentService.createAgent(formData)
+      .subscribe({
+        next: (response) => {
+          if (this.isDebugMode) {
+            console.log('Create response:', response);
+            this.apiResponse = { 
+              status: 'success', 
+              data: response,
+              request: formData,
+              action: 'create'
+            };
+          }
+          this.loadAgents();
+          this.closeModal();
+          this.isLoading = false;
+        },
+        error: (error) => {
+          this.error = "Erreur lors de l'ajout: " + error.message;
+          if (this.isDebugMode) {
+            console.error('Create error details:', error);
+            this.apiResponse = { 
+              status: 'error', 
+              error: error,
+              request: formData,
+              action: 'create'
+            };
+          }
+          this.isLoading = false;
+        }
+      });
+  }
+}
+
+  deleteAgent(): void {
+    if (!this.selectedAgent) return;
+
+    this.isLoading = true;
+    this.agentService.deleteAgent(this.selectedAgent.id)
+      .pipe(
+        catchError(error => {
+          this.error = "Erreur lors de la suppression: " + error.message;
+          
+          // Debug information
+          if (this.isDebugMode) {
+            console.error('Delete error details:', error);
+            this.apiResponse = { 
+              status: 'error', 
+              error: error,
+              agentId: this.selectedAgent?.id,
+              action: 'delete'
+            };
+          }
+          
+          return of(false);
+        }),
+        finalize(() => {
+          this.isLoading = false;
+          this.isDeleting = false;
+        })
+      )
+      .subscribe(success => {
+        if (success) {
+          // Debug information
+          if (this.isDebugMode) {
+            this.apiResponse = { 
+              status: 'success', 
+              agentId: this.selectedAgent?.id,
+              action: 'delete'
+            };
+          }
+          
+          this.loadAgents();
+        }
+      });
+  }
+
+  // Utilitaires pour les formulaires
+  resetForm(): void {
+    this.agentForm.reset({
+      status: 'active'
+    });
+  }
+
+  populateForm(agent: Agent): void {
+    this.agentForm.patchValue({
+      firstName: agent.firstName,
+      lastName: agent.lastName,
+      email: agent.email,
+      phone: agent.phone,
+      employeeId: agent.employeeId,
+      branch: agent.branch,
+      role: agent.role,
+      status: agent.status,
+      password: '',
+      confirmPassword: ''
+    });
+  }
+
+  markFormGroupTouched(formGroup: FormGroup): void {
+    Object.values(formGroup.controls).forEach(control => {
+      control.markAsTouched();
+      if (control instanceof FormGroup) {
+        this.markFormGroupTouched(control);
       }
     });
   }
 
-  closeModal(): void {
-    this.showModal = false;
-    this.agentForm.reset();
-  }
-
-  saveAgent(): void {
-    if (this.agentForm.invalid) return;
+  passwordMatchValidator(group: FormGroup): null | { mismatch: boolean } {
+    const passwordControl = group.get('password');
+    const confirmPasswordControl = group.get('confirmPassword');
     
-    const agentData: AgentFormData = this.agentForm.value;
-    this.isLoading = true;
-    
-    if (this.isEditing && this.selectedAgent) {
-      this.agentService.updateAgent(this.selectedAgent.id, agentData).subscribe({
-        next: () => {
-          this.loadAgents();
-          this.closeModal();
-        },
-        error: (err) => {
-          this.error = "Impossible de mettre à jour l'agent. Veuillez réessayer.";
-          this.isLoading = false;
-          console.error('Error updating agent:', err);
-        }
-      });
-    } else {
-      this.agentService.createAgent(agentData).subscribe({
-        next: () => {
-          this.loadAgents();
-          this.closeModal();
-        },
-        error: (err) => {
-          this.error = "Impossible de créer l'agent. Veuillez réessayer.";
-          this.isLoading = false;
-          console.error('Error creating agent:', err);
-        }
-      });
-    }
-  }
-
-  // Helper methods
-  passwordMatchValidator(group: FormGroup): null | { passwordMismatch: true } {
-    const password = group.get('password')?.value;
-    const confirmPassword = group.get('confirmPassword')?.value;
-    
-    if (!password || !confirmPassword) {
+    // Si un des champs est vide ou le formulaire est en mode édition sans changement de mot de passe
+    if (!passwordControl?.value && !confirmPasswordControl?.value) {
       return null;
     }
     
-    return password === confirmPassword ? null : { passwordMismatch: true };
+    if (passwordControl?.value !== confirmPasswordControl?.value) {
+      return { mismatch: true };
+    }
+    
+    return null;
+  }
+
+  showValidationError(controlName: string): boolean {
+    const control = this.agentForm.get(controlName);
+    return control ? (control.touched || control.dirty) && control.invalid : false;
+  }
+
+  getPasswordMismatchError(): boolean {
+    return this.agentForm.hasError('mismatch');
+  }
+
+  // Filtrage, tri et pagination
+  getFilteredAgents(): Agent[] {
+    let filteredAgents = [...this.agents];
+    
+    // Appliquer le filtre de statut
+    if (this.statusFilter !== 'all') {
+      filteredAgents = filteredAgents.filter(agent => agent.status === this.statusFilter);
+    }
+    
+    // Appliquer le filtre de texte
+    if (this.filterText) {
+      const searchTerm = this.filterText.toLowerCase();
+      filteredAgents = filteredAgents.filter(agent => 
+        agent.firstName.toLowerCase().includes(searchTerm) ||
+        agent.lastName.toLowerCase().includes(searchTerm) ||
+        agent.email.toLowerCase().includes(searchTerm) ||
+        agent.employeeId.toLowerCase().includes(searchTerm) ||
+        agent.branch.toLowerCase().includes(searchTerm) ||
+        agent.role.toLowerCase().includes(searchTerm)
+      );
+    }
+    
+    // Appliquer le tri
+    filteredAgents.sort((a, b) => {
+      let valueA: any;
+      let valueB: any;
+      
+      switch (this.sortField) {
+        case 'name':
+          valueA = `${a.firstName} ${a.lastName}`.toLowerCase();
+          valueB = `${b.firstName} ${b.lastName}`.toLowerCase();
+          break;
+        case 'branch':
+          valueA = a.branch.toLowerCase();
+          valueB = b.branch.toLowerCase();
+          break;
+        case 'role':
+          valueA = a.role.toLowerCase();
+          valueB = b.role.toLowerCase();
+          break;
+        case 'status':
+          valueA = a.status.toLowerCase();
+          valueB = b.status.toLowerCase();
+          break;
+        case 'dateJoined':
+          valueA = new Date(a.dateJoined).getTime();
+          valueB = new Date(b.dateJoined).getTime();
+          break;
+        default:
+          valueA = a.lastName.toLowerCase();
+          valueB = b.lastName.toLowerCase();
+      }
+      
+      const comparison = valueA > valueB ? 1 : valueA < valueB ? -1 : 0;
+      return this.sortDirection === 'desc' ? -comparison : comparison;
+    });
+    
+    return filteredAgents;
+  }
+
+  getPaginatedAgents(): Agent[] {
+    const filteredAgents = this.getFilteredAgents();
+    const startIndex = (this.currentPage - 1) * this.itemsPerPage;
+    return filteredAgents.slice(startIndex, startIndex + this.itemsPerPage);
+  }
+
+  updatePagination(): void {
+    const filteredAgents = this.getFilteredAgents();
+    this.totalPages = Math.ceil(filteredAgents.length / this.itemsPerPage);
+    // Assurer que la page courante est valide
+    if (this.currentPage > this.totalPages) {
+      this.currentPage = Math.max(1, this.totalPages);
+    }
+  }
+
+  filterByStatus(status: 'all' | 'active' | 'inactive' | 'pending'): void {
+    this.statusFilter = status;
+    this.currentPage = 1; // Retour à la première page
+    this.updatePagination();
+  }
+
+  sortAgents(field: string): void {
+    if (this.sortField === field) {
+      this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+      this.sortField = field;
+      this.sortDirection = 'asc';
+    }
+    
+    this.updatePagination();
+  }
+
+  getSortIcon(field: string): string {
+    if (this.sortField === field) {
+      return this.sortDirection === 'asc' ? 'fa-sort-up' : 'fa-sort-down';
+    }
+    return 'fa-sort';
+  }
+
+  prevPage(): void {
+    if (this.currentPage > 1) {
+      this.currentPage--;
+    }
+  }
+
+  nextPage(): void {
+    if (this.currentPage < this.totalPages) {
+      this.currentPage++;
+    }
+  }
+
+  setPage(page: number): void {
+    if (page >= 1 && page <= this.totalPages) {
+      this.currentPage = page;
+    }
+  }
+
+  // Utilitaires divers
+  getFullName(agent: Agent): string {
+    return `${agent.firstName} ${agent.lastName}`;
   }
 
   getStatusClass(status: string): string {
@@ -244,115 +467,11 @@ export class AgentManagementComponent implements OnInit {
     }
   }
 
-  getFullName(agent: Agent): string {
-    return `${agent.firstName} ${agent.lastName}`;
-  }
-
-  showValidationError(controlName: string): boolean {
-    const control = this.agentForm.get(controlName);
-    return control ? (control.invalid && (control.dirty || control.touched)) : false;
-  }
-
-  getPasswordMismatchError(): boolean {
-    return !!this.agentForm.hasError('passwordMismatch') && 
-           !!this.agentForm.get('password')?.dirty &&
-           !!this.agentForm.get('confirmPassword')?.dirty;
-  }
-  
-  sortAgents(property: string): void {
-    if (this.sortBy === property) {
-      this.sortOrder = this.sortOrder === 'asc' ? 'desc' : 'asc';
-    } else {
-      this.sortBy = property;
-      this.sortOrder = 'asc';
-    }
-  }
-  
-  getSortIcon(column: string): string {
-    if (this.sortBy !== column) return 'fa-sort';
-    return this.sortOrder === 'asc' ? 'fa-sort-up' : 'fa-sort-down';
-  }
-  
-  filterByStatus(status: 'all' | 'active' | 'inactive' | 'pending'): void {
-    this.statusFilter = status;
-    this.currentPage = 1;
-  }
-  
-  getFilteredAgents(): Agent[] {
-    let filtered = [...this.agents];
-    
-    // Apply text filter
-    if (this.filterText) {
-      const searchTerm = this.filterText.toLowerCase();
-      filtered = filtered.filter(agent => 
-        agent.firstName.toLowerCase().includes(searchTerm) ||
-        agent.lastName.toLowerCase().includes(searchTerm) ||
-        agent.email.toLowerCase().includes(searchTerm) ||
-        agent.employeeId.toLowerCase().includes(searchTerm) ||
-        agent.branch.toLowerCase().includes(searchTerm)
-      );
-    }
-    
-    // Apply status filter
-    if (this.statusFilter !== 'all') {
-      filtered = filtered.filter(agent => agent.status === this.statusFilter);
-    }
-    
-    // Apply sorting
-    filtered.sort((a, b) => {
-      let comparison = 0;
-      
-      switch (this.sortBy) {
-        case 'name':
-          comparison = `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`);
-          break;
-        case 'branch':
-          comparison = a.branch.localeCompare(b.branch);
-          break;
-        case 'role':
-          comparison = a.role.localeCompare(b.role);
-          break;
-        case 'status':
-          comparison = a.status.localeCompare(b.status);
-          break;
-        case 'dateJoined':
-          comparison = new Date(a.dateJoined).getTime() - new Date(b.dateJoined).getTime();
-          break;
-        default:
-          comparison = 0;
-      }
-      
-      return this.sortOrder === 'asc' ? comparison : -comparison;
-    });
-    
-    return filtered;
-  }
-  
-  getPaginatedAgents(): Agent[] {
-    const filtered = this.getFilteredAgents();
-    const startIndex = (this.currentPage - 1) * this.itemsPerPage;
-    return filtered.slice(startIndex, startIndex + this.itemsPerPage);
-  }
-  
-  get totalPages(): number {
-    return Math.ceil(this.getFilteredAgents().length / this.itemsPerPage);
-  }
-  
-  nextPage(): void {
-    if (this.currentPage < this.totalPages) {
-      this.currentPage++;
-    }
-  }
-  
-  prevPage(): void {
-    if (this.currentPage > 1) {
-      this.currentPage--;
-    }
-  }
-  
-  setPage(page: number): void {
-    if (page >= 1 && page <= this.totalPages) {
-      this.currentPage = page;
+  // Fonctions de débogage
+  toggleDebugMode(): void {
+    this.isDebugMode = !this.isDebugMode;
+    if (!this.isDebugMode) {
+      this.apiResponse = null;
     }
   }
 }

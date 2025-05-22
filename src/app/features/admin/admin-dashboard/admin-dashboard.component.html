@@ -1,211 +1,341 @@
-<!-- Welcome section -->
-<div class="bg-white rounded-lg shadow p-6 mb-6">
-    <div class="flex items-center justify-between">
-        <div>
-            <h2 class="text-2xl font-bold text-gray-800">Bonjour,
-                {{currentAdminName}}!</h2>
-            <p class="text-gray-600">Tableau de bord administrateur - {{
-                formatDate(currentDate) }}</p>
-        </div>
-        <button (click)="exportData()"
-            class="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center">
-            <i class="fa-solid fa-file-export mr-2"></i>
-            Exporter Rapport
+<div class="container mx-auto p-4 md:p-6">
+  <!-- Header section -->
+  <header class="mb-8">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4">
+      <div>
+        <h1 class="text-2xl md:text-3xl font-bold text-gray-800">Tableau de bord administrateur</h1>
+        <p class="text-gray-600">{{ formatDate(currentDate) }}</p>
+      </div>
+      <div class="mt-4 md:mt-0">
+        <button (click)="exportData()" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+          <i class="fas fa-download mr-2"></i> Exporter les données
         </button>
+      </div>
     </div>
-</div>
-
-<!-- Stats summary -->
-<div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-    <!-- Total Users -->
-    <div class="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-all">
-        <div class="flex items-center justify-between mb-4">
-            <h3 class="text-gray-500 font-medium">Utilisateurs Totaux</h3>
-            <div class="bg-blue-100 p-2 rounded-full">
-                <i class="fa-solid fa-users text-blue-600"></i>
-            </div>
-        </div>
-        <div class="text-2xl font-bold">{{ systemStats.totalUsers }}</div>
-        <div class="flex items-center mt-1">
-            <div
-                class="flex items-center bg-green-100 text-green-800 rounded-full px-2 py-0.5 text-xs">
-                <i class="fa-solid fa-arrow-up mr-1 text-xs"></i>
-                <span>+{{ systemStats.userGrowth }}% ce mois</span>
-            </div>
-        </div>
+  </header>
+  
+  <!-- System stats cards -->
+  <section class="mb-8">
+    <h2 class="text-xl font-semibold mb-4 text-gray-700">Statistiques du système</h2>
+    
+    <!-- Error state display -->
+    <div *ngIf="error.stats" class="p-4 bg-red-50 rounded-lg border border-red-200 text-red-800 mb-4">
+      <p><i class="fas fa-exclamation-circle mr-2"></i> Impossible de charger les statistiques. Veuillez actualiser la page.</p>
+    </div>
+    
+    <!-- Loading state display -->
+    <div *ngIf="loading.stats" class="flex justify-center items-center py-8">
+      <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
     </div>
 
-    <!-- Active Users -->
-    <div class="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-all">
-        <div class="flex items-center justify-between mb-4">
-            <h3 class="text-gray-500 font-medium">Utilisateurs Actifs</h3>
-            <div class="bg-green-100 p-2 rounded-full">
-                <i class="fa-solid fa-user-check text-green-600"></i>
-            </div>
+    <!-- Stats grid -->
+    <div *ngIf="!loading.stats && !error.stats" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <!-- User stats card -->
+      <div class="bg-white p-5 rounded-lg shadow">
+        <div class="flex justify-between items-start mb-4">
+          <div>
+            <h3 class="text-sm text-gray-500">Utilisateurs</h3>
+            <p class="text-2xl font-bold">{{ systemStats.totalUsers }}</p>
+          </div>
+          <div class="p-3 bg-blue-100 rounded-full">
+            <i class="fas fa-users text-blue-600"></i>
+          </div>
         </div>
-        <div class="text-2xl font-bold">{{ systemStats.activeUsers }}</div>
-        <div class="flex items-center mt-1">
-            <div
-                class="flex items-center bg-blue-100 text-blue-800 rounded-full px-2 py-0.5 text-xs">
-                <i class="fa-solid fa-circle-info mr-1 text-xs"></i>
-                <span>{{ (systemStats.activeUsers / systemStats.totalUsers *
-                    100).toFixed(1) }}% du total</span>
-            </div>
+        <div class="flex justify-between items-center">
+          <span class="text-sm">Actifs: {{ systemStats.activeUsers }}</span>
+          <span class="text-sm text-green-600">
+            <i class="fas fa-arrow-up mr-1"></i>{{ systemStats.userGrowth }}%
+          </span>
         </div>
+      </div>
+      
+      <!-- Clients stats card -->
+      <div class="bg-white p-5 rounded-lg shadow">
+        <div class="flex justify-between items-start mb-4">
+          <div>
+            <h3 class="text-sm text-gray-500">Clients</h3>
+            <p class="text-2xl font-bold">{{ systemStats.totalClients || 0 }}</p>
+          </div>
+          <div class="p-3 bg-green-100 rounded-full">
+            <i class="fas fa-user-tie text-green-600"></i>
+          </div>
+        </div>
+        <div class="flex justify-between items-center">
+          <span class="text-sm">Vérifiés: {{ systemStats.verifiedClients || 0 }}</span>
+          <a routerLink="/admin/clients" class="text-sm text-blue-600 hover:underline">
+            Gérer
+          </a>
+        </div>
+      </div>
+      
+      <!-- System health card -->
+      <div class="bg-white p-5 rounded-lg shadow">
+        <div class="flex justify-between items-start mb-4">
+          <div>
+            <h3 class="text-sm text-gray-500">Santé système</h3>
+            <p class="text-2xl font-bold">{{ systemStats.systemUptime }}%</p>
+          </div>
+          <div class="p-3 bg-purple-100 rounded-full">
+            <i class="fas fa-server text-purple-600"></i>
+          </div>
+        </div>
+        <div class="flex justify-between items-center">
+          <span class="text-sm">Disponibilité</span>
+          <span class="text-sm text-green-600">
+            <i class="fas fa-check-circle mr-1"></i>Optimale
+          </span>
+        </div>
+      </div>
+      
+      <!-- Accounts card -->
+      <div class="bg-white p-5 rounded-lg shadow">
+        <div class="flex justify-between items-start mb-4">
+          <div>
+            <h3 class="text-sm text-gray-500">Comptes bancaires</h3>
+            <p class="text-2xl font-bold">{{ systemStats.totalAccounts || 0 }}</p>
+          </div>
+          <div class="p-3 bg-amber-100 rounded-full">
+            <i class="fas fa-credit-card text-amber-600"></i>
+          </div>
+        </div>
+        <div class="flex justify-between items-center">
+          <span class="text-sm">Actifs: {{ systemStats.activeAccounts || 0 }}</span>
+          <a routerLink="/admin/accounts" class="text-sm text-blue-600 hover:underline">
+            Voir tous
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Charts section -->
+  <section class="mb-8">
+    <h2 class="text-xl font-semibold mb-4 text-gray-700">Tendances</h2>
+    
+    <!-- Error state display -->
+    <div *ngIf="error.charts" class="p-4 bg-red-50 rounded-lg border border-red-200 text-red-800 mb-4">
+      <p><i class="fas fa-exclamation-circle mr-2"></i> Impossible de charger les données des graphiques.</p>
+    </div>
+    
+    <!-- Loading state display -->
+    <div *ngIf="loading.charts" class="flex justify-center items-center py-8">
+      <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
     </div>
 
-    <!-- Transaction Volume -->
-    <div class="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-all">
-        <div class="flex items-center justify-between mb-4">
-            <h3 class="text-gray-500 font-medium">Volume Transactions</h3>
-            <div class="bg-purple-100 p-2 rounded-full">
-                <i class="fa-solid fa-money-bill-transfer text-purple-600"></i>
-            </div>
-        </div>
-        <div class="text-2xl font-bold">{{ systemStats.transactionVolume |
-            currency:'EUR':'symbol':'1.2-2' }}</div>
-        <div class="flex items-center mt-1">
-            <div
-                class="flex items-center bg-green-100 text-green-800 rounded-full px-2 py-0.5 text-xs">
-                <i class="fa-solid fa-arrow-up mr-1 text-xs"></i>
-                <span>+{{ systemStats.volumeChange }}% ce mois</span>
-            </div>
-        </div>
-    </div>
-
-    <!-- System Status -->
-    <div class="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-all">
-        <div class="flex items-center justify-between mb-4">
-            <h3 class="text-gray-500 font-medium">État du Système</h3>
-            <div class="bg-blue-100 p-2 rounded-full">
-                <i class="fa-solid fa-server text-blue-600"></i>
-            </div>
-        </div>
-        <div class="text-2xl font-bold">{{ systemStats.systemUptime }}%
-            uptime</div>
-        <div class="flex items-center mt-1">
-            <div class="flex items-center"
-                [ngClass]="systemStats.alertsCount > 0 ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'"
-                class="rounded-full px-2 py-0.5 text-xs">
-                <i class="fa-solid"
-                    [ngClass]="systemStats.alertsCount > 0 ? 'fa-triangle-exclamation' : 'fa-check'"
-                    class="mr-1 text-xs"></i>
-                <span>{{ systemStats.alertsCount }} alertes actives</span>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Pending approvals and activity charts -->
-
-<!-- Recent activities and transaction chart -->
-<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-    <!-- Recent activities -->
-    <div class="bg-white rounded-lg shadow p-6">
-        <div class="flex justify-between items-center mb-4">
-            <h3 class="text-lg font-bold text-gray-800">Activités Récentes</h3>
-            <a href="#" class="text-blue-600 text-sm hover:underline">Voir
-                tous</a>
-        </div>
-
-        <div class="space-y-4">
-            <div *ngFor="let activity of recentActivities"
-                class="border-b border-gray-100 last:border-0 pb-3 last:pb-0">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center">
-                        <div
-                            class="w-8 h-8 rounded-full flex items-center justify-center mr-3"
-                            [ngClass]="{
-                'bg-yellow-100': activity.icon.includes('key'),
-                'bg-green-100': activity.icon.includes('user-plus'),
-                'bg-red-100': activity.icon.includes('triangle'),
-                'bg-blue-100': activity.icon.includes('pen')
-              }">
-                            <i [class]="activity.icon"
-                                [ngClass]="getIconClass(activity.icon)"></i>
-                        </div>
-                        <div>
-                            <p class="font-medium">{{ activity.user }}</p>
-                            <p class="text-xs text-gray-500">{{ activity.action
-                                }}</p>
-                        </div>
-                    </div>
-                    <div class="text-right">
-                        <p class="text-xs text-gray-500">{{ activity.date |
-                            date:'dd MMM, HH:mm' }}</p>
-                        <span
-                            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium mt-1"
-                            [ngClass]="getStatusClass(activity.status)">
-                            {{ activity.status }}
-                        </span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Transaction volume chart -->
-    <div class="bg-white rounded-lg shadow p-6">
-        <div class="flex justify-between items-center mb-4">
-            <h3 class="text-lg font-bold text-gray-800">Volume des
-                Transactions</h3>
-            <div class="relative">
-                <select
-                    class="appearance-none bg-white border border-gray-300 text-gray-700 py-1 px-4 pr-8 rounded leading-tight focus:outline-none focus:bg-white focus:border-gray-500">
-                    <option>Ce mois</option>
-                    <option>Ce trimestre</option>
-                    <option>Cette année</option>
-                </select>
-                <div
-                    class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-                    <i class="fa-solid fa-chevron-down"></i>
-                </div>
-            </div>
-        </div>
-
-        <!-- Chart placeholder -->
-        <div
-            class="h-64 w-full bg-gray-50 rounded-lg flex items-center justify-center">
+    <!-- Charts container -->
+    <div *ngIf="!loading.charts && !error.charts" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <!-- User growth chart -->
+      <div class="bg-white p-4 rounded-lg shadow">
+        <h3 class="text-base font-medium text-gray-700 mb-4">Nouveaux utilisateurs</h3>
+        <div class="relative h-64">
+          <!-- Placeholder for chart -->
+          <div class="w-full h-full bg-gray-50 rounded flex items-center justify-center">
             <div class="text-center">
-                <div class="mb-2">Transaction Volume Graph Placeholder</div>
-                <div class="flex items-center justify-center space-x-4">
-                    <div class="flex items-center">
-                        <span
-                            class="w-3 h-3 bg-green-600 rounded-full mr-2"></span>
-                        <span class="text-sm">Monthly volume: €532,400</span>
-                    </div>
+              <p class="text-gray-500 mb-2">Graphique des nouveaux utilisateurs</p>
+              <div class="flex justify-center space-x-2">
+                <ng-container *ngFor="let month of userChartData.labels; let i = index">
+                  <div class="flex flex-col items-center">
+                    <div class="w-6 bg-indigo-500" 
+                         [style.height]="(userChartData.datasets[0].data[i] * 2) + 'px'"></div>
+                    <span class="text-xs mt-1">{{ month }}</span>
+                  </div>
+                </ng-container>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Accounts by type chart -->
+      <div class="bg-white p-4 rounded-lg shadow">
+        <h3 class="text-base font-medium text-gray-700 mb-4">Comptes par type</h3>
+        <div class="relative h-64">
+          <!-- Placeholder for chart -->
+          <div class="w-full h-full bg-gray-50 rounded flex items-center justify-center">
+            <div class="text-center">
+              <p class="text-gray-500 mb-2">Distribution des comptes</p>
+              <div class="grid grid-cols-2 gap-4 mt-4">
+                <div class="flex items-center">
+                  <div class="w-4 h-4 bg-blue-500 rounded-full mr-2"></div>
+                  <span class="text-sm">Compte Courant (45%)</span>
                 </div>
+                <div class="flex items-center">
+                  <div class="w-4 h-4 bg-green-500 rounded-full mr-2"></div>
+                  <span class="text-sm">Compte Épargne (30%)</span>
+                </div>
+                <div class="flex items-center">
+                  <div class="w-4 h-4 bg-yellow-500 rounded-full mr-2"></div>
+                  <span class="text-sm">Compte Business (15%)</span>
+                </div>
+                <div class="flex items-center">
+                  <div class="w-4 h-4 bg-purple-500 rounded-full mr-2"></div>
+                  <span class="text-sm">Compte Premium (10%)</span>
+                </div>
+              </div>
             </div>
+          </div>
         </div>
+      </div>
     </div>
-</div>
+  </section>
 
-<!-- Quick action buttons -->
-<div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-    <div
-        class="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-all cursor-pointer">
-        <div class="flex items-center">
-            <div class="bg-blue-100 p-3 rounded-full mr-4">
-                <i class="fa-solid fa-user-plus text-blue-600"></i>
-            </div>
-            <div>
-                <h3 class="font-bold text-gray-800">Nouvel Utilisateur</h3>
-                <p class="text-sm text-gray-600">Ajouter un utilisateur</p>
-            </div>
-        </div>
+  <!-- Recent users section -->
+  <section class="mb-8">
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="text-xl font-semibold text-gray-700">Utilisateurs récents</h2>
+      <a routerLink="/admin/users" class="text-blue-600 text-sm hover:underline">
+        Voir tous les utilisateurs
+      </a>
     </div>
-
-    <div
-        class="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-all cursor-pointer">
-        <div class="flex items-center">
-            <div class="bg-purple-100 p-3 rounded-full mr-4">
-                <i class="fa-solid fa-money-bill-transfer text-purple-600"></i>
-            </div>
-            <div>
-                <h3 class="font-bold text-gray-800">Devises</h3>
-                <p class="text-sm text-gray-600">Gérer les taux de change</p>
-            </div>
-        </div>
+    
+    <!-- Error state display -->
+    <div *ngIf="error.users" class="p-4 bg-red-50 rounded-lg border border-red-200 text-red-800 mb-4">
+      <p><i class="fas fa-exclamation-circle mr-2"></i> Impossible de charger les utilisateurs récents.</p>
+    </div>
+    
+    <!-- Loading state display -->
+    <div *ngIf="loading.users" class="flex justify-center items-center py-8">
+      <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
     </div>
 
+    <!-- Users table -->
+    <div *ngIf="!loading.users && !error.users && recentUsers.length > 0" 
+         class="bg-white rounded-lg shadow overflow-hidden">
+      <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+          <tr>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Utilisateur
+            </th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Email
+            </th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Rôle
+            </th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Date d'inscription
+            </th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Statut
+            </th>
+          </tr>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200">
+          <tr *ngFor="let user of recentUsers">
+            <td class="px-6 py-4 whitespace-nowrap">
+              <div class="flex items-center">
+                <div class="flex-shrink-0 h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center">
+                  <i class="fas fa-user text-gray-500"></i>
+                </div>
+                <div class="ml-4">
+                  <div class="text-sm font-medium text-gray-900">{{ user.firstName }} {{ user.lastName }}</div>
+                  <div class="text-sm text-gray-500">ID: {{ user.id || 'N/A' }}</div>
+                </div>
+              </div>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap">
+              <div class="text-sm text-gray-900">{{ user.email }}</div>
+              <div class="text-sm text-gray-500">{{ user.phoneNumber || 'Non spécifié' }}</div>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap">
+              <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                {{ user.role || 'User' }}
+              </span>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+              {{ user.createdAt | date:'short' }}
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap">
+              <span [class]="'px-2 inline-flex text-xs leading-5 font-semibold rounded-full ' + 
+                    (user.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800')">
+                {{ user.isActive ? 'Actif' : 'Inactif' }}
+              </span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    
+    <!-- No users message -->
+    <div *ngIf="!loading.users && !error.users && recentUsers.length === 0" 
+         class="bg-white rounded-lg shadow p-6 text-center text-gray-500">
+      Aucun utilisateur récent à afficher.
+    </div>
+  </section>
+
+  <!-- Recent activities section -->
+  <section>
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="text-xl font-semibold text-gray-700">Activités récentes</h2>
+      <a routerLink="/admin/activities" class="text-blue-600 text-sm hover:underline">
+        Voir toutes les activités
+      </a>
+    </div>
+    
+    <!-- Error state display -->
+    <div *ngIf="error.activities" class="p-4 bg-red-50 rounded-lg border border-red-200 text-red-800 mb-4">
+      <p><i class="fas fa-exclamation-circle mr-2"></i> Impossible de charger les activités récentes.</p>
+    </div>
+    
+    <!-- Loading state display -->
+    <div *ngIf="loading.activities" class="flex justify-center items-center py-8">
+      <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+    </div>
+
+    <!-- Activities table -->
+    <div *ngIf="!loading.activities && !error.activities && recentActivities.length > 0" 
+         class="bg-white rounded-lg shadow overflow-hidden">
+      <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+          <tr>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Action
+            </th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Utilisateur
+            </th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Date
+            </th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Statut
+            </th>
+          </tr>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200">
+          <tr *ngFor="let activity of recentActivities">
+            <td class="px-6 py-4 whitespace-nowrap">
+              <div class="flex items-center">
+                <div class="flex-shrink-0 h-10 w-10 flex items-center justify-center">
+                  <i [class]="activity.icon + ' text-xl ' + getIconClass(activity.icon)"></i>
+                </div>
+                <div class="ml-4">
+                  <div class="text-sm font-medium text-gray-900">{{ activity.action }}</div>
+                  <div class="text-sm text-gray-500">ID: {{ activity.id || 'N/A' }}</div>
+                </div>
+              </div>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap">
+              <div class="text-sm text-gray-900">{{ activity.user }}</div>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap">
+              <div class="text-sm text-gray-900">{{ activity.date | date:'short' }}</div>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap">
+              <span [class]="'px-2 inline-flex text-xs leading-5 font-semibold rounded-full ' + getStatusClass(activity.status)">
+                {{ activity.status }}
+              </span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    
+    <!-- No activities message -->
+    <div *ngIf="!loading.activities && !error.activities && recentActivities.length === 0" 
+         class="bg-white rounded-lg shadow p-6 text-center text-gray-500">
+      Aucune activité récente à afficher.
+    </div>
+  </section>
 </div>

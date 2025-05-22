@@ -1,66 +1,74 @@
-<div class="container mx-auto px-4 py-8">
-    <!-- En-tête -->
+<div class="min-h-screen bg-gray-50 p-6">
+
+    <!-- Header -->
     <div
         class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
         <div>
-            <h1 class="text-2xl font-bold text-gray-900">Mes comptes</h1>
+            <h1 class="text-3xl font-bold text-gray-900 mb-2">Mes comptes</h1>
             <p class="text-gray-600">Gérez vos comptes bancaires et effectuez
                 des transferts</p>
         </div>
 
-        <div class="mt-4 md:mt-0 flex flex-wrap gap-2">
-            <button
-                (click)="toggleNewAccountForm()"
-                class="px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 flex items-center">
-                <i class="fa-solid fa-plus mr-2"></i>
-                Demander un compte
+        <div class="mt-4 md:mt-0 flex gap-3">
+            <button (click)="refreshAccounts()"
+                class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 flex items-center">
+                <i class="fa-solid fa-rotate-right mr-2"></i>
+                Actualiser
             </button>
 
-            <button
-                (click)="toggleQuickTransferForm()"
-                class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center">
+            <button (click)="openQuickTransfer()"
+                class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center">
                 <i class="fa-solid fa-right-left mr-2"></i>
                 Transfert rapide
             </button>
         </div>
     </div>
 
-    <!-- Indicateur de chargement -->
-    <div *ngIf="isLoading" class="flex justify-center py-10">
+    <!-- Loading -->
+    <div *ngIf="isLoading" class="flex justify-center py-12">
         <div
-            class="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-teal-500"></div>
+            class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
     </div>
 
-    <!-- Message d'erreur -->
-    <div *ngIf="!isLoading && errorMessage"
-        class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6">
-        <div class="flex items-center">
-            <i class="fa-solid fa-circle-exclamation mr-2"></i>
-            <p>{{ errorMessage }}</p>
+    <!-- Error Message -->
+    <div *ngIf="errorMessage && !isLoading"
+        class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+        <div class="flex">
+            <i
+                class="fa-solid fa-triangle-exclamation text-red-400 mr-3 mt-1"></i>
+            <div>
+                <h3 class="text-red-800 font-medium">Erreur</h3>
+                <p class="text-red-600 text-sm mt-1">{{ errorMessage }}</p>
+                <button (click)="refreshAccounts()"
+                    class="mt-2 text-sm bg-red-100 hover:bg-red-200 text-red-800 px-3 py-1 rounded">
+                    Réessayer
+                </button>
+            </div>
         </div>
     </div>
 
-    <!-- Récapitulatif des comptes -->
+    <!-- Summary Card -->
     <div *ngIf="!isLoading && accounts.length > 0" class="mb-8">
         <div
-            class="bg-gradient-to-r from-teal-500 to-blue-500 rounded-lg px-6 py-8 shadow-lg text-white">
+            class="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-6 text-white shadow-lg">
             <div
                 class="flex flex-col md:flex-row justify-between items-start md:items-center">
                 <div>
-                    <h2 class="text-lg font-medium opacity-90">Solde total</h2>
-                    <p class="text-3xl font-bold">{{
+                    <h2 class="text-lg font-medium opacity-90 mb-1">Solde
+                        total</h2>
+                    <p class="text-4xl font-bold">{{
                         formatCurrency(totalBalance, selectedCurrency) }}</p>
+                    <p class="text-sm opacity-80 mt-1">{{ accounts.length }}
+                        compte{{ accounts.length > 1 ? 's' : '' }}</p>
                 </div>
 
                 <div class="mt-4 md:mt-0">
-                    <div class="inline-flex rounded-md shadow-sm">
-                        <button
-                            *ngFor="let currency of ['MAD', 'EUR', 'USD']"
+                    <div
+                        class="flex rounded-lg overflow-hidden border border-white/30">
+                        <button *ngFor="let currency of ['MAD', 'EUR', 'USD']"
                             (click)="changeCurrency(currency)"
-                            [class.bg-white]="selectedCurrency === currency"
-                            [class.text-blue-600]="selectedCurrency === currency"
-                            [class.bg-transparent]="selectedCurrency !== currency"
-                            class="px-3 py-1.5 text-sm font-medium border border-white first:rounded-l-md last:rounded-r-md">
+                            [class]="selectedCurrency === currency ? 'bg-white text-blue-600' : 'bg-transparent text-white hover:bg-white/20'"
+                            class="px-4 py-2 text-sm font-medium transition-colors">
                             {{ currency }}
                         </button>
                     </div>
@@ -69,341 +77,378 @@
         </div>
     </div>
 
-    <!-- Demande de compte (Modal) -->
-    <div *ngIf="showNewAccountForm"
-        class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
-        <div class="bg-white rounded-lg shadow-lg max-w-md w-full">
-            <div class="p-6">
-                <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-lg font-medium text-gray-900">Demande d'ouverture de compte</h3>
-                    <button (click)="toggleNewAccountForm()"
-                        class="text-gray-400 hover:text-gray-500">
-                        <i class="fa-solid fa-xmark"></i>
-                    </button>
-                </div>
-
-                <!-- Message de succès -->
-                <div *ngIf="accountRequestSuccess" 
-                     class="mb-4 bg-green-100 border-l-4 border-green-500 text-green-700 p-4">
-                    <div class="flex items-center">
-                        <i class="fa-solid fa-check-circle mr-2"></i>
-                        <p>Votre demande a été envoyée avec succès! Notre équipe l'examinera dans les plus brefs délais.</p>
-                    </div>
-                </div>
-
-                <!-- Message d'erreur -->
-                <div *ngIf="errorMessage"
-                    class="mb-4 bg-red-100 border-l-4 border-red-500 text-red-700 p-4">
-                    <div class="flex items-center">
-                        <i class="fa-solid fa-circle-exclamation mr-2"></i>
-                        <p>{{ errorMessage }}</p>
-                    </div>
-                </div>
-
-                <div class="space-y-4">
-                    <!-- Type de compte -->
-                    <div>
-                        <label for="account-type"
-                            class="block text-sm font-medium text-gray-700 mb-1">Type
-                            de compte</label>
-                        <select
-                            id="account-type"
-                            [(ngModel)]="newAccountData.type"
-                            class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-teal-500 focus:border-teal-500">
-                            <option value="current">Compte courant</option>
-                            <option value="savings">Compte épargne</option>
-                            <option value="investment">Compte
-                                d'investissement</option>
-                            <option value="fixed">Dépôt à terme</option>
-                            <option value="other">Autre</option>
-                        </select>
-                    </div>
-
-                    <!-- Devise -->
-                    <div>
-                        <label for="account-currency"
-                            class="block text-sm font-medium text-gray-700 mb-1">Devise</label>
-                        <select
-                            id="account-currency"
-                            [(ngModel)]="newAccountData.currency"
-                            class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-teal-500 focus:border-teal-500">
-                            <option value="MAD">MAD - Dirham marocain</option>
-                            <option value="EUR">EUR - Euro</option>
-                            <option value="USD">USD - Dollar américain</option>
-                            <option value="GBP">GBP - Livre sterling</option>
-                        </select>
-                    </div>
-
-                    <!-- Dépôt initial -->
-                    <div>
-                        <label for="initial-deposit"
-                            class="block text-sm font-medium text-gray-700 mb-1">Dépôt
-                            initial souhaité</label>
-                        <input
-                            type="number"
-                            id="initial-deposit"
-                            [(ngModel)]="newAccountData.initialDeposit"
-                            min="0"
-                            class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-teal-500 focus:border-teal-500">
-                    </div>
-
-                    <!-- Motif de la demande -->
-                    <div>
-                        <label for="account-reason"
-                            class="block text-sm font-medium text-gray-700 mb-1">Motif de la demande</label>
-                        <textarea
-                            id="account-reason"
-                            [(ngModel)]="newAccountData.reason"
-                            rows="3"
-                            placeholder="Précisez pourquoi vous souhaitez ouvrir ce compte..."
-                            class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-teal-500 focus:border-teal-500"></textarea>
-                    </div>
-                </div>
-
-                <div class="mt-6">
-                    <button
-                        (click)="requestNewAccount()"
-                        [disabled]="isCreatingAccount || accountRequestSuccess"
-                        class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 disabled:bg-gray-300 disabled:cursor-not-allowed">
-                        <span *ngIf="isCreatingAccount"
-                            class="inline-block mr-2">
-                            <i class="fa-solid fa-spinner fa-spin"></i>
-                        </span>
-                        {{ isCreatingAccount ? 'Envoi en cours...' : 'Envoyer la demande' }}
-                    </button>
-                </div>
-                
-                <div class="mt-4 text-sm text-gray-600">
-                    <p><i class="fa-solid fa-info-circle mr-1"></i> Votre demande sera traitée par notre équipe bancaire. Un conseiller pourrait vous contacter pour des informations complémentaires.</p>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Transfert rapide (Reste inchangé) -->
-    <div *ngIf="showQuickTransferForm"
-        class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
-        <div class="bg-white rounded-lg shadow-lg max-w-md w-full">
-            <div class="p-6">
-                <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-lg font-medium text-gray-900">Transfert rapide</h3>
-                    <button (click)="toggleQuickTransferForm()"
-                        class="text-gray-400 hover:text-gray-500">
-                        <i class="fa-solid fa-xmark"></i>
-                    </button>
-                </div>
-
-                <!-- Message de succès -->
-                <div *ngIf="transferSuccess"
-                    class="mb-4 bg-green-100 border-l-4 border-green-500 text-green-700 p-4">
-                    <div class="flex">
-                        <i class="fa-solid fa-check-circle mr-2"></i>
-                        <p>Transfert effectué avec succès!</p>
-                    </div>
-                </div>
-
-                <!-- Message d'erreur -->
-                <div *ngIf="errorMessage"
-                    class="mb-4 bg-red-100 border-l-4 border-red-500 text-red-700 p-4">
-                    <div class="flex">
-                        <i class="fa-solid fa-circle-exclamation mr-2"></i>
-                        <p>{{ errorMessage }}</p>
-                    </div>
-                </div>
-
-                <div class="space-y-4">
-                    <!-- Compte source -->
-                    <div>
-                        <label for="source-account"
-                            class="block text-sm font-medium text-gray-700 mb-1">Compte source</label>
-                        <select
-                            id="source-account"
-                            [(ngModel)]="quickTransfer.sourceAccountId"
-                            class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-teal-500 focus:border-teal-500">
-                            <option *ngFor="let account of accounts"
-                                [value]="account.id">
-                                {{ account.accountNumber }} ({{
-                                formatCurrency(account.balance,
-                                account.currency) }})
-                            </option>
-                        </select>
-                    </div>
-
-                    <!-- Compte destination -->
-                    <div>
-                        <label for="destination-account"
-                            class="block text-sm font-medium text-gray-700 mb-1">Compte destination</label>
-                        <select
-                            id="destination-account"
-                            [(ngModel)]="quickTransfer.destinationAccountId"
-                            class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-teal-500 focus:border-teal-500">
-                            <option value>Sélectionnez un compte</option>
-                            <option *ngFor="let account of accounts"
-                                [value]="account.id"
-                                [disabled]="account.id === quickTransfer.sourceAccountId">
-                                {{ account.accountNumber }} ({{
-                                getAccountTypeLabel(account.type) }})
-                            </option>
-                        </select>
-                    </div>
-
-                    <!-- Montant -->
-                    <div>
-                        <label for="transfer-amount"
-                            class="block text-sm font-medium text-gray-700 mb-1">Montant</label>
-                        <input
-                            type="number"
-                            id="transfer-amount"
-                            [(ngModel)]="quickTransfer.amount"
-                            min="0"
-                            class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-teal-500 focus:border-teal-500">
-                    </div>
-
-                    <!-- Description -->
-                    <div>
-                        <label for="transfer-desc"
-                            class="block text-sm font-medium text-gray-700 mb-1">Description (facultatif)</label>
-                        <input
-                            type="text"
-                            id="transfer-desc"
-                            [(ngModel)]="quickTransfer.description"
-                            placeholder="Raison du transfert"
-                            class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-teal-500 focus:border-teal-500">
-                    </div>
-                </div>
-
-                <div class="mt-6">
-                    <button
-                        (click)="performQuickTransfer()"
-                        [disabled]="isTransferring || transferSuccess"
-                        class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-gray-300 disabled:cursor-not-allowed">
-                        <span *ngIf="isTransferring" class="inline-block mr-2">
-                            <i class="fa-solid fa-spinner fa-spin"></i>
-                        </span>
-                        {{ isTransferring ? 'Transfert en cours...' :
-                        'Effectuer le transfert' }}
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Aucun compte -->
+    <!-- No Accounts -->
     <div *ngIf="!isLoading && accounts.length === 0"
-        class="bg-white shadow rounded-lg p-8 text-center">
+        class="bg-white rounded-xl shadow-sm p-8 text-center">
         <div class="mb-4">
             <i class="fa-solid fa-wallet text-6xl text-gray-300"></i>
         </div>
-        <h2 class="text-xl font-medium text-gray-900 mb-2">Vous n'avez pas encore de compte</h2>
-        <p class="text-gray-600 mb-6">Commencez par demander l'ouverture d'un compte bancaire</p>
-        <button
-            (click)="toggleNewAccountForm()"
-            class="px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500">
-            Demander un compte
+        <h2 class="text-xl font-semibold text-gray-900 mb-2">Aucun compte
+            trouvé</h2>
+        <p class="text-gray-600 mb-6">Vous n'avez pas encore de comptes
+            actifs.</p>
+        <button (click)="refreshAccounts()"
+            class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+            Actualiser
         </button>
     </div>
 
-    <!-- Liste des comptes -->
+    <!-- Accounts List -->
     <div *ngIf="!isLoading && accounts.length > 0" class="space-y-6">
         <div *ngFor="let account of accounts"
-            class="bg-white rounded-lg shadow overflow-hidden">
-            <!-- En-tête de carte -->
+            class="bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-shadow">
+
+            <!-- Account Header -->
             <div
-                class="flex justify-between items-center p-4 border-b border-gray-200">
+                class="flex justify-between items-center p-6 border-b border-gray-100">
                 <div class="flex items-center">
                     <div
-                        class="h-10 w-10 flex items-center justify-center rounded-full"
+                        class="w-12 h-12 rounded-full flex items-center justify-center"
                         [ngClass]="{'bg-blue-100 text-blue-600': account.type === 'current',
-                        'bg-green-100 text-green-600': account.type === 'savings',
-                        'bg-purple-100 text-purple-600': account.type === 'investment',
-                        'bg-yellow-100 text-yellow-600': account.type === 'fixed',
-                        'bg-gray-100 text-gray-600': account.type === 'other'}">
-                        <i [class]="getAccountTypeIcon(account.type)"></i>
+                          'bg-green-100 text-green-600': account.type === 'savings',
+                          'bg-purple-100 text-purple-600': account.type === 'investment',
+                          'bg-yellow-100 text-yellow-600': account.type === 'fixed',
+                          'bg-gray-100 text-gray-600': account.type === 'business' || account.type === 'other'}">
+                        <i [class]="getAccountTypeIcon(account.type)"
+                            class="text-lg"></i>
                     </div>
-                    <div class="ml-3">
-                        <h3 class="text-lg font-medium text-gray-900">{{
+                    <div class="ml-4">
+                        <h3 class="text-lg font-semibold text-gray-900">{{
                             getAccountTypeLabel(account.type) }}</h3>
-                        <p class="text-sm text-gray-600">{{
+                        <p class="text-sm text-gray-500 font-mono">{{
                             account.accountNumber }}</p>
                     </div>
                 </div>
 
-                <div class="text-right">
-                    <span [class]="getAccountStatusClass(account.status)"
-                        class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
-                        {{ account.status }}
-                    </span>
-                </div>
+                <span [class]="getAccountStatusClass(account.status)"
+                    class="px-3 py-1 rounded-full text-xs font-medium uppercase tracking-wide">
+                    {{ account.status }}
+                </span>
             </div>
 
-            <!-- Corps de carte -->
-            <div class="p-4 md:p-6">
-                <div class="flex flex-col md:flex-row justify-between">
-                    <div class="mb-4 md:mb-0">
-                        <div class="text-sm text-gray-500 mb-1">Solde disponible</div>
-                        <div class="flex items-baseline">
-                            <span class="text-2xl font-bold text-gray-900">{{
-                                formatCurrency(account.balance, account.currency) }}</span>
-                            <span
-                                *ngIf="account.availableBalance !== undefined && account.availableBalance !== account.balance"
-                                class="ml-2 text-sm text-gray-500">
-                                Disponible: {{ formatCurrency(account.availableBalance, account.currency) }}
-                            </span>
+            <!-- Account Body -->
+            <div class="p-6">
+                <div
+                    class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+
+                    <!-- Balance -->
+                    <div>
+                        <div class="text-sm text-gray-500 mb-1">Solde
+                            disponible</div>
+                        <div class="text-2xl font-bold text-gray-900">
+                            {{ formatCurrency(account.balance, account.currency)
+                            }}
+                        </div>
+                        <div
+                            *ngIf="account.availableBalance !== account.balance"
+                            class="text-sm text-gray-500 mt-1">
+                            Disponible: {{
+                            formatCurrency(account.availableBalance,
+                            account.currency) }}
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <div class="text-sm text-gray-500 mb-1">Date d'ouverture</div>
-                            <div class="text-gray-900">{{ formatDate(account.openedDate) }}</div>
+                    <!-- IBAN -->
+                    <div *ngIf="account.iban">
+                        <div class="text-sm text-gray-500 mb-1">IBAN</div>
+                        <div
+                            class="text-sm font-mono text-gray-900 break-all">{{
+                            account.iban }}</div>
+                    </div>
+
+                    <!-- Daily Limit -->
+                    <div *ngIf="account.dailyLimit">
+                        <div class="text-sm text-gray-500 mb-1">Limite
+                            journalière</div>
+                        <div class="text-sm font-semibold text-gray-900">
+                            {{ formatCurrency(account.dailyLimit,
+                            account.currency) }}
                         </div>
-                        <div>
-                            <div class="text-sm text-gray-500 mb-1">Dernière opération</div>
-                            <div class="text-gray-900">{{ formatDate(account.lastTransactionDate) }}</div>
-                        </div>
+                    </div>
+
+                    <!-- Interest Rate -->
+                    <div *ngIf="account.interestRate">
+                        <div class="text-sm text-gray-500 mb-1">Taux
+                            d'intérêt</div>
+                        <div class="text-sm font-semibold text-green-600">{{
+                            account.interestRate }}%</div>
                     </div>
                 </div>
 
-                <!-- Informations additionnelles -->
+                <!-- Account Info -->
                 <div
-                    *ngIf="account.iban || account.dailyLimit || account.interestRate"
-                    class="mt-6 pt-6 border-t border-gray-200 grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div *ngIf="account.iban">
-                        <div class="text-sm text-gray-500 mb-1">IBAN</div>
-                        <div class="text-gray-900 font-mono text-sm">{{ account.iban }}</div>
+                    class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 pt-4 border-t border-gray-100">
+                    <div>
+                        <div class="text-sm text-gray-500 mb-1">Date
+                            d'ouverture</div>
+                        <div class="text-sm text-gray-900">{{
+                            formatDate(account.openedDate) }}</div>
                     </div>
-                    <div *ngIf="account.dailyLimit">
-                        <div class="text-sm text-gray-500 mb-1">Limite journalière</div>
-                        <div class="text-gray-900">{{ formatCurrency(account.dailyLimit, account.currency) }}</div>
-                    </div>
-                    <div *ngIf="account.interestRate">
-                        <div class="text-sm text-gray-500 mb-1">Taux d'intérêt</div>
-                        <div class="text-gray-900">{{ account.interestRate }}%</div>
+                    <div>
+                        <div class="text-sm text-gray-500 mb-1">Dernière
+                            transaction</div>
+                        <div class="text-sm text-gray-900">{{
+                            formatDate(account.lastTransactionDate) }}</div>
                     </div>
                 </div>
 
                 <!-- Actions -->
-                <div class="mt-6 flex flex-wrap gap-2">
-                    <button
-                        [routerLink]="['/accounts', account.id]"
-                        class="px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50 flex items-center">
-                        <i class="fa-solid fa-magnifying-glass mr-2"></i>
+                <div class="flex flex-wrap gap-3">
+                    <button (click)="showAccountDetailsModal(account.id)"
+                        class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 flex items-center">
+                        <i class="fa-solid fa-eye mr-2"></i>
                         Détails
                     </button>
-                    <button
-                        (click)="downloadAccountDetails(account.id)"
-                        class="px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50 flex items-center">
-                        <i class="fa-solid fa-download mr-2"></i>
-                        Relevé
+
+                    <button (click)="showStatementsModal(account.id)"
+                        class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 flex items-center">
+                        <i class="fa-solid fa-file-text mr-2"></i>
+                        Relevés
                     </button>
-                    <button
-                        (click)="quickTransfer.sourceAccountId = account.id; toggleQuickTransferForm()"
-                        class="px-3 py-1.5 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700 flex items-center">
-                        <i class="fa-solid fa-paper-plane mr-2"></i>
+
+                    <button (click)="openQuickTransfer(account.id)"
+                        class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center">
+                        <i class="fa-solid fa-arrow-right-arrow-left mr-2"></i>
                         Transfert
                     </button>
                 </div>
             </div>
         </div>
+    </div>
+
+</div>
+
+<!-- Account Details Modal -->
+<div *ngIf="showAccountDetails && selectedAccount"
+    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div
+        class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+
+        <div
+            class="flex items-center justify-between p-6 border-b border-gray-200">
+            <h2 class="text-xl font-semibold text-gray-900">Détails du
+                compte</h2>
+            <button (click)="closeModal()"
+                class="text-gray-400 hover:text-gray-600">
+                <i class="fa-solid fa-times text-xl"></i>
+            </button>
+        </div>
+
+        <div class="p-6 space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="text-sm font-medium text-gray-500">Type de
+                        compte</label>
+                    <p class="text-gray-900">{{
+                        getAccountTypeLabel(selectedAccount.type) }}</p>
+                </div>
+                <div>
+                    <label class="text-sm font-medium text-gray-500">Numéro de
+                        compte</label>
+                    <p class="text-gray-900 font-mono">{{
+                        selectedAccount.accountNumber }}</p>
+                </div>
+                <div>
+                    <label
+                        class="text-sm font-medium text-gray-500">Solde</label>
+                    <p class="text-gray-900 font-bold">{{
+                        formatCurrency(selectedAccount.balance,
+                        selectedAccount.currency) }}</p>
+                </div>
+                <div>
+                    <label
+                        class="text-sm font-medium text-gray-500">Devise</label>
+                    <p class="text-gray-900">{{ selectedAccount.currency }}</p>
+                </div>
+                <div>
+                    <label
+                        class="text-sm font-medium text-gray-500">Statut</label>
+                    <span
+                        [class]="getAccountStatusClass(selectedAccount.status)"
+                        class="inline-block px-2 py-1 rounded-full text-xs font-medium">
+                        {{ selectedAccount.status }}
+                    </span>
+                </div>
+                <div>
+                    <label class="text-sm font-medium text-gray-500">Date
+                        d'ouverture</label>
+                    <p class="text-gray-900">{{
+                        formatDate(selectedAccount.openedDate) }}</p>
+                </div>
+            </div>
+
+            <div *ngIf="selectedAccount.iban"
+                class="pt-4 border-t border-gray-200">
+                <label class="text-sm font-medium text-gray-500">IBAN</label>
+                <p class="text-gray-900 font-mono break-all">{{
+                    selectedAccount.iban }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Statements Modal -->
+<div *ngIf="showStatements && selectedAccount"
+    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full">
+
+        <div
+            class="flex items-center justify-between p-6 border-b border-gray-200">
+            <h2 class="text-xl font-semibold text-gray-900">Relevés de
+                compte</h2>
+            <button (click)="closeModal()"
+                class="text-gray-400 hover:text-gray-600">
+                <i class="fa-solid fa-times text-xl"></i>
+            </button>
+        </div>
+
+        <div class="p-6">
+            <div class="mb-4">
+                <p class="text-gray-600">Compte: {{
+                    selectedAccount.accountNumber }}</p>
+                <p class="text-sm text-gray-500">Téléchargez vos relevés de
+                    compte</p>
+            </div>
+
+            <div class="space-y-3">
+                <button (click)="downloadStatement('pdf')"
+                    class="w-full flex items-center justify-center px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700">
+                    <i class="fa-solid fa-file-pdf mr-2"></i>
+                    Télécharger en PDF
+                </button>
+
+                <button (click)="downloadStatement('excel')"
+                    class="w-full flex items-center justify-center px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700">
+                    <i class="fa-solid fa-file-excel mr-2"></i>
+                    Télécharger en Excel
+                </button>
+            </div>
+
+            <div class="mt-4 p-3 bg-blue-50 rounded-lg">
+                <p class="text-xs text-blue-600">
+                    <i class="fa-solid fa-info-circle mr-1"></i>
+                    Les relevés couvrent les 30 derniers jours d'activité.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Transfer Modal -->
+<div *ngIf="showQuickTransferForm"
+    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full">
+
+        <div
+            class="flex items-center justify-between p-6 border-b border-gray-200">
+            <h2 class="text-xl font-semibold text-gray-900">
+                <i
+                    class="fa-solid fa-arrow-right-arrow-left mr-2 text-blue-600"></i>
+                Transfert rapide
+            </h2>
+            <button (click)="closeQuickTransfer()"
+                class="text-gray-400 hover:text-gray-600">
+                <i class="fa-solid fa-times text-xl"></i>
+            </button>
+        </div>
+
+        <form (ngSubmit)="performQuickTransfer()" class="p-6 space-y-4">
+
+            <!-- Success Message -->
+            <div *ngIf="transferSuccess"
+                class="bg-green-50 border border-green-200 rounded-lg p-3 text-green-800">
+                <i class="fa-solid fa-check-circle mr-2"></i>
+                Transfert effectué avec succès !
+            </div>
+
+            <!-- Error Message -->
+            <div *ngIf="errorMessage"
+                class="bg-red-50 border border-red-200 rounded-lg p-3 text-red-800">
+                <i class="fa-solid fa-triangle-exclamation mr-2"></i>
+                {{ errorMessage }}
+            </div>
+
+            <!-- Source Account -->
+            <div>
+                <label
+                    class="block text-sm font-medium text-gray-700 mb-2">Compte
+                    source</label>
+                <select [(ngModel)]="quickTransfer.sourceAccountId"
+                    name="sourceAccount"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <option *ngFor="let account of accounts"
+                        [value]="account.id">
+                        {{ account.accountNumber }} - {{
+                        formatCurrency(account.balance, account.currency) }}
+                    </option>
+                </select>
+            </div>
+
+            <!-- Destination Account -->
+            <div>
+                <label
+                    class="block text-sm font-medium text-gray-700 mb-2">Compte
+                    destination</label>
+                <select [(ngModel)]="quickTransfer.destinationAccountId"
+                    name="destinationAccount"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <option value>Sélectionnez un compte</option>
+                    <option *ngFor="let account of accounts"
+                        [value]="account.id"
+                        [disabled]="account.id === quickTransfer.sourceAccountId">
+                        {{ account.accountNumber }} - {{
+                        getAccountTypeLabel(account.type) }}
+                    </option>
+                </select>
+            </div>
+
+            <!-- Amount -->
+            <div>
+                <label
+                    class="block text-sm font-medium text-gray-700 mb-2">Montant</label>
+                <input type="number"
+                    [(ngModel)]="quickTransfer.amount"
+                    name="amount"
+                    min="0"
+                    step="0.01"
+                    placeholder="0.00"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+            </div>
+
+            <!-- Description -->
+            <div>
+                <label
+                    class="block text-sm font-medium text-gray-700 mb-2">Description
+                    (optionnel)</label>
+                <input type="text"
+                    [(ngModel)]="quickTransfer.description"
+                    name="description"
+                    placeholder="Motif du transfert"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+            </div>
+
+            <!-- Buttons -->
+            <div class="flex gap-3 pt-4">
+                <button type="button"
+                    (click)="closeQuickTransfer()"
+                    class="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
+                    Annuler
+                </button>
+
+                <button type="submit"
+                    [disabled]="isTransferring || transferSuccess"
+                    class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                    <span *ngIf="!isTransferring">
+                        <i class="fa-solid fa-paper-plane mr-2"></i>
+                        Transférer
+                    </span>
+                    <span *ngIf="isTransferring">
+                        <i class="fa-solid fa-spinner fa-spin mr-2"></i>
+                        Transfert en cours...
+                    </span>
+                </button>
+            </div>
+
+        </form>
     </div>
 </div>

@@ -1,239 +1,386 @@
-<div class="container mx-auto p-4">
-    <!-- En-tête avec info client -->
-    <div class="flex justify-between items-center mb-6">
-        <div>
-            <h1 class="text-2xl font-bold">{{ clientName || 'Chargement...'
-                }}</h1>
-            <p class="text-gray-600">{{ currentDate | date:'longDate' }}</p>
-        </div>
+<div class="min-h-screen bg-gray-50 p-6">
 
-        <!-- Boutons d'action -->
-        <div>
-            <button
-                class="bg-blue-500 hover:bg-blue-700 text-white py-2 px-4 rounded"
-                (click)="refreshData()">
-                <i class="fa fa-sync mr-2"></i>Actualiser
-            </button>
-        </div>
-    </div>
-
-    <!-- État de chargement -->
-    <div *ngIf="loading" class="flex justify-center my-8">
+    <!-- Loading State -->
+    <div *ngIf="loading" class="flex justify-center items-center h-64">
         <div
-            class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+            class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
     </div>
 
-    <!-- Message d'erreur -->
-    <div *ngIf="error"
-        class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-        <i class="fa fa-exclamation-circle mr-2"></i>{{ error }}
-    </div>
-
-    <!-- Corps principal (visible seulement quand les données sont chargées) -->
-    <div *ngIf="!loading && client">
-
-        <!-- Résumé financier -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-            <div class="bg-white p-6 rounded-lg shadow">
-                <h3 class="text-lg font-medium text-gray-900">Solde total</h3>
-                <p class="text-2xl font-semibold">{{
-                    formatCurrency(summary.totalBalance,
-                    client.accounts[0]?.currency) }}</p>
-            </div>
-
-            <div class="bg-white p-6 rounded-lg shadow">
-                <h3 class="text-lg font-medium text-gray-900">Revenus
-                    estimés</h3>
-                <p class="text-2xl font-semibold">{{
-                    formatCurrency(summary.monthlyIncome,
-                    client.accounts[0]?.currency) }}</p>
-            </div>
-
-            <div class="bg-white p-6 rounded-lg shadow">
-                <h3 class="text-lg font-medium text-gray-900">Dépenses
-                    estimées</h3>
-                <p class="text-2xl font-semibold">{{
-                    formatCurrency(summary.monthlyExpenses,
-                    client.accounts[0]?.currency) }}</p>
+    <!-- Error State -->
+    <div *ngIf="error && !loading"
+        class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+        <div class="flex">
+            <i
+                class="fa-solid fa-triangle-exclamation text-red-400 mr-3 mt-1"></i>
+            <div>
+                <h3 class="text-red-800 font-medium">Erreur de chargement</h3>
+                <p class="text-red-600 text-sm mt-1">{{ error }}</p>
+                <button (click)="refreshData()"
+                    class="mt-2 text-sm bg-red-100 hover:bg-red-200 text-red-800 px-3 py-1 rounded">
+                    Réessayer
+                </button>
             </div>
         </div>
+    </div>
 
-        <!-- Section des comptes -->
+    <!-- Main Content -->
+    <div *ngIf="!loading">
+
+        <!-- Header -->
         <div class="mb-8">
-            <h2 class="text-xl font-semibold mb-4">Mes comptes</h2>
+            <h1 class="text-3xl font-bold text-gray-900 mb-2">
+                Bonjour, {{ clientName }}
+            </h1>
+            <p class="text-gray-600">{{ formatDate(currentDate) }}</p>
+        </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div *ngFor="let account of client.accounts"
-                    class="bg-white p-6 rounded-lg shadow">
-                    <div class="flex justify-between mb-2">
-                        <h3 class="text-lg font-medium">Compte courant</h3>
-                        <div class="px-2 py-1 text-xs rounded-full"
-                            [ngClass]="getStatusClass(account.status)">
-                            {{ account.status }}
-                        </div>
+        <!-- Financial Summary -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div
+                class="bg-white rounded-xl shadow-sm p-6 border-l-4 border-blue-500">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">Solde
+                            total</p>
+                        <p class="text-2xl font-bold text-gray-900">{{
+                            formatCurrency(summary.totalBalance) }}</p>
                     </div>
+                    <div
+                        class="h-12 w-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                        <i class="fa-solid fa-wallet text-blue-600"></i>
+                    </div>
+                </div>
+            </div>
 
-                    <p class="text-gray-500 mb-4">{{ account.iban }}</p>
+            <div
+                class="bg-white rounded-xl shadow-sm p-6 border-l-4 border-green-500">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">Revenus
+                            mensuels</p>
+                        <p class="text-2xl font-bold text-gray-900">{{
+                            formatCurrency(summary.monthlyIncome) }}</p>
+                    </div>
+                    <div
+                        class="h-12 w-12 bg-green-100 rounded-lg flex items-center justify-center">
+                        <i
+                            class="fa-solid fa-arrow-trend-up text-green-600"></i>
+                    </div>
+                </div>
+            </div>
 
-                    <div class="flex justify-between items-center">
-                        <div>
-                            <p class="text-sm text-gray-500">Solde
-                                disponible</p>
-                            <p class="text-xl font-bold">{{
-                                formatCurrency(account.availableBalance,
-                                account.currency) }}</p>
-                        </div>
-                        <button class="text-blue-500 hover:text-blue-700">
-                            <i class="fa fa-chevron-right"></i>
-                        </button>
+            <div
+                class="bg-white rounded-xl shadow-sm p-6 border-l-4 border-red-500">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">Dépenses
+                            mensuelles</p>
+                        <p class="text-2xl font-bold text-gray-900">{{
+                            formatCurrency(summary.monthlyExpenses) }}</p>
+                    </div>
+                    <div
+                        class="h-12 w-12 bg-red-100 rounded-lg flex items-center justify-center">
+                        <i
+                            class="fa-solid fa-arrow-trend-down text-red-600"></i>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Section des cartes -->
+        <!-- Cards Section -->
         <div class="mb-8">
-            <h2 class="text-xl font-semibold mb-4">Mes cartes</h2>
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-xl font-semibold text-gray-900">Mes cartes</h2>
+                <button (click)="refreshData()"
+                    class="text-blue-600 hover:text-blue-800 transition-colors">
+                    <i class="fa-solid fa-rotate-right mr-2"></i>
+                    Actualiser
+                </button>
+            </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Carte bancaire -->
+            <!-- Cards Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+                <!-- Existing Cards -->
                 <div *ngFor="let card of cards"
-                    class="relative h-56 p-6 rounded-xl shadow-lg text-white overflow-hidden"
-                    [ngClass]="card.cardBackground">
+                    [class]="card.cardBackground"
+                    class="relative p-6 rounded-2xl text-white shadow-xl transform hover:scale-105 transition-all duration-300">
 
-                    <!-- Badge de statut -->
-                    <div
-                        class="absolute top-4 right-4 px-2 py-1 text-xs rounded-full"
-                        [ngClass]="{'bg-green-500': card.status === 'active', 
-                          'bg-yellow-500': card.status === 'pending', 
-                          'bg-red-500': card.status === 'blocked'}">
-                        {{ card.status }}
+                    <div class="flex justify-between items-start mb-8">
+                        <div>
+                            <p class="text-sm opacity-80">{{ card.type ===
+                                'credit' ? 'Carte de crédit' : 'Carte de débit'
+                                }}</p>
+                            <p
+                                class="text-xs opacity-60 uppercase tracking-wider">{{
+                                card.network }}</p>
+                        </div>
+                        <div class="flex space-x-2">
+                            <div *ngIf="card.isContactless"
+                                class="w-6 h-6 border border-white rounded-full flex items-center justify-center">
+                                <i class="fa-solid fa-wifi text-xs"></i>
+                            </div>
+                        </div>
                     </div>
 
-                    <!-- Logo réseau de carte -->
-                    <div class="mb-8">
-                        <span class="text-xl font-bold">
-                            {{ card.network?.toUpperCase() }}
-                            <span *ngIf="card.type"
-                                class="text-sm opacity-80">{{ card.type
-                                }}</span>
+                    <div class="mb-6">
+                        <p class="text-xl font-mono tracking-wider">{{
+                            card.maskedNumber }}</p>
+                    </div>
+
+                    <div class="flex justify-between items-end">
+                        <div>
+                            <p
+                                class="text-xs opacity-60 uppercase">Titulaire</p>
+                            <p class="font-medium">{{ card.cardholderName }}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs opacity-60 uppercase">Expire</p>
+                            <p class="font-medium">{{ card.expiryDate }}</p>
+                        </div>
+                    </div>
+
+                    <div class="absolute bottom-4 right-4">
+                        <span [class]="getStatusClass(card.status)"
+                            class="px-2 py-1 rounded-full text-xs font-medium">
+                            {{ card.status === 'active' ? 'Active' : card.status
+                            }}
                         </span>
                     </div>
+                </div>
 
-                    <!-- Numéro de carte masqué -->
-                    <div class="text-2xl mb-6 tracking-wider">{{
-                        card.maskedNumber }}</div>
+                <!-- Add Card Button -->
+                <div
+                    class="relative p-6 rounded-2xl border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100 transition-colors duration-300 cursor-pointer flex flex-col items-center justify-center min-h-[200px]"
+                    (click)="openCardRequestModal()">
+                    <div class="text-center">
+                        <i
+                            class="fa-solid fa-plus text-4xl text-gray-400 mb-4"></i>
+                        <h3
+                            class="text-lg font-semibold text-gray-700 mb-2">Demander
+                            une carte</h3>
+                        <p class="text-sm text-gray-500">
+                            Cliquez pour faire une demande<br>
+                            de nouvelle carte bancaire
+                        </p>
+                    </div>
+                </div>
 
-                    <!-- Détails titulaire et expiration -->
-                    <div class="flex justify-between items-end mt-4">
-                        <div>
-                            <div class="text-xs opacity-80">Titulaire</div>
-                            <div class="font-medium">{{ card.cardholderName
-                                }}</div>
+            </div>
+        </div>
+
+        <!-- Recent Transactions -->
+        <div class="bg-white rounded-xl shadow-sm p-6">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-xl font-semibold text-gray-900">Transactions
+                    récentes</h2>
+                <button (click)="toggleAllTransactions()"
+                    class="text-blue-600 hover:text-blue-800 transition-colors text-sm">
+                    {{ showAllTransactions ? 'Voir moins' : 'Voir tout' }}
+                </button>
+            </div>
+
+            <div class="space-y-4">
+                <div
+                    *ngFor="let transaction of (showAllTransactions ? transactions : transactions.slice(0, 5))"
+                    class="flex items-center justify-between p-4 hover:bg-gray-50 rounded-lg transition-colors">
+
+                    <div class="flex items-center space-x-4">
+                        <div
+                            class="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                            <i [class]="'fa-solid fa-' + transaction.icon"
+                                class="text-gray-600"></i>
                         </div>
                         <div>
-                            <div class="text-xs opacity-80">Expire</div>
-                            <div class="font-medium">{{ card.expiryDate }}</div>
+                            <p class="font-medium text-gray-900">{{
+                                transaction.name }}</p>
+                            <p class="text-sm text-gray-500">{{
+                                transaction.merchant }}</p>
                         </div>
                     </div>
 
-                    <!-- Options de carte -->
-                    <div class="flex gap-4 mt-4">
-                        <div class="text-xs px-2 py-1 rounded-full bg-white/20"
-                            *ngIf="card.isContactless">
-                            <i class="fa fa-wifi mr-1"></i> Sans contact
-                        </div>
-                        <div class="text-xs px-2 py-1 rounded-full"
-                            [ngClass]="{'bg-green-500/70': card.onlinePaymentEnabled, 'bg-gray-500/70': !card.onlinePaymentEnabled}">
-                            <i class="fa fa-globe mr-1"></i> Achat en ligne
+                    <div class="text-right">
+                        <p
+                            [class]="transaction.amount > 0 ? 'text-green-600' : 'text-red-600'"
+                            class="font-medium">
+                            {{ transaction.amount > 0 ? '+' : '' }}{{
+                            formatCurrency(transaction.amount,
+                            transaction.currency) }}
+                        </p>
+                        <div class="flex items-center space-x-2">
+                            <span [class]="getStatusClass(transaction.status)"
+                                class="px-2 py-1 rounded-full text-xs font-medium">
+                                {{ transaction.status === 'completed' ?
+                                'Complété' :
+                                transaction.status === 'pending' ? 'En attente'
+                                : transaction.status }}
+                            </span>
+                            <span class="text-xs text-gray-500">{{
+                                formatDate(transaction.date) }}</span>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Transactions récentes -->
-        <div>
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-xl font-semibold">Dernières transactions</h2>
-                <button
-                    class="text-blue-500 hover:underline"
-                    (click)="toggleAllTransactions()">
-                    {{ showAllTransactions ? 'Afficher moins' : 'Voir tout' }}
+    </div>
+
+    <!-- Card Request Modal -->
+    <div *ngIf="showCardRequestModal"
+        class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+
+        <div
+            class="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+
+            <!-- Header -->
+            <div
+                class="flex items-center justify-between p-6 border-b border-gray-200">
+                <h2 class="text-xl font-semibold text-gray-900">
+                    <i class="fa-solid fa-credit-card mr-2 text-blue-600"></i>
+                    Demande de carte
+                </h2>
+                <button (click)="closeCardRequestModal()"
+                    class="text-gray-400 hover:text-gray-600 transition-colors">
+                    <i class="fa-solid fa-times text-xl"></i>
                 </button>
             </div>
 
-            <!-- Liste des transactions -->
-            <div class="bg-white rounded-lg shadow overflow-hidden mb-4">
-                <table class="w-full">
-                    <thead class="bg-gray-50">
-                        <tr>
-                            <th
-                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                            <th
-                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Détails</th>
-                            <th
-                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
-                            <th
-                                class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Montant</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-200">
-                        <tr
-                            *ngFor="let tx of transactions | slice:0:(showAllTransactions ? transactions.length : 5)">
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                {{ formatDate(tx.date) }}
-                            </td>
-                            <td class="px-6 py-4">
-                                <div class="flex items-center">
-                                    <div
-                                        class="flex-shrink-0 h-10 w-10 flex items-center justify-center bg-gray-100 rounded-full">
-                                        <i class="fa fa-{{ tx.icon }}"></i>
-                                    </div>
-                                    <div class="ml-4">
-                                        <div
-                                            class="text-sm font-medium text-gray-900">{{
-                                            tx.name }}</div>
-                                        <div class="text-sm text-gray-500">{{
-                                            tx.merchant }}</div>
-                                    </div>
-                                </div>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <span
-                                    class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
-                                    [ngClass]="getStatusClass(tx.status)">
-                                    {{ tx.status }}
-                                </span>
-                            </td>
-                            <td class="px-6 py-4 text-right whitespace-nowrap">
+            <!-- Form -->
+            <form (ngSubmit)="submitCardRequest()" class="p-6 space-y-4">
+
+                <!-- Success Message -->
+                <div *ngIf="cardRequestSuccess"
+                    class="bg-green-50 border border-green-200 rounded-lg p-3 text-green-800">
+                    <i class="fa-solid fa-check-circle mr-2"></i>
+                    {{ cardRequestSuccess }}
+                </div>
+
+                <!-- Error Message -->
+                <div *ngIf="cardRequestError"
+                    class="bg-red-50 border border-red-200 rounded-lg p-3 text-red-800">
+                    <i class="fa-solid fa-triangle-exclamation mr-2"></i>
+                    {{ cardRequestError }}
+                    <button type="button" (click)="clearMessages()"
+                        class="float-right text-red-600 hover:text-red-800">
+                        <i class="fa-solid fa-times"></i>
+                    </button>
+                </div>
+
+                <!-- Info -->
+                <div
+                    class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-blue-800 text-sm">
+                    <i class="fa-solid fa-info-circle mr-2"></i>
+                    Votre demande sera traitée par un agent bancaire sous
+                    24-48h.
+                </div>
+
+                <!-- Card Type -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        Type de carte
+                    </label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <label class="relative cursor-pointer">
+                            <input type="radio"
+                                [(ngModel)]="selectedCardType"
+                                value="debit"
+                                name="cardType"
+                                class="sr-only">
+                            <div
+                                [class]="selectedCardType === 'debit' ? 'border-blue-500 bg-blue-50' : 'border-gray-300'"
+                                class="border-2 rounded-lg p-3 text-center transition-colors">
+                                <i [class]="getCardTypeIcon('debit')"
+                                    class="fa-solid text-2xl mb-2 text-blue-600"></i>
+                                <div class="text-sm font-medium">Carte de
+                                    débit</div>
+                            </div>
+                        </label>
+
+                        <label class="relative cursor-pointer">
+                            <input type="radio"
+                                [(ngModel)]="selectedCardType"
+                                value="credit"
+                                name="cardType"
+                                class="sr-only">
+                            <div
+                                [class]="selectedCardType === 'credit' ? 'border-blue-500 bg-blue-50' : 'border-gray-300'"
+                                class="border-2 rounded-lg p-3 text-center transition-colors">
+                                <i [class]="getCardTypeIcon('credit')"
+                                    class="fa-solid text-2xl mb-2 text-blue-600"></i>
+                                <div class="text-sm font-medium">Carte de
+                                    crédit</div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Card Network -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        Réseau de paiement
+                    </label>
+                    <div class="grid grid-cols-3 gap-2">
+                        <label
+                            *ngFor="let network of ['visa', 'mastercard', 'amex']"
+                            class="relative cursor-pointer">
+                            <input type="radio"
+                                [(ngModel)]="selectedCardNetwork"
+                                [value]="network"
+                                name="cardNetwork"
+                                class="sr-only">
+                            <div
+                                [class]="selectedCardNetwork === network ? 'border-blue-500 bg-blue-50' : 'border-gray-300'"
+                                class="border-2 rounded-lg p-2 text-center transition-colors">
+                                <i
+                                    [class]="'fa-brands ' + getCardNetworkLogo(network)"
+                                    class="text-2xl"></i>
                                 <div
-                                    [ngClass]="tx.amount > 0 ? 'text-green-600' : 'text-gray-900'">
-                                    {{ formatCurrency(tx.amount, tx.currency) }}
-                                </div>
-                            </td>
-                        </tr>
+                                    class="text-xs font-medium mt-1 capitalize">{{
+                                    network }}</div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
 
-                        <!-- Message si pas de transactions -->
-                        <tr *ngIf="transactions.length === 0">
-                            <td colspan="4"
-                                class="px-6 py-4 text-center text-gray-500">
-                                Aucune transaction à afficher
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+                <!-- Request Reason -->
+                <div>
+                    <label for="requestReason"
+                        class="block text-sm font-medium text-gray-700 mb-2">
+                        Raison de la demande *
+                    </label>
+                    <textarea id="requestReason"
+                        [(ngModel)]="requestReason"
+                        name="requestReason"
+                        rows="3"
+                        placeholder="Décrivez pourquoi vous souhaitez cette carte..."
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                        required></textarea>
+                </div>
 
-            <!-- Lien pour voir toutes les transactions -->
-            <div class="text-center" *ngIf="transactions.length > 5">
-                <button
-                    class="text-blue-500 hover:text-blue-700"
-                    (click)="toggleAllTransactions()">
-                    {{ showAllTransactions ? 'Afficher moins' :
-                    'Voir toutes les transactions' }}
-                </button>
-            </div>
+                <!-- Buttons -->
+                <div class="flex gap-3 pt-4">
+                    <button type="button"
+                        (click)="closeCardRequestModal()"
+                        class="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
+                        Annuler
+                    </button>
+
+                    <button type="submit"
+                        [disabled]="cardRequestLoading || !requestReason.trim()"
+                        class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                        <span *ngIf="!cardRequestLoading">
+                            <i class="fa-solid fa-paper-plane mr-2"></i>
+                            Envoyer la demande
+                        </span>
+                        <span *ngIf="cardRequestLoading">
+                            <i class="fa-solid fa-spinner fa-spin mr-2"></i>
+                            Envoi en cours...
+                        </span>
+                    </button>
+                </div>
+
+            </form>
         </div>
     </div>
+
 </div>

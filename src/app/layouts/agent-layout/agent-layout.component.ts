@@ -47,7 +47,12 @@ export class AgentLayoutComponent {
       label: 'Gestion des Tâches',
       icon: 'fa-solid fa-list-check',
       route: '/bank-agent/task-management',
-
+    },
+    {
+      id: 'documents',
+      label: 'Gestion Documents',
+      icon: 'fa-solid fa-file-lines',
+      route: '/bank-agent/document-management',
     },
     { 
       id: 'divider-1',

@@ -5,7 +5,6 @@ import { ClientService } from '../../services/client/client.service';
 import { Client } from '../../shared/models/client.model';
 import { ChatbotComponent } from '../../features/client/chatbot/chatbot.component';
 
-// Define sidebar item interface
 interface SidebarItem {
   id: string;
   label?: string;
@@ -20,12 +19,13 @@ interface Notification {
   message: string;
   time: string;
   read: boolean;
+  type: 'info' | 'success' | 'warning';
 }
 
 @Component({
   selector: 'app-client-layout',
   standalone: true,
-  imports: [CommonModule, RouterModule, RouterOutlet,ChatbotComponent],
+  imports: [CommonModule, RouterModule, RouterOutlet, ChatbotComponent],
   templateUrl: './client-layout.component.html',
   styleUrls: ['./client-layout.component.css']
 })
@@ -33,13 +33,14 @@ export class ClientLayoutComponent implements OnInit {
   sidebarCollapsed = false;
   currentClient: Client | null = null;
   isLoading = true;
+  showNotifications = false;
   
-  // Define sidebar navigation items with the correct routes
+  // Navigation simplifiée et organisée
   sidebarItems: SidebarItem[] = [
     {
       id: 'dashboard',
       label: 'Tableau de bord',
-      icon: 'fa-solid fa-gauge-high',
+      icon: 'fa-solid fa-house',
       route: ''
     },
     {
@@ -51,83 +52,57 @@ export class ClientLayoutComponent implements OnInit {
     {
       id: 'transfers',
       label: 'Virements',
-      icon: 'fa-solid fa-paper-plane',
+      icon: 'fa-solid fa-arrow-right-arrow-left',
       route: 'transfers'
     },
     {
-      id: 'bills',
-      label: 'Factures',
-      icon: 'fa-solid fa-file-invoice',
-      route: 'bills'
-    },
-    {
-      id: 'recharges',
-      label: 'Recharges',
-      icon: 'fa-solid fa-mobile-screen',
-      route: 'recharges'
-    },
-    {
       id: 'crypto',
-      label: 'Portefeuille Crypto',
-      icon: 'fa-solid fa-coins',
-      route: 'crypto',
+      label: 'Crypto',
+      icon: 'fa-brands fa-bitcoin',
+      route: 'crypto'
     },
     { 
       id: 'divider-1',
       divider: true
     },
     {
-      id: 'referrals',
-      label: 'Parrainage',
-      icon: 'fa-solid fa-user-plus',
-      route: 'referrals',
-      badge: 'New'
+      id: 'budget',
+      label: 'Budget',
+      icon: 'fa-solid fa-chart-pie',
+      route: 'budget'
     },
     {
-  id: 'budget',
-  label: 'Gestion Budgétaire',
-  icon: 'fa-solid fa-chart-pie',
-  route: '/budget'
-},
-{
-    label: 'Documents',
-    icon: 'fa-solid fa-file-invoice',  // Ou un autre icône approprié
-    route: '/documents',
-    id: 'documents-nav'  // Ajout d'un ID unique pour le lien Documents
-  },
-  {
-  id: 'announcements',
-  label: 'Annonces',
-  icon: 'fa-solid fa-bullhorn',
-  route: 'announcements',
-},
-{
-  id: 'alert-settings',
-  label: 'Alertes',
-  icon: 'fa-solid fa-bell',
-  route: 'alert-settings',
-},
+      id: 'documents',
+      label: 'Documents',
+      icon: 'fa-solid fa-file-lines',
+      route: 'documents'
+    },
+    {
+      id: 'announcements',
+      label: 'Annonces',
+      icon: 'fa-solid fa-bullhorn',
+      route: 'announcements'
+    },
+    { 
+      id: 'divider-2',
+      divider: true
+    },
     {
       id: 'settings',
       label: 'Paramètres',
       icon: 'fa-solid fa-gear',
       route: 'settings'
-    },
-    
-    { 
-      id: 'divider-2',
-      divider: true
-    },
+    }
   ];
   
-  // User information - will be populated from service
+  // Informations utilisateur simplifiées
   userInfo = {
     name: 'Chargement...',
     email: 'chargement@example.com',
-    role: 'Client'
+    accountNumber: '',
+    balance: 0
   };
   
-  // Notifications - will be updated with dynamic data
   notifications: Notification[] = [];
   
   constructor(private clientService: ClientService) {}
@@ -138,9 +113,6 @@ export class ClientLayoutComponent implements OnInit {
   }
   
   loadClientData(): void {
-    // Pour la démonstration, nous utilisons le premier client
-    // Dans une application réelle, vous récupéreriez l'ID client à partir
-    // du service d'authentification ou du stockage local
     const clientId = 'fe6f2c00-b906-454a-b57d-f79c8e4f9da4';
     
     this.isLoading = true;
@@ -151,38 +123,47 @@ export class ClientLayoutComponent implements OnInit {
           this.userInfo = {
             name: `${client.firstName} ${client.lastName}`,
             email: client.email || 'client@example.com',
-            role: 'Client'
+            accountNumber: client.clientId || 'N/A',
+            balance: client.balance || 0
           };
         }
         this.isLoading = false;
       },
       error: (err) => {
         console.error('Erreur lors du chargement des données client', err);
+        this.userInfo = {
+          name: 'Utilisateur',
+          email: 'user@example.com',
+          accountNumber: 'N/A',
+          balance: 0
+        };
         this.isLoading = false;
       }
     });
   }
   
   loadNotifications(): void {
-    // Dans une application réelle, ces notifications seraient chargées depuis une API
     this.notifications = [
       {
         id: '1',
-        message: 'Virement reçu de 1500 MAD',
-        time: 'Il y a 5 minutes',
-        read: false
+        message: 'Virement reçu de 1,500 MAD',
+        time: 'Il y a 5 min',
+        read: false,
+        type: 'success'
       },
       {
         id: '2',
-        message: 'Transfert vers compte épargne effectué',
-        time: 'Il y a 2 heures',
-        read: false
+        message: 'Transfert effectué avec succès',
+        time: 'Il y a 2h',
+        read: false,
+        type: 'info'
       },
       {
         id: '3',
-        message: 'Nouveau relevé bancaire disponible',
+        message: 'Nouveau relevé disponible',
         time: 'Il y a 1 jour',
-        read: true
+        read: true,
+        type: 'info'
       }
     ];
   }
@@ -191,15 +172,19 @@ export class ClientLayoutComponent implements OnInit {
     this.sidebarCollapsed = !this.sidebarCollapsed;
   }
   
-  handleNotificationClick(): void {
-    console.log('Notifications ouvertes');
-    // Implémenter l'affichage des notifications
+  toggleNotifications(): void {
+    this.showNotifications = !this.showNotifications;
+  }
+  
+  markNotificationAsRead(notificationId: string): void {
+    const notification = this.notifications.find(n => n.id === notificationId);
+    if (notification) {
+      notification.read = true;
+    }
   }
   
   logout(): void {
     console.log('Déconnexion');
-    // Implémenter la logique de déconnexion
-    // Puis rediriger vers la page de connexion
     window.location.href = '/auth/login';
   }
   
@@ -207,11 +192,43 @@ export class ClientLayoutComponent implements OnInit {
     return this.notifications.filter(n => !n.read).length;
   }
   
-// Cette méthode sera utilisée pour extraire les initiales du nom d'utilisateur
-// Ajoutez cette propriété calculée
   getUserInitials(): string {
-  return this.userInfo?.name ? 
-    (this.userInfo.name.charAt(0) || 'U').toUpperCase() : 
-    'U';
+    if (!this.userInfo?.name || this.userInfo.name === 'Chargement...') return 'U';
+    
+    const names = this.userInfo.name.split(' ');
+    if (names.length >= 2) {
+      return (names[0].charAt(0) + names[1].charAt(0)).toUpperCase();
+    }
+    return names[0].charAt(0).toUpperCase();
+  }
+  
+  formatBalance(): string {
+    try {
+      return new Intl.NumberFormat('fr-MA', {
+        style: 'currency',
+        currency: 'MAD'
+      }).format(this.userInfo.balance);
+    } catch (e) {
+      return `${this.userInfo.balance} MAD`;
+    }
+  }
+  
+  // Ajoutez cette méthode dans le composant :
+getCurrentDate(): string {
+  return new Intl.DateTimeFormat('fr-FR', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  }).format(new Date());
 }
+
+  getNotificationIcon(type: string): string {
+    switch (type) {
+      case 'success': return 'fa-circle-check text-green-500';
+      case 'warning': return 'fa-triangle-exclamation text-yellow-500';
+      case 'info': 
+      default: return 'fa-circle-info text-blue-500';
+    }
+  }
 }

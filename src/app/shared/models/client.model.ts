@@ -9,6 +9,7 @@ export interface Client {
   firstName: string;
   lastName: string;
   phone: string;
+  phoneNumber?: string;    // Ajouté pour la compatibilité avec l'API
   email?: string;          // Ajouté pour la compatibilité
   clientId: string;
   identityNumber: string;
@@ -26,6 +27,7 @@ export interface Client {
   createdAt: string | Date;
   updatedAt: string | Date;
   language: string;
+  profilePicture?: string;
 
   
   // Propriétés additionnelles pour la compatibilité avec le composant client-page
@@ -37,7 +39,15 @@ export interface Client {
   income?: number;         // Revenu
   contactPreference?: string; // Préférence de contact
   gdprConsent?: boolean;
-
+  gdprConsentDate?: string | Date; // Date du consentement RGPD
+  
+  // Propriétés additionnelles de l'API utilisateur
+  isActive?: boolean;      // État d'activation du compte
+  role?: string;           // Rôle de l'utilisateur (CLIENT, ADMIN, etc.)
+  twoFactorEnabled?: boolean; // Si l'authentification à deux facteurs est activée
+  twoFactorMethod?: string;   // Méthode d'authentification à deux facteurs
+  stripeConnectId?: string;   // ID de connexion Stripe
+  
   // Relations
   accounts?: Account[];
   beneficiaries?: any[];   // Sera remplacé par `Beneficiary` interface si disponible

@@ -1,158 +1,262 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { Observable, of } from 'rxjs';
-import { delay } from 'rxjs/operators';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { Observable, throwError, of } from 'rxjs';
+import { catchError, map } from 'rxjs/operators';
 import { Agent, AgentFormData } from '../../shared/models/agent.model';
 
 @Injectable({
   providedIn: 'root'
 })
 export class AgentService {
-  private mockAgents: Agent[] = [
-    {
-      id: 'ag1',
-      firstName: 'Hassan',
-      lastName: 'Alaoui',
-      email: 'hassan.alaoui@bank.com',
-      phone: '+212 612345678',
-      employeeId: 'EMP001',
-      branch: 'Casablanca - Main Branch',
-      role: 'Senior Agent',
-      status: 'active',
-      imageUrl: 'https://randomuser.me/api/portraits/men/1.jpg',
-      dateJoined: new Date('2021-01-15'),
-      lastLogin: new Date('2023-05-10T09:30:00')
-    },
-    {
-      id: 'ag2',
-      firstName: 'Fatima',
-      lastName: 'Benali',
-      email: 'fatima.benali@bank.com',
-      phone: '+212 623456789',
-      employeeId: 'EMP002',
-      branch: 'Rabat - Central Branch',
-      role: 'Junior Agent',
-      status: 'active',
-      imageUrl: 'https://randomuser.me/api/portraits/women/2.jpg',
-      dateJoined: new Date('2022-03-20'),
-      lastLogin: new Date('2023-05-11T14:45:00')
-    },
-    {
-      id: 'ag3',
-      firstName: 'Karim',
-      lastName: 'El Mansouri',
-      email: 'karim.elmansouri@bank.com',
-      phone: '+212 634567890',
-      employeeId: 'EMP003',
-      branch: 'Tangier - Port Branch',
-      role: 'Senior Agent',
-      status: 'inactive',
-      imageUrl: 'https://randomuser.me/api/portraits/men/3.jpg',
-      dateJoined: new Date('2020-06-10'),
-      lastLogin: new Date('2023-01-22T11:15:00')
-    },
-    {
-      id: 'ag4',
-      firstName: 'Amina',
-      lastName: 'Zidane',
-      email: 'amina.zidane@bank.com',
-      phone: '+212 645678901',
-      employeeId: 'EMP004',
-      branch: 'Marrakech - Medina Branch',
-      role: 'Senior Agent',
-      status: 'active',
-      imageUrl: 'https://randomuser.me/api/portraits/women/4.jpg',
-      dateJoined: new Date('2021-09-05'),
-      lastLogin: new Date('2023-05-09T16:20:00')
-    },
-    {
-      id: 'ag5',
-      firstName: 'Youssef',
-      lastName: 'Belkadi',
-      email: 'youssef.belkadi@bank.com',
-      phone: '+212 656789012',
-      employeeId: 'EMP005',
-      branch: 'Agadir - Beach Branch',
-      role: 'Junior Agent',
-      status: 'pending',
-      imageUrl: 'https://randomuser.me/api/portraits/men/5.jpg',
-      dateJoined: new Date('2023-04-01'),
-      lastLogin: undefined
-    }
-  ];
+  private apiUrl = 'http://localhost:8085/E-BANKING1/api';
 
   constructor(private http: HttpClient) {}
 
+  /**
+   * Récupère tous les agents
+   */
   getAgents(): Observable<Agent[]> {
-    // In a real app, this would call an API
-    return of(this.mockAgents).pipe(delay(500));
+    return this.http.get<any[]>(`${this.apiUrl}/agents`)
+      .pipe(
+        map(agentsDto => this.mapAgentsFromDto(agentsDto)),
+        catchError(this.handleError)
+      );
   }
 
-  getAgentById(id: string): Observable<Agent | undefined> {
-    // In a real app, this would call an API
-    const agent = this.mockAgents.find(a => a.id === id);
-    return of(agent).pipe(delay(300));
+  /**
+   * Récupère un agent par son ID
+   */
+  getAgentById(id: string): Observable<Agent> {
+    return this.http.get<any>(`${this.apiUrl}/agents/${id}`)
+      .pipe(
+        map(agentDto => this.mapAgentFromDto(agentDto)),
+        catchError(this.handleError)
+      );
   }
 
+  /**
+   * Crée un nouvel agent
+   */
   createAgent(agentData: AgentFormData): Observable<Agent> {
-    // In a real app, this would call an API
-    const newAgent: Agent = {
-      id: 'ag' + (this.mockAgents.length + 1),
-      ...agentData,
-      dateJoined: new Date(),
-      lastLogin: undefined
+    // Mapper les données du formulaire vers l'entité Agent attendue par le backend
+    const agentEntity = {
+      employeeId: agentData.employeeId,
+      branch: agentData.branch,
+      role: agentData.role,
+      status: agentData.status,
+      dateJoined: new Date().toISOString(),
+      user: {
+        firstName: agentData.firstName,
+        lastName: agentData.lastName,
+        email: agentData.email,
+        phoneNumber: agentData.phone,
+        passwordHash: agentData.password,
+        role: 'AGENT',
+        isActive: agentData.status === 'active',
+        language: 'fr',
+        gdprConsent: true,
+        twoFactorEnabled: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }
     };
-    
-    this.mockAgents.push(newAgent);
-    return of(newAgent).pipe(delay(500));
+
+    return this.http.post<any>(`${this.apiUrl}/agents`, agentEntity)
+      .pipe(
+        map(agentDto => this.mapAgentFromDto(agentDto)),
+        catchError(this.handleError)
+      );
   }
 
+  /**
+   * Met à jour un agent existant
+   */
   updateAgent(id: string, agentData: AgentFormData): Observable<Agent> {
-    // In a real app, this would call an API
-    const index = this.mockAgents.findIndex(a => a.id === id);
-    if (index !== -1) {
-      const updatedAgent: Agent = {
-        ...this.mockAgents[index],
-        ...agentData
-      };
-      this.mockAgents[index] = updatedAgent;
-      return of(updatedAgent).pipe(delay(500));
+    // Mapper les données du formulaire vers le DTO attendu par le backend
+    const agentDto = {
+      employeeId: agentData.employeeId,
+      branch: agentData.branch,
+      role: agentData.role,
+      status: agentData.status,
+      firstName: agentData.firstName,
+      lastName: agentData.lastName,
+      email: agentData.email,
+      phoneNumber: agentData.phone
+      // Note: Ne pas inclure le mot de passe s'il est vide (pour les mises à jour)
+    };
+
+    // Ajouter le mot de passe seulement s'il est fourni
+    if (agentData.password && agentData.password.trim() !== '') {
+      (agentDto as any).passwordHash = agentData.password;
     }
-    
-    throw new Error('Agent not found');
+
+    return this.http.put<any>(`${this.apiUrl}/agents/${id}`, agentDto)
+      .pipe(
+        map(agentDto => this.mapAgentFromDto(agentDto)),
+        catchError(this.handleError)
+      );
   }
 
+  /**
+   * Supprime un agent
+   */
   deleteAgent(id: string): Observable<boolean> {
-    // In a real app, this would call an API
-    const initialLength = this.mockAgents.length;
-    this.mockAgents = this.mockAgents.filter(a => a.id !== id);
-    return of(this.mockAgents.length < initialLength).pipe(delay(500));
+    return this.http.delete<void>(`${this.apiUrl}/agents/${id}`)
+      .pipe(
+        map(() => true),
+        catchError(error => {
+          console.error('Error deleting agent:', error);
+          return of(false);
+        })
+      );
   }
 
+  /**
+   * Met à jour le statut d'un agent
+   */
+  updateAgentStatus(id: string, status: string): Observable<Agent> {
+    return this.http.put<any>(`${this.apiUrl}/agents/${id}/status/${status}`, {})
+      .pipe(
+        map(agentDto => this.mapAgentFromDto(agentDto)),
+        catchError(this.handleError)
+      );
+  }
+
+  /**
+   * Récupère les agents par statut
+   */
+  getAgentsByStatus(status: string): Observable<Agent[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/agents/status/${status}`)
+      .pipe(
+        map(agentsDto => this.mapAgentsFromDto(agentsDto)),
+        catchError(this.handleError)
+      );
+  }
+
+  /**
+   * Récupère les agents par agence
+   */
+  getAgentsByBranch(branch: string): Observable<Agent[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/agents/branch/${branch}`)
+      .pipe(
+        map(agentsDto => this.mapAgentsFromDto(agentsDto)),
+        catchError(this.handleError)
+      );
+  }
+
+  /**
+   * Récupère un agent par son employeeId
+   */
+  getAgentByEmployeeId(employeeId: string): Observable<Agent> {
+    return this.http.get<any>(`${this.apiUrl}/agents/employee/${employeeId}`)
+      .pipe(
+        map(agentDto => this.mapAgentFromDto(agentDto)),
+        catchError(this.handleError)
+      );
+  }
+
+  /**
+   * Récupère la liste des agences (mock data pour maintenant)
+   */
   getBranches(): Observable<string[]> {
-    // In a real app, this would call an API to get available branches
-    return of([
-      'Casablanca - Main Branch',
-      'Casablanca - Maarif Branch',
-      'Casablanca - Ain Diab Branch',
-      'Rabat - Central Branch',
-      'Rabat - Agdal Branch',
-      'Tangier - Port Branch',
-      'Marrakech - Medina Branch',
-      'Marrakech - Gueliz Branch',
-      'Agadir - Beach Branch',
-      'Fes - Old City Branch',
-      'Meknes - Central Branch'
-    ]).pipe(delay(300));
+    // TODO: Remplacer par un vrai endpoint si disponible
+    const branches = [
+      'Agence Casablanca Centre',
+      'Agence Rabat Agdal',
+      'Agence Marrakech Gueliz',
+      'Agence Fès Saiss',
+      'Agence Tanger Ville',
+      'Agence Agadir Centre',
+      'Agence Meknès',
+      'Agence Oujda',
+      'Agence Kenitra',
+      'Agence Tétouan'
+    ];
+    return of(branches);
   }
 
+  /**
+   * Récupère la liste des rôles (mock data pour maintenant)
+   */
   getRoles(): Observable<string[]> {
-    // In a real app, this would call an API to get available roles
-    return of([
-      'Junior Agent',
-      'Senior Agent',
-      'Lead Agent',
-      'Branch Supervisor'
-    ]).pipe(delay(300));
+    // TODO: Remplacer par un vrai endpoint si disponible
+    const roles = [
+      'Agent Commercial',
+      'Conseiller Clientèle',
+      'Responsable Agence',
+      'Agent de Crédit',
+      'Caissier',
+      'Chargé de Clientèle Entreprise',
+      'Agent Back Office',
+      'Superviseur'
+    ];
+    return of(roles);
+  }
+
+  /**
+   * Mappe un DTO agent vers le modèle Agent
+   */
+  private mapAgentFromDto(agentDto: any): Agent {
+    return {
+      id: agentDto.id,
+      employeeId: agentDto.employeeId,
+      firstName: agentDto.firstName || agentDto.user?.firstName || '',
+      lastName: agentDto.lastName || agentDto.user?.lastName || '',
+      email: agentDto.email || agentDto.user?.email || '',
+      phone: agentDto.phoneNumber || agentDto.user?.phoneNumber || '',
+      branch: agentDto.branch || '',
+      role: agentDto.role || '',
+      status: agentDto.status || 'active',
+      dateJoined: agentDto.dateJoined || agentDto.createdAt || new Date().toISOString(),
+      lastLogin: agentDto.lastLogin || agentDto.user?.lastLogin || null,
+      isActive: agentDto.status === 'active',
+      userId: agentDto.userId || agentDto.user?.id || null
+    };
+  }
+
+  /**
+   * Mappe un tableau de DTOs agents vers le modèle Agent
+   */
+  private mapAgentsFromDto(agentsDto: any[]): Agent[] {
+    return agentsDto.map(agentDto => this.mapAgentFromDto(agentDto));
+  }
+
+  /**
+   * Gestion des erreurs HTTP
+   */
+  private handleError(error: HttpErrorResponse): Observable<never> {
+    let errorMessage = 'Une erreur inconnue s\'est produite';
+    
+    if (error.error instanceof ErrorEvent) {
+      // Erreur côté client
+      errorMessage = `Erreur: ${error.error.message}`;
+    } else {
+      // Erreur côté serveur
+      switch (error.status) {
+        case 400:
+          errorMessage = 'Données invalides';
+          break;
+        case 401:
+          errorMessage = 'Non autorisé';
+          break;
+        case 403:
+          errorMessage = 'Accès interdit';
+          break;
+        case 404:
+          errorMessage = 'Ressource non trouvée';
+          break;
+        case 409:
+          errorMessage = 'Conflit - L\'agent existe déjà';
+          break;
+        case 500:
+          errorMessage = 'Erreur interne du serveur';
+          break;
+        default:
+          errorMessage = `Erreur ${error.status}: ${error.message}`;
+      }
+    }
+
+    console.error('AgentService Error:', error);
+    return throwError(() => new Error(errorMessage));
   }
 }

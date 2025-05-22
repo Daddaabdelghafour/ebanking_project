@@ -1,10 +1,10 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { ClientService } from '../../../services/client/client.service';
-import { CardService } from '../../../services/card/card.service';
+import { CardService, Card, CardRequest } from '../../../services/card/card.service';
 import { Client } from '../../../shared/models/client.model';
-import { Card } from '../../../shared/models/card.model';
 import { Transaction } from '../../../shared/models/transaction';
 import { catchError, finalize, tap } from 'rxjs/operators';
 import { of } from 'rxjs';
@@ -44,7 +44,7 @@ interface ClientAccount {
 @Component({
   selector: 'app-client-page',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   templateUrl: './client-page.component.html',
   styleUrls: ['./client-page.component.css']
 })
@@ -69,7 +69,17 @@ export class ClientPageComponent implements OnInit {
   
   showAllTransactions: boolean = false;
   
-  private apiUrl = 'http://localhost:8085/E-BANKING1/api'; // Ajustez selon votre configuration
+  // Propriétés pour les demandes de cartes
+  showCardRequestModal = false;
+  cardRequestLoading = false;
+  cardRequestError: string | null = null;
+  cardRequestSuccess: string | null = null;
+  
+  selectedCardType: 'debit' | 'credit' = 'debit';
+  selectedCardNetwork: 'visa' | 'mastercard' | 'amex' = 'visa';
+  requestReason = '';
+  
+  private apiUrl = 'http://localhost:8085/E-BANKING1/api';
   
   constructor(
     private http: HttpClient,
@@ -86,29 +96,23 @@ export class ClientPageComponent implements OnInit {
     this.loading = true;
     this.error = null;
     
-    // Appel direct à l'API pour obtenir le client
     this.http.get(`${this.apiUrl}/clients/fe6f2c00-b906-454a-b57d-f79c8e4f9da4`)
       .pipe(
         tap((response: any) => {
-          // Si la réponse est un tableau, prendre le premier élément
           if (Array.isArray(response) && response.length > 0) {
             this.client = response[0];
           } else {
             this.client = response;
           }
           
-          // Extraire le nom d'utilisateur puisque firstName et lastName sont null
           this.clientName = this.client.username || 'Client';
           
-          // Extraire le solde total de tous les comptes
           let totalBalance = 0;
           if (this.client.accounts && Array.isArray(this.client.accounts)) {
             totalBalance = this.client.accounts.reduce((sum: number, account: ClientAccount) => 
               sum + (account.balance || 0), 0);
           }
           
-          // Créer un résumé financier estimé
-          // Nous n'avons pas d'income, donc on estime à partir du solde
           const estimatedMonthlyIncome = totalBalance * 0.2 || 5000;
           this.summary = {
             totalBalance: totalBalance,
@@ -116,19 +120,15 @@ export class ClientPageComponent implements OnInit {
             monthlyExpenses: estimatedMonthlyIncome * 0.7
           };
           
-          // Charger les cartes directement
           this.loadCardsByClientId();
         }),
         catchError(err => {
           console.error('Erreur lors du chargement du client:', err);
           this.error = 'Impossible de charger les données client';
-          
-          // Créer des données de démo
           this.createDemoData();
           return of(null);
         }),
         finalize(() => {
-          // Si tout échoue, au moins s'assurer que l'interface n'est plus en chargement
           if (this.loading) {
             this.loading = false;
           }
@@ -144,27 +144,21 @@ export class ClientPageComponent implements OnInit {
       return;
     }
     
-    // Récupérer l'ID du premier compte disponible
     const accountId = this.client.accounts[0].id;
     
-    // Appel direct pour les cartes avec l'ID du compte
-    this.http.get(`${this.apiUrl}/cards/account/${accountId}`)
+    this.cardService.getCardsByAccountId(accountId)
       .pipe(
-        tap((cardsResponse: any) => {
-          // Formater les cartes pour l'affichage
+        tap((cardsResponse: Card[]) => {
           this.formatDisplayCards(cardsResponse || []);
           
-          // Si aucune carte n'est trouvée, en créer une virtuelle
           if (this.cards.length === 0) {
             this.createVirtualCard();
           }
           
-          // Créer des transactions de test
           this.generateDemoTransactions();
         }),
         catchError(err => {
           console.error('Erreur lors du chargement des cartes:', err);
-          // Créer une carte virtuelle en cas d'erreur
           this.createVirtualCard();
           this.generateDemoTransactions();
           return of([]);
@@ -177,9 +171,8 @@ export class ClientPageComponent implements OnInit {
   }
 
   // Formater les cartes pour l'affichage
-  formatDisplayCards(cardsData: any[]): void {
+  formatDisplayCards(cardsData: Card[]): void {
     this.cards = cardsData.map(card => {
-      // Déterminer le style de l'arrière-plan basé sur le réseau
       let background;
       switch(card.network?.toLowerCase()) {
         case 'visa':
@@ -195,12 +188,10 @@ export class ClientPageComponent implements OnInit {
           background = 'bg-gradient-to-r from-gray-700 to-gray-900';
       }
       
-      // Formatage de la date d'expiration
       const expiryDate = card.expiryMonth && card.expiryYear 
         ? `${card.expiryMonth}/${card.expiryYear.substring(2)}` 
         : '00/00';
       
-      // Récupérer la devise et le solde du compte client
       const currency = this.client.accounts && this.client.accounts.length > 0 
         ? this.client.accounts[0].currency 
         : 'EUR';
@@ -218,9 +209,6 @@ export class ClientPageComponent implements OnInit {
         status: card.status,
         isContactless: card.isContactless,
         onlinePaymentEnabled: card.onlinePaymentEnabled,
-        internationalPaymentEnabled: card.internationalPaymentEnabled,
-        dailyLimit: card.dailyLimit,
-        monthlyLimit: card.monthlyLimit,
         balance: balance,
         currency: currency,
         cardBackground: background
@@ -342,11 +330,111 @@ export class ClientPageComponent implements OnInit {
       }
     ];
     
-    // Trier par date (le plus récent d'abord)
     this.transactions.sort((a, b) => b.date.getTime() - a.date.getTime());
   }
+
+  // ===== MÉTHODES POUR LES DEMANDES DE CARTES =====
+
+  /**
+   * Ouvrir le modal de demande de carte
+   */
+  openCardRequestModal(): void {
+    this.showCardRequestModal = true;
+    this.cardRequestError = null;
+    this.cardRequestSuccess = null;
+    this.resetCardRequestForm();
+  }
+
+  /**
+   * Fermer le modal de demande de carte
+   */
+  closeCardRequestModal(): void {
+    this.showCardRequestModal = false;
+    this.resetCardRequestForm();
+  }
+
+  /**
+   * Réinitialiser le formulaire de demande
+   */
+  resetCardRequestForm(): void {
+    this.selectedCardType = 'debit';
+    this.selectedCardNetwork = 'visa';
+    this.requestReason = '';
+    this.cardRequestError = null;
+    this.cardRequestSuccess = null;
+  }
+
+  /**
+   * Soumettre la demande de carte
+   */
+  submitCardRequest(): void {
+    if (!this.requestReason.trim()) {
+      this.cardRequestError = 'Veuillez indiquer la raison de votre demande';
+      return;
+    }
+
+    if (!this.client || !this.client.accounts || this.client.accounts.length === 0) {
+      this.cardRequestError = 'Impossible de traiter la demande - compte non trouvé';
+      return;
+    }
+
+    this.cardRequestLoading = true;
+    this.cardRequestError = null;
+
+    const request: Omit<CardRequest, 'id' | 'status' | 'requestDate'> = {
+      clientId: this.client.id || 'demo-client',
+      accountId: this.client.accounts[0].id,
+      cardType: this.selectedCardType,
+      cardNetwork: this.selectedCardNetwork,
+      requestReason: this.requestReason.trim(),
+      clientName: this.clientName,
+      clientEmail: this.client.email || 'client@example.com'
+    };
+
+    this.cardService.createCardRequest(request).subscribe({
+      next: (response) => {
+        console.log('Card request submitted successfully:', response);
+        this.cardRequestLoading = false;
+        this.cardRequestSuccess = 'Demande de carte envoyée avec succès ! Un agent vous contactera sous 24-48h.';
+        
+        // Fermer le modal après 2 secondes
+        setTimeout(() => {
+          this.closeCardRequestModal();
+        }, 2000);
+      },
+      error: (error) => {
+        console.error('Error submitting card request:', error);
+        this.cardRequestError = 'Erreur lors de l\'envoi de la demande. Veuillez réessayer.';
+        this.cardRequestLoading = false;
+      }
+    });
+  }
+
+  /**
+   * Obtenir l'icône pour le type de carte
+   */
+  getCardTypeIcon(type: string): string {
+    switch (type) {
+      case 'credit': return 'fa-credit-card';
+      case 'debit': 
+      default: return 'fa-money-check-alt';
+    }
+  }
+
+  /**
+   * Obtenir le logo du réseau de carte
+   */
+  getCardNetworkLogo(network: string): string {
+    switch (network) {
+      case 'visa': return 'fa-cc-visa';
+      case 'mastercard': return 'fa-cc-mastercard';
+      case 'amex': return 'fa-cc-amex';
+      default: return 'fa-credit-card';
+    }
+  }
+
+  // ===== UTILITAIRES =====
   
-  // Utilitaires pour le formatage
   formatCurrency(amount: number, currency: string = 'MAD'): string {
     return new Intl.NumberFormat('fr-MA', { 
       style: 'currency', 
@@ -376,12 +464,16 @@ export class ClientPageComponent implements OnInit {
     return classes[status] || 'bg-gray-100 text-gray-800';
   }
 
-  // Fonctions d'interface utilisateur
   toggleAllTransactions(): void {
     this.showAllTransactions = !this.showAllTransactions;
   }
   
   refreshData(): void {
     this.loadClient();
+  }
+
+  clearMessages(): void {
+    this.cardRequestError = null;
+    this.cardRequestSuccess = null;
   }
 }

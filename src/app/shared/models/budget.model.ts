@@ -63,8 +63,9 @@ export interface SavingsGoal {
   currentAmount: number;
   deadline?: Date;
   isCompleted: boolean;
-  color: string;
+  color?: string;
   icon: string;
   createdAt: Date;
   updatedAt?: Date;
+  
 }

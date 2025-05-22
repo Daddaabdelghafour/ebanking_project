@@ -37,14 +37,14 @@ export class AdminLayoutComponent {
       route: '/admin/currencies'
     },
     {
-      id: 'agent management',
-      label: 'agent management',
+      id: 'client management',
+      label: 'client management',
       icon: 'fa-solid fa-gears',
       route: '/admin/client-management'
     },
     {
-      id: 'client management',
-      label: 'Client Management',
+      id: 'agent management',
+      label: 'agent Management',
       icon: 'fa-solid fa-gears',
       route: '/admin/agent-management'},
     {

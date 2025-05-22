@@ -1,9 +1,9 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { RouterModule } from '@angular/router';
-import { FormsModule, ReactiveFormsModule, FormGroup, FormBuilder, Validators } from '@angular/forms';
-import { HttpClient } from '@angular/common/http';
-import { catchError, finalize, tap } from 'rxjs/operators';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { catchError, tap, finalize } from 'rxjs/operators';
 import { of } from 'rxjs';
 
 interface Account {
@@ -11,500 +11,468 @@ interface Account {
   accountNumber: string;
   type: string;
   balance: number;
-  availableBalance: number;
   currency: string;
   status: string;
-  iban?: string;
 }
 
 interface Transfer {
   id: string;
   reference: string;
-  senderAccountId: string;
   senderAccountNumber: string;
-  recipientAccountNumber: string;
   recipientName: string;
+  recipientAccountNumber: string;
   amount: number;
   currency: string;
-  status: string;
-  type: string;
+  type: 'internal' | 'external' | 'international';
+  status: 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled';
   reason?: string;
-  executedDate?: string;
   scheduledDate?: string;
+  executedDate?: string;
   createdAt: string;
-  transactionFees?: number;
   isRecurring?: boolean;
   recurringFrequency?: string;
+  transactionFees?: number;
 }
 
 interface TransferFormData {
-  senderAccountId: string;
+  transferType: string;
   recipientAccountNumber: string;
   recipientName: string;
   amount: number;
   currency: string;
-  reason?: string;
+  reason: string;
+  isScheduled: boolean;
   scheduledDate?: string;
-  isRecurring?: boolean;
+  isRecurring: boolean;
   recurringFrequency?: string;
-  type: string;
 }
 
 @Component({
   selector: 'app-transfers',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, RouterModule],
   templateUrl: './transfers.component.html',
   styleUrls: ['./transfers.component.css']
 })
 export class TransfersComponent implements OnInit {
-  // Client and account data
-  clientId: string = 'fe6f2c00-b906-454a-b57d-f79c8e4f9da4'; // ID de client fixe pour le développement
+  clientId: string = 'fe6f2c00-b906-454a-b57d-f79c8e4f9da4';
+  
+  // UI States
+  currentTab: 'history' | 'new' = 'history';
+  isLoading: boolean = true;
+  isSubmitting: boolean = false;
+  showError: boolean = false;
+  showSuccess: boolean = false;
+  showTransferDetails: boolean = false;
+  errorMessage: string = '';
+  
+  // Data
   clientAccounts: Account[] = [];
   selectedAccount: Account | null = null;
-  availableRecipientAccounts: Account[] = []; // Comptes disponibles dans la base de données
-  
-  // Transfers data
   transfers: Transfer[] = [];
   selectedTransfer: Transfer | null = null;
-  
-  // Form data
   transferForm: FormGroup;
-  currencies: string[] = ['MAD', 'EUR', 'USD'];
-  transferTypes: {id: string, label: string}[] = [
-    { id: 'internal', label: 'Entre mes comptes' },
-    { id: 'domestic', label: 'Virement national' }
+  
+  // Configuration
+  transferTypes = [
+    { id: 'internal', label: 'Virement interne' },
+    { id: 'external', label: 'Virement externe' },
+    { id: 'international', label: 'Virement international' }
   ];
-  recurringFrequencies: {id: string, label: string}[] = [
+  
+  currencies = ['MAD', 'EUR', 'USD', 'GBP'];
+  
+  recurringFrequencies = [
     { id: 'weekly', label: 'Hebdomadaire' },
     { id: 'monthly', label: 'Mensuel' },
     { id: 'quarterly', label: 'Trimestriel' },
-    { id: 'annually', label: 'Annuel' }
+    { id: 'yearly', label: 'Annuel' }
   ];
-  
-  // UI state
-  isLoading = true;
-  isSubmitting = false;
-  showTransferDetails = false;
-  showSuccess = false;
-  showError = false;
-  errorMessage = '';
-  currentTab = 'history'; // 'history' ou 'new'
-  
+
   private apiUrl = 'http://localhost:8085/E-BANKING1/api';
-  
+  private httpOptions = {
+    headers: new HttpHeaders({
+      'Content-Type': 'application/json'
+    })
+  };
+
   constructor(
-    private http: HttpClient,
-    private fb: FormBuilder
+    private fb: FormBuilder,
+    private http: HttpClient
   ) {
     this.transferForm = this.createTransferForm();
   }
-  
+
   ngOnInit(): void {
     this.loadClientAccounts();
-    this.loadAllAvailableAccounts(); // Pour simuler les transferts vers d'autres comptes
   }
-  
+
+  /**
+   * Créer le formulaire de virement
+   */
   createTransferForm(): FormGroup {
     return this.fb.group({
-      senderAccountId: ['', Validators.required],
-      transferType: ['internal', Validators.required],
-      recipientAccountNumber: ['', [Validators.required, Validators.minLength(4)]],
-      recipientName: ['', [Validators.required, Validators.minLength(3)]],
-      amount: ['', [Validators.required, Validators.min(1)]],
+      transferType: ['external', Validators.required],
+      recipientAccountNumber: ['', [Validators.required, Validators.minLength(8)]],
+      recipientName: ['', [Validators.required, Validators.minLength(2)]],
+      amount: [0, [Validators.required, Validators.min(0.01)]],
       currency: ['MAD', Validators.required],
       reason: [''],
       isScheduled: [false],
-      scheduledDate: [null],
+      scheduledDate: [''],
       isRecurring: [false],
       recurringFrequency: ['monthly']
     });
   }
-  
+
+  /**
+   * Charger les comptes du client
+   */
   loadClientAccounts(): void {
     this.isLoading = true;
     
-    this.http.get<any>(`${this.apiUrl}/clients/${this.clientId}`).pipe(
-      tap((response: any) => {
-        // Si la réponse est un tableau, prendre le premier élément
-        const client = Array.isArray(response) ? response[0] : response;
-        
-        if (client && client.accounts && Array.isArray(client.accounts)) {
-          this.clientAccounts = client.accounts;
-          
-          // Sélectionner le premier compte par défaut
+    this.http.get<Account[]>(`${this.apiUrl}/accounts/client/${this.clientId}/active`)
+      .pipe(
+        tap((accounts: Account[]) => {
+          this.clientAccounts = accounts || [];
           if (this.clientAccounts.length > 0) {
             this.selectedAccount = this.clientAccounts[0];
-            
-            // Initialiser le formulaire avec le compte source
-            this.transferForm.patchValue({
-              senderAccountId: this.selectedAccount.id,
-              currency: this.selectedAccount.currency
-            });
-            
-            // Charger les transferts pour ce compte
-            this.loadTransfers(this.selectedAccount.id);
-          } else {
-            this.isLoading = false;
+            this.loadTransfers();
           }
-        } else {
+        }),
+        catchError(error => {
+          console.error('Erreur lors du chargement des comptes:', error);
+          this.showErrorMessage('Impossible de charger vos comptes.');
+          return of([]);
+        }),
+        finalize(() => {
           this.isLoading = false;
-          this.showError = true;
-          this.errorMessage = "Aucun compte client trouvé.";
-        }
-      }),
-      catchError(err => {
-        console.error('Erreur lors du chargement des comptes client:', err);
-        this.isLoading = false;
-        this.showError = true;
-        this.errorMessage = "Impossible de charger vos comptes. Veuillez réessayer.";
-        return of(null);
-      })
-    ).subscribe();
+        })
+      )
+      .subscribe();
   }
-  
-  // Charger d'autres comptes disponibles pour simuler les transferts
-  loadAllAvailableAccounts(): void {
-    // Simulation - en production, ce serait un appel API pour récupérer des comptes valides
-    this.http.get<any>(`${this.apiUrl}/accounts`).pipe(
-      tap((accounts: any[]) => {
-        // Filtrer pour exclure les comptes du client actuel
-        this.availableRecipientAccounts = accounts.filter(account => 
-          !this.clientAccounts.some(clientAccount => clientAccount.id === account.id)
-        );
-      }),
-      catchError(err => {
-        console.error('Erreur lors du chargement des comptes disponibles:', err);
-        // Créer quelques comptes fictifs pour la simulation
-        this.availableRecipientAccounts = [
-          {
-            id: 'other-account-1',
-            accountNumber: '9876543210',
-            type: 'current',
-            balance: 15000,
-            availableBalance: 15000,
-            currency: 'MAD',
-            status: 'active',
-            iban: 'MA9876543210'
-          },
-          {
-            id: 'other-account-2',
-            accountNumber: '5432167890',
-            type: 'savings',
-            balance: 25000,
-            availableBalance: 25000,
-            currency: 'EUR',
-            status: 'active',
-            iban: 'FR5432167890'
-          }
-        ];
-        return of(null);
-      })
-    ).subscribe();
-  }
-  
-  loadTransfers(accountId: string): void {
-    this.http.get<Transfer[]>(`${this.apiUrl}/transfers/account/${accountId}`).pipe(
-      tap((transfers: Transfer[]) => {
-        this.transfers = transfers;
-      }),
-      catchError(err => {
-        console.error('Erreur lors du chargement des transferts:', err);
-        // Créer des transferts de démonstration
-        this.transfers = this.generateDemoTransfers(accountId);
-        return of([]);
-      }),
-      finalize(() => {
-        this.isLoading = false;
-      })
-    ).subscribe();
-  }
-  
-  generateDemoTransfers(accountId: string): Transfer[] {
-    // Créer quelques transferts de démonstration
-    const account = this.clientAccounts.find(acc => acc.id === accountId);
-    if (!account) return [];
+
+  /**
+   * Charger l'historique des virements
+   */
+  loadTransfers(): void {
+    if (!this.selectedAccount) return;
     
-    return [
+    // Simuler des données pour l'instant (remplacer par votre endpoint réel)
+    this.transfers = [
       {
-        id: 'transfer-1',
-        reference: 'TRF-' + Math.floor(Math.random() * 1000000),
-        senderAccountId: accountId,
-        senderAccountNumber: account.accountNumber,
-        recipientAccountNumber: '9876543210',
-        recipientName: 'Mohamed Amine',
+        id: '1',
+        reference: 'TRF-001-2024',
+        senderAccountNumber: this.selectedAccount.accountNumber,
+        recipientName: 'Mohammed Alami',
+        recipientAccountNumber: '1234567890123',
         amount: 1500,
-        currency: account.currency,
+        currency: 'MAD',
+        type: 'external',
         status: 'completed',
-        type: 'domestic',
         reason: 'Paiement facture',
-        executedDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-        createdAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString()
+        createdAt: '2024-01-15T10:30:00Z',
+        executedDate: '2024-01-15T10:32:00Z'
       },
       {
-        id: 'transfer-2',
-        reference: 'TRF-' + Math.floor(Math.random() * 1000000),
-        senderAccountId: accountId,
-        senderAccountNumber: account.accountNumber,
-        recipientAccountNumber: '5432167890',
-        recipientName: 'Fatima Zahra',
-        amount: 2500,
-        currency: account.currency,
+        id: '2',
+        reference: 'TRF-002-2024',
+        senderAccountNumber: this.selectedAccount.accountNumber,
+        recipientName: 'Fatima Benali',
+        recipientAccountNumber: '9876543210987',
+        amount: 850,
+        currency: 'MAD',
+        type: 'external',
         status: 'pending',
-        type: 'domestic',
-        reason: 'Loyer',
-        scheduledDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
-        createdAt: new Date().toISOString()
+        reason: 'Remboursement',
+        createdAt: '2024-01-16T14:20:00Z',
+        scheduledDate: '2024-01-17T09:00:00Z'
       }
     ];
   }
-  
+
+  /**
+   * Sélectionner un compte
+   */
+  selectAccount(account: Account): void {
+    this.selectedAccount = account;
+    this.loadTransfers();
+  }
+
+  /**
+   * Changer d'onglet
+   */
+  switchTab(tab: 'history' | 'new'): void {
+    this.currentTab = tab;
+    this.clearMessages();
+  }
+
+  /**
+   * Gérer le changement de type de virement
+   */
+  onTransferTypeChange(): void {
+    const transferType = this.transferForm.get('transferType')?.value;
+    
+    // Ajuster les validations selon le type
+    if (transferType === 'international') {
+      this.transferForm.get('recipientAccountNumber')?.setValidators([
+        Validators.required, 
+        Validators.minLength(15)
+      ]);
+    } else {
+      this.transferForm.get('recipientAccountNumber')?.setValidators([
+        Validators.required, 
+        Validators.minLength(8)
+      ]);
+    }
+    
+    this.transferForm.get('recipientAccountNumber')?.updateValueAndValidity();
+  }
+
+  /**
+   * Soumettre le virement
+   */
   onSubmitTransfer(): void {
-    if (this.transferForm.invalid) {
-      this.transferForm.markAllAsTouched();
+    if (this.transferForm.invalid || this.isSubmitting) return;
+    
+    this.isSubmitting = true;
+    this.clearMessages();
+    
+    const formData: TransferFormData = this.transferForm.value;
+    
+    // Vérifier le solde
+    if (this.selectedAccount && formData.amount > this.selectedAccount.balance) {
+      this.showErrorMessage('Solde insuffisant pour effectuer ce virement.');
+      this.isSubmitting = false;
       return;
     }
     
-    this.isSubmitting = true;
-    const formData = this.transferForm.value;
-    
-    // Préparer les données du transfert
-    const transferData: TransferFormData = {
-      senderAccountId: formData.senderAccountId,
+    // Préparer les données pour l'API
+    const transferData = {
+      senderAccountId: this.selectedAccount?.id,
       recipientAccountNumber: formData.recipientAccountNumber,
       recipientName: formData.recipientName,
-      amount: Number(formData.amount),
+      amount: formData.amount,
       currency: formData.currency,
-      reason: formData.reason || '',
-      scheduledDate: formData.isScheduled ? formData.scheduledDate : undefined,
+      type: formData.transferType,
+      reason: formData.reason,
+      isScheduled: formData.isScheduled,
+      scheduledDate: formData.isScheduled ? formData.scheduledDate : null,
       isRecurring: formData.isRecurring,
-      recurringFrequency: formData.isRecurring ? formData.recurringFrequency : undefined,
-      type: formData.transferType
+      recurringFrequency: formData.isRecurring ? formData.recurringFrequency : null
     };
     
-    // Simuler un appel API pour créer le transfert
+    // Simuler l'appel API et redirection vers Stripe
+    this.processTransferWithStripe(transferData);
+  }
+
+  /**
+   * Traiter le virement avec Stripe
+   */
+  processTransferWithStripe(transferData: any): void {
+    console.log('Processing transfer with Stripe:', transferData);
+    
+    // Simuler la création d'une session Stripe
     setTimeout(() => {
-      // Vérifier le solde disponible
-      const senderAccount = this.clientAccounts.find(acc => acc.id === transferData.senderAccountId);
-      if (senderAccount && senderAccount.balance < transferData.amount) {
-        this.isSubmitting = false;
-        this.showError = true;
-        this.errorMessage = "Solde insuffisant pour effectuer ce transfert.";
-        return;
-      }
+      // Générer une URL Stripe simulée
+      const stripeSessionId = 'cs_test_' + Math.random().toString(36).substr(2, 9);
+      const stripeUrl = `https://checkout.stripe.com/pay/${stripeSessionId}#fidkdWxOYHwnPyd1blpxYHZxWjA0S05MZ1FJQGNkYUEyVElCYlBTTDJBUTRJT2dVd2xVcT1gJE1qNkNAaU9kYUZSfV1VPGRJcmtKNUt8MTRtaVJFZ29UaHYwc3JQaVV0YHR8MEh%2FQ0FCYjU8ZGtoNicpJ2N3amhWYHdzYHcnP3F3cGApJ2lkfGpwcVF8dWAnPyd2bGtiaWBabHFgaCcpJ2BrZGdpYFVpZGZgbWppYWB3dic%2FcXdwYHgl`;
       
-      // Simulation d'un transfert réussi
+      // Rediriger vers Stripe
+      this.redirectToStripe(stripeUrl, transferData);
+    }, 1000);
+  }
+
+  /**
+   * Rediriger vers Stripe
+   */
+  redirectToStripe(stripeUrl: string, transferData: any): void {
+    // Sauvegarder les données du transfert localement pour le retour
+    localStorage.setItem('pendingTransfer', JSON.stringify(transferData));
+    
+    // Message d'information
+    if (confirm('Vous allez être redirigé vers Stripe pour finaliser le paiement. Continuer ?')) {
+      // En production, vous ouvrirez la vraie URL Stripe
+      // window.location.href = stripeUrl;
+      
+      // Pour la démo, on simule le succès
+      this.simulateStripeSuccess();
+    } else {
       this.isSubmitting = false;
-      this.showSuccess = true;
-      
-      // Réinitialiser le formulaire
-      this.transferForm.reset({
-        senderAccountId: this.selectedAccount?.id,
-        transferType: 'internal',
-        currency: this.selectedAccount?.currency || 'MAD',
+    }
+  }
+
+  /**
+   * Simuler le succès Stripe (pour la démo)
+   */
+  simulateStripeSuccess(): void {
+    setTimeout(() => {
+      this.isSubmitting = false;
+      this.showSuccessMessage('Virement créé avec succès !');
+      this.transferForm.reset();
+      this.transferForm.patchValue({
+        transferType: 'external',
+        currency: 'MAD',
         isScheduled: false,
         isRecurring: false,
         recurringFrequency: 'monthly'
       });
       
-      // Passer à l'onglet historique après 3 secondes
-      setTimeout(() => {
-        this.currentTab = 'history';
-        this.showSuccess = false;
-        
-        // Ajouter le nouveau transfert à la liste et simuler la mise à jour du solde
-        const newTransfer: Transfer = {
-          id: 'new-transfer-' + Date.now(),
-          reference: 'TRF-' + Math.floor(Math.random() * 1000000),
-          senderAccountId: transferData.senderAccountId,
-          senderAccountNumber: senderAccount?.accountNumber || '',
-          recipientAccountNumber: transferData.recipientAccountNumber,
-          recipientName: transferData.recipientName,
-          amount: transferData.amount,
-          currency: transferData.currency,
-          status: formData.isScheduled ? 'pending' : 'completed',
-          type: transferData.type,
-          reason: transferData.reason,
-          executedDate: formData.isScheduled ? undefined : new Date().toISOString(),
-          scheduledDate: formData.isScheduled ? formData.scheduledDate : undefined,
-          createdAt: new Date().toISOString(),
-          isRecurring: transferData.isRecurring,
-          recurringFrequency: transferData.recurringFrequency
-        };
-        
-        this.transfers.unshift(newTransfer);
-        
-        // Simuler la mise à jour du solde si le transfert est immédiat
-        if (!formData.isScheduled && senderAccount) {
-          senderAccount.balance -= transferData.amount;
-          senderAccount.availableBalance -= transferData.amount;
-        }
-      }, 3000);
-    }, 1500);
+      // Recharger les virements
+      this.loadTransfers();
+      
+      // Retourner à l'historique
+      this.currentTab = 'history';
+    }, 2000);
   }
-  
+
+  /**
+   * Afficher les détails d'un virement
+   */
   viewTransferDetails(transfer: Transfer): void {
     this.selectedTransfer = transfer;
     this.showTransferDetails = true;
   }
-  
+
+  /**
+   * Fermer les détails du virement
+   */
   closeTransferDetails(): void {
-    this.selectedTransfer = null;
     this.showTransferDetails = false;
+    this.selectedTransfer = null;
   }
-  
+
+  /**
+   * Annuler un virement
+   */
   cancelTransfer(transferId: string): void {
-    if (!transferId) return;
-    
     if (confirm('Êtes-vous sûr de vouloir annuler ce virement ?')) {
       // Simuler l'annulation
-      const index = this.transfers.findIndex(t => t.id === transferId);
-      if (index !== -1) {
-        this.transfers[index].status = 'cancelled';
-        
-        // Si le transfert était en attente, restaurer le solde
-        if (this.transfers[index].status === 'pending') {
-          const senderAccount = this.clientAccounts.find(
-            acc => acc.id === this.transfers[index].senderAccountId
-          );
-          if (senderAccount) {
-            senderAccount.balance += this.transfers[index].amount;
-            senderAccount.availableBalance += this.transfers[index].amount;
-          }
-        }
+      const transfer = this.transfers.find(t => t.id === transferId);
+      if (transfer) {
+        transfer.status = 'cancelled';
       }
-    }
-  }
-  
-  selectAccount(account: Account): void {
-    this.selectedAccount = account;
-    // Mettre à jour le compte source dans le formulaire et charger les transferts
-    this.transferForm.patchValue({
-      senderAccountId: account.id,
-      currency: account.currency
-    });
-    this.loadTransfers(account.id);
-  }
-  
-  switchTab(tab: string): void {
-    this.currentTab = tab;
-    if (tab === 'new') {
-      // Réinitialiser les messages d'erreur/succès
-      this.showSuccess = false;
-      this.showError = false;
-    }
-  }
-  
-  onTransferTypeChange(): void {
-    const transferType = this.transferForm.get('transferType')?.value;
-    
-    // Si c'est un transfert interne, précharger les informations d'un autre compte du client
-    if (transferType === 'internal' && this.clientAccounts.length > 1) {
-      // Trouver un compte différent du compte source
-      const sourceAccountId = this.transferForm.get('senderAccountId')?.value;
-      const otherAccounts = this.clientAccounts.filter(acc => acc.id !== sourceAccountId);
       
-      if (otherAccounts.length > 0) {
-        const destinationAccount = otherAccounts[0];
-        this.transferForm.patchValue({
-          recipientAccountNumber: destinationAccount.accountNumber,
-          recipientName: 'Moi-même', // Le transfert est vers un autre compte du même client
-          currency: destinationAccount.currency
-        });
-      }
-    } else if (transferType === 'domestic') {
-      // Simuler un bénéficiaire externe
-      if (this.availableRecipientAccounts.length > 0) {
-        const randomIndex = Math.floor(Math.random() * this.availableRecipientAccounts.length);
-        const externalAccount = this.availableRecipientAccounts[randomIndex];
-        
-        this.transferForm.patchValue({
-          recipientAccountNumber: externalAccount.accountNumber,
-          recipientName: '', // Le client doit entrer le nom du bénéficiaire
-          currency: this.transferForm.get('currency')?.value // Conserver la devise actuelle
-        });
-      } else {
-        // Réinitialiser les champs
-        this.transferForm.patchValue({
-          recipientAccountNumber: '',
-          recipientName: '',
-        });
-      }
+      this.showSuccessMessage('Virement annulé avec succès.');
     }
   }
-  
-  // Utilitaires pour la validation du formulaire
-  hasError(controlName: string, errorName: string): boolean {
+
+  /**
+   * Gérer l'annulation depuis le modal
+   */
+  handleCancelTransfer(): void {
+    if (this.selectedTransfer) {
+      this.cancelTransfer(this.selectedTransfer.id);
+      this.closeTransferDetails();
+    }
+  }
+
+  // ===== UTILITAIRES =====
+
+  /**
+   * Vérifier les erreurs de formulaire
+   */
+  hasError(controlName: string, errorType: string): boolean {
     const control = this.transferForm.get(controlName);
-    return !!control && control.touched && control.hasError(errorName);
+    return !!(control?.hasError(errorType) && (control?.dirty || control?.touched));
   }
-  
-  closeError(): void {
-    this.showError = false;
+
+  /**
+   * Obtenir le texte du type de virement
+   */
+  getTransferTypeText(type: string): string {
+    const typeObj = this.transferTypes.find(t => t.id === type);
+    return typeObj?.label || type;
   }
-  
-  // Méthodes pour le formatage
-  formatCurrency(amount: number, currency: string): string {
-    return new Intl.NumberFormat('fr-MA', { 
-      style: 'currency', 
-      currency: currency 
-    }).format(amount);
+
+  /**
+   * Obtenir le texte du statut
+   */
+  getStatusText(status: string): string {
+    const statusMap: Record<string, string> = {
+      'pending': 'En attente',
+      'processing': 'En cours',
+      'completed': 'Complété',
+      'failed': 'Échec',
+      'cancelled': 'Annulé'
+    };
+    return statusMap[status] || status;
   }
-  
-  formatDate(date: string | Date | undefined): string {
-    if (!date) return 'N/A';
-    return new Intl.DateTimeFormat('fr-FR', {
+
+  /**
+   * Obtenir la classe CSS du statut
+   */
+  getStatusClass(status: string): string {
+    const classMap: Record<string, string> = {
+      'pending': 'bg-yellow-100 text-yellow-800',
+      'processing': 'bg-blue-100 text-blue-800',
+      'completed': 'bg-green-100 text-green-800',
+      'failed': 'bg-red-100 text-red-800',
+      'cancelled': 'bg-gray-100 text-gray-800'
+    };
+    return classMap[status] || 'bg-gray-100 text-gray-800';
+  }
+
+  /**
+   * Formater la date
+   */
+  formatDate(date: string | Date): string {
+    return new Date(date).toLocaleDateString('fr-FR', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
-    }).format(new Date(date));
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   }
-  
-  getStatusClass(status: string): string {
-    switch(status) {
-      case 'completed':
-        return 'bg-green-100 text-green-800';
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'failed':
-        return 'bg-red-100 text-red-800';
-      case 'cancelled':
-        return 'bg-gray-100 text-gray-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
+
+  /**
+   * Formater la devise
+   */
+  formatCurrency(amount: number, currency: string = 'MAD'): string {
+    return new Intl.NumberFormat('fr-MA', {
+      style: 'currency',
+      currency: currency,
+      minimumFractionDigits: 2
+    }).format(amount);
   }
-  
-  getStatusText(status: string): string {
-    switch(status) {
-      case 'completed':
-        return 'Exécuté';
-      case 'pending':
-        return 'En attente';
-      case 'failed':
-        return 'Échoué';
-      case 'cancelled':
-        return 'Annulé';
-      default:
-        return status;
-    }
+
+  /**
+   * Afficher un message d'erreur
+   */
+  showErrorMessage(message: string): void {
+    this.errorMessage = message;
+    this.showError = true;
+    this.showSuccess = false;
   }
-  
-  handleCancelTransfer(): void {
-    if (this.selectedTransfer && this.selectedTransfer.id) {
-      this.cancelTransfer(this.selectedTransfer.id);
-    }
-    this.closeTransferDetails();
+
+  /**
+   * Afficher un message de succès
+   */
+  showSuccessMessage(message: string): void {
+    this.showSuccess = true;
+    this.showError = false;
+    
+    // Auto-masquer après 5 secondes
+    setTimeout(() => {
+      this.showSuccess = false;
+    }, 5000);
   }
-  
-  getTransferTypeText(type: string): string {
-    switch(type) {
-      case 'domestic':
-        return 'National';
-      case 'internal':
-        return 'Entre mes comptes';
-      default:
-        return type;
-    }
+
+  /**
+   * Fermer les messages
+   */
+  clearMessages(): void {
+    this.showError = false;
+    this.showSuccess = false;
+    this.errorMessage = '';
+  }
+
+  /**
+   * Fermer le message d'erreur
+   */
+  closeError(): void {
+    this.showError = false;
+    this.errorMessage = '';
   }
 }
