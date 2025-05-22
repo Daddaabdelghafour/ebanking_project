@@ -58,7 +58,7 @@ export class RechargesComponent implements OnInit {
     
     // Utiliser forkJoin pour charger les données en parallèle
     forkJoin({
-      accounts: this.accountService.getClientAccounts(this.clientId),
+      //accounts: this.accountService.getClientAccounts(this.clientId),
       mobileProviders: this.billService.getRechargeProviders('mobile'),
       streamingProviders: this.billService.getRechargeProviders('streaming'),
       recharges: this.billService.getClientRecharges(this.accountId)
@@ -69,7 +69,7 @@ export class RechargesComponent implements OnInit {
     .subscribe({
       next: (results) => {
         // Traiter les comptes
-        this.accounts = results.accounts;
+        //this.accounts = results.accounts;
         if (this.accounts.length > 0) {
           this.selectedAccountId = this.accounts[0].id;
         }

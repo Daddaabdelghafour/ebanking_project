@@ -54,6 +54,8 @@ export class ClientManagementComponent implements OnInit {
       phone: ['', [Validators.required]],
       address: ['', [Validators.required]],
       city: ['', [Validators.required]],
+      postalCode: ['', [Validators.required]],
+      country: ['Maroc', [Validators.required]],
       accountType: ['Standard', [Validators.required]],
       status: ['active', [Validators.required]],
       currency: ['MAD', [Validators.required]],
@@ -62,6 +64,8 @@ export class ClientManagementComponent implements OnInit {
       birthDate: ['', [Validators.required]],
       occupation: [''],
       income: [null],
+      language: ['fr', [Validators.required]],
+      gdprConsent: [false],
       password: ['', [
         Validators.minLength(8),
         // Only required when creating a new client
@@ -137,7 +141,10 @@ export class ClientManagementComponent implements OnInit {
       status: 'active',
       accountType: 'Standard',
       currency: 'MAD',
-      identityType: 'CIN'
+      identityType: 'CIN',
+      country: 'Maroc',
+      language: 'fr',
+      gdprConsent: false
     });
     this.showModal = true;
   }
@@ -153,6 +160,8 @@ export class ClientManagementComponent implements OnInit {
       phone: client.phone,
       address: client.address,
       city: client.city,
+      postalCode: client.postalCode || '',
+      country: client.country || 'Maroc',
       accountType: client.accountType,
       status: client.status,
       currency: client.currency,
@@ -160,7 +169,9 @@ export class ClientManagementComponent implements OnInit {
       identityType: client.identityType,
       birthDate: client.birthDate ? new Date(client.birthDate) : null,
       occupation: client.occupation || '',
-      income: client.income || null
+      income: client.income || null,
+      language: client.language || 'fr',
+      gdprConsent: !!client.gdprConsent
     });
     
     // Remove validators for password fields when editing
@@ -226,9 +237,41 @@ export class ClientManagementComponent implements OnInit {
   }
 
   saveClient(): void {
-    if (this.clientForm.invalid) return;
+    if (this.clientForm.invalid) {
+      // Marquer tous les champs comme touchés pour afficher les erreurs
+      Object.keys(this.clientForm.controls).forEach(key => {
+        this.clientForm.get(key)?.markAsTouched();
+      });
+      return;
+    }
     
-    const clientData: ClientFormData = this.clientForm.value;
+    const formValues = this.clientForm.value;
+    
+    // Créer un objet ClientFormData correctement formaté pour l'API utilisateur
+    const clientData: ClientFormData = {
+      firstName: formValues.firstName,
+      lastName: formValues.lastName,
+      email: formValues.email,
+      phone: formValues.phone,
+      address: formValues.address,
+      city: formValues.city,
+      postalCode: formValues.postalCode,
+      country: formValues.country,
+      identityNumber: formValues.identityNumber,
+      identityType: formValues.identityType,
+      accountType: formValues.accountType,
+      birthDate: formValues.birthDate,
+      occupation: formValues.occupation,
+      income: formValues.income,
+      currency: formValues.currency,
+      status: formValues.status,
+      
+      // Champs nécessaires pour l'API utilisateur
+      password: formValues.password,
+      language: formValues.language || 'fr',
+      gdprConsent: formValues.gdprConsent || false
+    };
+    
     this.isLoading = true;
     
     if (this.isEditing && this.selectedClient) {
@@ -236,6 +279,7 @@ export class ClientManagementComponent implements OnInit {
         next: () => {
           this.loadClients();
           this.closeModal();
+          this.isLoading = false;
         },
         error: (err) => {
           this.error = "Impossible de mettre à jour le client. Veuillez réessayer.";
@@ -248,6 +292,7 @@ export class ClientManagementComponent implements OnInit {
         next: () => {
           this.loadClients();
           this.closeModal();
+          this.isLoading = false;
         },
         error: (err) => {
           this.error = "Impossible de créer le client. Veuillez réessayer.";
@@ -296,11 +341,23 @@ export class ClientManagementComponent implements OnInit {
   }
 
   getFullName(client: Client): string {
-    return `${client.firstName} ${client.lastName}`;
+    return `${client.firstName || ''} ${client.lastName || ''}`.trim() || 'N/A';
   }
 
-  formatCurrency(amount: number, currency: string): string {
-    return new Intl.NumberFormat('fr-MA', { style: 'currency', currency: currency }).format(amount);
+  /**
+   * Formate un montant en devise
+   */
+  formatCurrency(amount: number | undefined, currency: string = 'MAD'): string {
+    if (amount === undefined || amount === null) return '-';
+    try {
+      return new Intl.NumberFormat('fr-MA', {
+        style: 'currency',
+        currency: currency || 'MAD' // Ajouter une valeur par défaut si currency est undefined
+      }).format(amount);
+    } catch (e) {
+      console.error('Error formatting currency', e);
+      return amount.toString();
+    }
   }
 
   showValidationError(controlName: string): boolean {
@@ -340,12 +397,12 @@ export class ClientManagementComponent implements OnInit {
     if (this.filterText) {
       const searchTerm = this.filterText.toLowerCase();
       filtered = filtered.filter(client => 
-        client.firstName.toLowerCase().includes(searchTerm) ||
-        client.lastName.toLowerCase().includes(searchTerm) ||
-        client.email.toLowerCase().includes(searchTerm) ||
-        client.clientId.toLowerCase().includes(searchTerm) ||
-        client.phone.toLowerCase().includes(searchTerm) ||
-        client.city.toLowerCase().includes(searchTerm)
+        (client.firstName?.toLowerCase() || '').includes(searchTerm) ||
+        (client.lastName?.toLowerCase() || '').includes(searchTerm) ||
+        (client.email?.toLowerCase() || '').includes(searchTerm) ||
+        (client.clientId?.toLowerCase() || '').includes(searchTerm) ||
+        (client.phone?.toLowerCase() || '').includes(searchTerm) ||
+        (client.city?.toLowerCase() || '').includes(searchTerm)
       );
     }
     
@@ -360,22 +417,26 @@ export class ClientManagementComponent implements OnInit {
       
       switch (this.sortBy) {
         case 'name':
-          comparison = `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`);
+          comparison = `${a.lastName || ''} ${a.firstName || ''}`.localeCompare(`${b.lastName || ''} ${b.firstName || ''}`);
           break;
         case 'city':
-          comparison = a.city.localeCompare(b.city);
+          comparison = (a.city || '').localeCompare(b.city || '');
           break;
         case 'accountType':
-          comparison = a.accountType.localeCompare(b.accountType);
+          comparison = (a.accountType || '').localeCompare(b.accountType || '');
           break;
         case 'balance':
-          comparison = a.balance - b.balance;
+          const aBalance = a.balance ?? 0;
+          const bBalance = b.balance ?? 0;
+          comparison = aBalance - bBalance;
           break;
         case 'status':
-          comparison = a.status.localeCompare(b.status);
+          comparison = (a.status || '').localeCompare(b.status || '');
           break;
         case 'dateJoined':
-          comparison = new Date(a.dateJoined).getTime() - new Date(b.dateJoined).getTime();
+          const dateA = a.dateJoined ? new Date(a.dateJoined).getTime() : 0;
+          const dateB = b.dateJoined ? new Date(b.dateJoined).getTime() : 0;
+          comparison = dateA - dateB;
           break;
         default:
           comparison = 0;

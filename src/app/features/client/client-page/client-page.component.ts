@@ -6,8 +6,8 @@ import { Client } from '../../../shared/models/client.model';
 import { Account } from '../../../shared/models/account.model';
 import { Card } from '../../../shared/models/card.model';
 import { Transaction } from '../../../shared/models/transaction';
-import { catchError, finalize, tap } from 'rxjs/operators';
-import { of } from 'rxjs';
+import { catchError, finalize, tap, switchMap } from 'rxjs/operators';
+import { of, forkJoin } from 'rxjs';
 
 // Define clear types for display data
 interface DisplayCard {
@@ -79,22 +79,25 @@ export class ClientPageComponent implements OnInit {
     this.isLoading = true;
     this.error = null;
     
-    // In a real app, you would get the current client ID from AuthService
-    const clientId = 'cl1';
-    
-    this.clientService.getClientById(clientId).pipe(
-      tap(client => {
-        if (client) {
-          this.currentClient = client;
-          this.currentName = `${client.firstName} ${client.lastName}`;
+    // Utilise directement le client de test défini dans le service
+    this.clientService.getClientDashboard().pipe(
+      tap(dashboard => {
+        if (dashboard && dashboard.client) {
+          this.currentClient = dashboard.client;
+          this.currentName = `${dashboard.client.firstName} ${dashboard.client.lastName}`;
           
-          // Load accounts
-          if (client.accounts && client.accounts.length > 0) {
-            this.accounts = client.accounts;
-          }
+          // Charger les comptes depuis le tableau de bord
+          this.accounts = dashboard.accounts || [];
           
-          // Update financial summary
-          this.updateFinancialData(client);
+          // Mettre à jour les données financières
+          this.financialSummary = dashboard.financialSummary || {
+            totalBalance: dashboard.client.balance || 0,
+            totalBalanceChange: 0,
+            monthlyIncome: dashboard.client.income || 0,
+            monthlyIncomeChange: 0,
+            monthlyExpenses: (dashboard.client.income || 0) * 0.7,
+            monthlyExpensesChange: 0
+          };
         } else {
           this.error = "Client non trouvé";
         }
@@ -105,19 +108,34 @@ export class ClientPageComponent implements OnInit {
         return of(null);
       }),
       finalize(() => {
-        // Continue loading other data regardless of success/failure
-        this.loadClientCards(clientId);
+        // Maintenant, chargeons les cartes
+        if (this.currentClient) {
+          this.loadClientCards();
+        } else {
+          this.isLoading = false;
+        }
       })
     ).subscribe();
   }
 
-  loadClientCards(clientId: string): void {
-    this.cardService.getCardsByClientId(clientId).pipe(
-      tap(cards => {
-        this.clientCards = cards;
+  loadClientCards(): void {
+    // Récupérer les cartes pour chaque compte du client
+    if (!this.accounts || this.accounts.length === 0) {
+      this.isLoading = false;
+      return;
+    }
+
+    const cardRequests = this.accounts.map(account => 
+      this.cardService.getCardsByCardholderName(this.currentName)
+    );
+    
+    forkJoin(cardRequests).pipe(
+      tap(cardArrays => {
+        // Fusionner tous les tableaux de cartes
+        this.clientCards = cardArrays.flat();
         this.prepareDisplayCards();
         
-        // Generate test transactions after cards are loaded
+        // Générer des transactions de test
         this.generateTransactions();
       }),
       catchError(err => {
@@ -139,32 +157,38 @@ export class ClientPageComponent implements OnInit {
       // Find the associated account
       const linkedAccount = this.accounts.find(acc => acc.id === card.accountId);
       
-      this.displayCards.push({
-        id: card.id,
-        network: card.network,
-        maskedNumber: card.maskedNumber,
-        cardholderName: card.cardholderName,
-        expiryDate: this.cardService.getExpiryDate(card.expiryMonth, card.expiryYear),
-        balance: linkedAccount?.balance || 0,
-        currency: linkedAccount?.currency || 'MAD',
-        status: card.status,
-        accountId: card.accountId,
-        cardBackground: this.getCardBackground(index, card.network)
-      });
+      if (card.network) {
+        this.displayCards.push({
+          id: card.id,
+          network: card.network as any,
+          maskedNumber: card.maskedNumber,
+          cardholderName: card.cardholderName,
+          expiryDate: this.cardService.getExpiryDate(card.expiryMonth, card.expiryYear),
+          balance: linkedAccount?.balance || 0,
+          currency: linkedAccount?.currency || 'MAD',
+          status: card.status as any,
+          accountId: card.accountId,
+          cardBackground: this.getCardBackground(index, card.network)
+        });
+      }
     });
     
     // Create a virtual card if none exists
     if (this.displayCards.length === 0 && this.currentClient) {
+      // Si le client a au moins un compte, utiliser les données du premier compte
+      const primaryAccount = this.accounts.length > 0 ? 
+        this.accounts.find(acc => acc.isPrimary) || this.accounts[0] : null;
+      
       this.displayCards.push({
         id: 'virtual',
         network: 'visa',
         maskedNumber: '4539 **** **** 5678',
         cardholderName: `${this.currentClient.firstName} ${this.currentClient.lastName}`,
         expiryDate: '12/25',
-        balance: this.currentClient.balance,
-        currency: this.currentClient.currency,
+        balance: primaryAccount?.balance || this.currentClient.balance || 0,
+        currency: primaryAccount?.currency || this.currentClient.currency || 'MAD',
         status: 'active',
-        accountId: 'main',
+        accountId: primaryAccount?.id || 'main',
         cardBackground: 'bg-gradient-to-r from-blue-500 to-blue-700'
       });
     }
@@ -181,33 +205,15 @@ export class ClientPageComponent implements OnInit {
     }
   }
 
-  updateFinancialData(client: Client): void {
-    if (!client) return;
-    
-    // Calculate total balance across all accounts
-    let totalBalance = client.balance || 0;
-    if (client.accounts && client.accounts.length > 0) {
-      totalBalance = client.accounts.reduce((sum, account) => sum + account.balance, 0);
-    }
-    
-    // Update financial summary
-    this.financialSummary = {
-      totalBalance: totalBalance,
-      totalBalanceChange: 2.5, // Example value, would be calculated from historical data
-      monthlyIncome: client.income || 0,
-      monthlyIncomeChange: 1.2, // Example value
-      monthlyExpenses: (client.income || 0) * 0.7, // Estimated expenses (70% of income)
-      monthlyExpensesChange: 0.5 // Example value
-    };
-  }
-
   generateTransactions(): void {
     // Create sample transactions for demonstration
     this.transactions = [];
     
     // Use the first account or a default
-    const mainAccountId = this.accounts.length > 0 ? this.accounts[0].id : 'acc1';
-    const mainCurrency = this.currentClient?.currency || 'MAD';
+    const mainAccount = this.accounts.find(acc => acc.isPrimary) || 
+                       (this.accounts.length > 0 ? this.accounts[0] : null);
+    const mainAccountId = mainAccount?.id || 'main';
+    const mainCurrency = mainAccount?.currency || this.currentClient?.currency || 'MAD';
     
     // Add deposits
     this.addTransaction('txn1', mainAccountId, 'Virement entrant', 'deposit', 

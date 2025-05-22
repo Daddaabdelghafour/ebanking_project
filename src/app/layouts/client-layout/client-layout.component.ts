@@ -141,7 +141,7 @@ export class ClientLayoutComponent implements OnInit {
     // Pour la démonstration, nous utilisons le premier client
     // Dans une application réelle, vous récupéreriez l'ID client à partir
     // du service d'authentification ou du stockage local
-    const clientId = 'cl1';
+    const clientId = 'fe6f2c00-b906-454a-b57d-f79c8e4f9da4';
     
     this.isLoading = true;
     this.clientService.getClientById(clientId).subscribe({
@@ -150,7 +150,7 @@ export class ClientLayoutComponent implements OnInit {
           this.currentClient = client;
           this.userInfo = {
             name: `${client.firstName} ${client.lastName}`,
-            email: client.email,
+            email: client.email || 'client@example.com',
             role: 'Client'
           };
         }
@@ -207,14 +207,11 @@ export class ClientLayoutComponent implements OnInit {
     return this.notifications.filter(n => !n.read).length;
   }
   
-  // Cette méthode sera utilisée pour extraire les initiales du nom d'utilisateur
+// Cette méthode sera utilisée pour extraire les initiales du nom d'utilisateur
+// Ajoutez cette propriété calculée
   getUserInitials(): string {
-    if (!this.userInfo.name || this.userInfo.name === 'Chargement...') return 'U';
-    
-    const nameParts = this.userInfo.name.split(' ');
-    if (nameParts.length >= 2) {
-      return (nameParts[0][0] + nameParts[1][0]).toUpperCase();
-    }
-    return nameParts[0][0].toUpperCase();
-  }
+  return this.userInfo?.name ? 
+    (this.userInfo.name.charAt(0) || 'U').toUpperCase() : 
+    'U';
+}
 }

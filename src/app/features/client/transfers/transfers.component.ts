@@ -4,8 +4,11 @@ import { RouterModule } from '@angular/router';
 import { FormsModule, ReactiveFormsModule, FormGroup, FormBuilder, Validators } from '@angular/forms';
 import { ClientService } from '../../../services/client/client.service';
 import { TransferService } from '../../../services/transfer/transfer.service';
-import { Client, Account } from '../../../shared/models/client.model';
+import { Client } from '../../../shared/models/client.model';
+import { Account } from '../../../shared/models/account.model';
 import { Transfer, TransferFormData } from '../../../shared/models/transfer.model';
+import { catchError, finalize, tap } from 'rxjs/operators';
+import { of } from 'rxjs';
 
 @Component({
   selector: 'app-transfers',
@@ -72,46 +75,62 @@ export class TransfersComponent implements OnInit {
   }
   
   loadClientData(): void {
-    // Pour la démo, on utilise le premier client
-    const clientId = 'cl1';
-    
     this.isLoading = true;
-    this.clientService.getClientById(clientId).subscribe({
-      next: (client) => {
+    
+    // Utiliser le client de test du service client
+    this.clientService.getCurrentClient().pipe(
+      tap(client => {
         if (client) {
           this.currentClient = client;
           
-          // Extract accounts from client data
-          if (client.accounts && client.accounts.length > 0) {
-            this.clientAccounts = client.accounts;
-            this.selectedAccount = client.accounts[0];
-            
-            // Set default sender account
-            this.transferForm.patchValue({
-              senderAccountId: this.selectedAccount.id,
-              currency: this.selectedAccount.currency
-            });
-            
-            // Load transfers for the selected account
-            this.loadTransfers(this.selectedAccount.id);
-          } else {
-            this.isLoading = false;
-            this.showError = true;
-            this.errorMessage = "Aucun compte trouvé pour effectuer des virements.";
-          }
+          // Charger ensuite les comptes du client
+          this.clientService.getClientAccounts(client.id).subscribe({
+            next: (accounts) => {
+              this.clientAccounts = accounts;
+              
+              if (accounts && accounts.length > 0) {
+                this.selectedAccount = accounts.find(acc => acc.isPrimary) || accounts[0];
+                
+                // Set default sender account
+                this.transferForm.patchValue({
+                  senderAccountId: this.selectedAccount.id,
+                  currency: this.selectedAccount.currency
+                });
+                
+                // Load transfers for the selected account
+                this.loadTransfers(this.selectedAccount.id);
+              } else {
+                this.isLoading = false;
+                this.showError = true;
+                this.errorMessage = "Aucun compte trouvé pour effectuer des virements.";
+              }
+            },
+            error: (err) => {
+              console.error('Erreur lors du chargement des comptes', err);
+              this.isLoading = false;
+              this.showError = true;
+              this.errorMessage = "Erreur lors du chargement des comptes.";
+            }
+          });
         } else {
           this.isLoading = false;
           this.showError = true;
           this.errorMessage = "Client non trouvé.";
         }
-      },
-      error: (err) => {
+      }),
+      catchError(err => {
         console.error('Erreur lors du chargement des données client', err);
         this.isLoading = false;
         this.showError = true;
         this.errorMessage = "Erreur lors du chargement des données client.";
-      }
-    });
+        return of(null);
+      }),
+      finalize(() => {
+        if (!this.currentClient) {
+          this.isLoading = false;
+        }
+      })
+    ).subscribe();
   }
   
   loadTransfers(accountId: string): void {
@@ -136,7 +155,7 @@ export class TransfersComponent implements OnInit {
     });
     
     // Load currencies
-    this.transferService.getCurrencies().subscribe(currencies => {
+    this.clientService.getCurrencies().subscribe(currencies => {
       this.currencies = currencies;
     });
     
@@ -166,7 +185,7 @@ export class TransfersComponent implements OnInit {
       recipientAccountNumber: formData.recipientAccountNumber,
       recipientName: formData.recipientName,
       recipientBankCode: formData.transferType === 'international' ? formData.recipientBankCode : undefined,
-      amount: formData.amount,
+      amount: Number(formData.amount),
       currency: formData.currency,
       reason: formData.reason,
       scheduledDate: formData.isScheduled ? formData.scheduledDate : undefined,
@@ -216,28 +235,28 @@ export class TransfersComponent implements OnInit {
     this.showTransferDetails = false;
   }
   
-  cancelTransfer(transferId?: string): void {
-  if (!transferId) return;
-  
-  if (confirm('Êtes-vous sûr de vouloir annuler ce virement ?')) {
-    this.transferService.cancelTransfer(transferId).subscribe({
-      next: (success) => {
-        if (success) {
-          // Reload transfers
-          this.loadTransfers(this.selectedAccount?.id || '');
-        } else {
+  cancelTransfer(transferId: string): void {
+    if (!transferId) return;
+    
+    if (confirm('Êtes-vous sûr de vouloir annuler ce virement ?')) {
+      this.transferService.cancelTransfer(transferId).subscribe({
+        next: (success) => {
+          if (success) {
+            // Reload transfers
+            this.loadTransfers(this.selectedAccount?.id || '');
+          } else {
+            this.showError = true;
+            this.errorMessage = "Impossible d'annuler ce virement.";
+          }
+        },
+        error: (err) => {
+          console.error('Erreur lors de l\'annulation du virement', err);
           this.showError = true;
-          this.errorMessage = "Impossible d'annuler ce virement.";
+          this.errorMessage = "Erreur lors de l'annulation du virement.";
         }
-      },
-      error: (err) => {
-        console.error('Erreur lors de l\'annulation du virement', err);
-        this.showError = true;
-        this.errorMessage = "Erreur lors de l'annulation du virement.";
-      }
-    });
+      });
+    }
   }
-}
   
   selectAccount(account: Account): void {
     this.selectedAccount = account;
@@ -305,7 +324,7 @@ export class TransfersComponent implements OnInit {
     }).format(amount);
   }
   
-  formatDate(date: Date | undefined): string {
+  formatDate(date: string | Date | undefined): string {
     if (!date) return 'N/A';
     return new Intl.DateTimeFormat('fr-FR', {
       day: '2-digit',
@@ -343,6 +362,13 @@ export class TransfersComponent implements OnInit {
         return status;
     }
   }
+  
+handleCancelTransfer(): void {
+  if (this.selectedTransfer && this.selectedTransfer.id) {
+    this.cancelTransfer(this.selectedTransfer.id);
+  }
+  this.closeTransferDetails();
+}
   
   getTransferTypeText(type: string): string {
     switch(type) {

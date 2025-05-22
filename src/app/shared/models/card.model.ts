@@ -1,31 +1,34 @@
 export interface Card {
   id: string;
   accountId: string;
-  type: 'debit' | 'credit' | 'prepaid' | 'virtual';
-  network: 'visa' | 'mastercard' | 'amex' | 'other';
+  type: string;
+  network: string;
   cardholderName: string;
   maskedNumber: string;
   expiryMonth: string;
   expiryYear: string;
-  status: 'active' | 'inactive' | 'blocked' | 'expired';
+  status: string;
   isContactless: boolean;
-  dailyLimit?: number;
-  monthlyLimit?: number;
+  dailyLimit: number;
+  monthlyLimit: number;
   onlinePaymentEnabled: boolean;
   internationalPaymentEnabled: boolean;
-  pinLocked?: boolean;
-  createdAt: Date;
-  updatedAt?: Date;
+  createdAt: string | Date;
+  updatedAt?: string | Date;
 }
 
 export interface CardRequest {
   id: string;
-  clientId: string;
   accountId: string;
-  type: 'debit' | 'credit' | 'prepaid' | 'virtual';
-  requestDate: Date;
-  status: 'pending' | 'approved' | 'rejected' | 'delivered';
-  deliveryAddress?: string;
-  createdAt: Date;
-  updatedAt?: Date;
+  type: string;
+  cardholderName?: string;
+  requestDate: string | Date;
+  status: string;
+  createdAt: string | Date;
+  updatedAt?: string | Date;
 }
+
+// Types pour validation
+export type CardType = 'debit' | 'credit' | 'prepaid' | 'virtual';
+export type CardNetwork = 'visa' | 'mastercard' | 'amex';
+export type CardStatus = 'active' | 'inactive' | 'blocked' | 'expired';
