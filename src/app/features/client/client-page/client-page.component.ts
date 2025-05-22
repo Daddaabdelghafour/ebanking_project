@@ -1,35 +1,44 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { HttpClient } from '@angular/common/http';
 import { ClientService } from '../../../services/client/client.service';
 import { CardService } from '../../../services/card/card.service';
 import { Client } from '../../../shared/models/client.model';
-import { Account } from '../../../shared/models/account.model';
 import { Card } from '../../../shared/models/card.model';
 import { Transaction } from '../../../shared/models/transaction';
-import { catchError, finalize, tap, switchMap } from 'rxjs/operators';
-import { of, forkJoin } from 'rxjs';
+import { catchError, finalize, tap } from 'rxjs/operators';
+import { of } from 'rxjs';
 
-// Define clear types for display data
+// Interface simplifiée pour l'affichage
 interface DisplayCard {
   id: string;
-  network: 'visa' | 'mastercard' | 'amex' | 'other';
+  network: string;
   maskedNumber: string;
   cardholderName: string;
   expiryDate: string;
   balance: number;
   currency: string;
   cardBackground: string;
-  status: 'active' | 'inactive' | 'blocked' | 'expired';
-  accountId: string;
+  status: string;
+  type?: string;
+  isContactless?: boolean;
+  onlinePaymentEnabled?: boolean;
 }
 
 interface FinancialSummary {
   totalBalance: number;
-  totalBalanceChange: number;
   monthlyIncome: number;
-  monthlyIncomeChange: number;
   monthlyExpenses: number;
-  monthlyExpensesChange: number;
+}
+
+interface ClientAccount {
+  id: string;
+  accountNumber: string;
+  balance: number;
+  availableBalance: number;
+  currency: string;
+  status: string;
+  iban: string;
 }
 
 @Component({
@@ -40,268 +49,304 @@ interface FinancialSummary {
   styleUrls: ['./client-page.component.css']
 })
 export class ClientPageComponent implements OnInit {
-  // Core client data
-  currentClient: Client | null = null;
-  currentName: string = '';
+  // Données de base
+  client: any = null;
+  clientName: string = '';
   currentDate: Date = new Date();
   
-  // Loading and error states
-  isLoading: boolean = true;
+  // États de chargement
+  loading: boolean = false;
   error: string | null = null;
   
-  // Financial data, all properly typed
-  clientCards: Card[] = [];
-  displayCards: DisplayCard[] = [];
-  accounts: Account[] = [];
-  financialSummary: FinancialSummary = {
+  // Données financières simplifiées
+  cards: DisplayCard[] = [];
+  summary: FinancialSummary = {
     totalBalance: 0,
-    totalBalanceChange: 0,
     monthlyIncome: 0,
-    monthlyIncomeChange: 0,
-    monthlyExpenses: 0,
-    monthlyExpensesChange: 0
+    monthlyExpenses: 0
   };
-  transactions: Transaction[] = [];
+  transactions: any[] = [];
   
-  // Only show recent transactions by default
   showAllTransactions: boolean = false;
   
+  private apiUrl = 'http://localhost:8085/E-BANKING1/api'; // Ajustez selon votre configuration
+  
   constructor(
+    private http: HttpClient,
     private clientService: ClientService,
     private cardService: CardService
   ) {}
 
   ngOnInit(): void {
-    this.loadClientData();
+    this.loadClient();
   }
 
-  loadClientData(): void {
-    this.isLoading = true;
+  // Méthode directe pour charger les données client
+  loadClient(): void {
+    this.loading = true;
     this.error = null;
     
-    // Utilise directement le client de test défini dans le service
-    this.clientService.getClientDashboard().pipe(
-      tap(dashboard => {
-        if (dashboard && dashboard.client) {
-          this.currentClient = dashboard.client;
-          this.currentName = `${dashboard.client.firstName} ${dashboard.client.lastName}`;
+    // Appel direct à l'API pour obtenir le client
+    this.http.get(`${this.apiUrl}/clients/fe6f2c00-b906-454a-b57d-f79c8e4f9da4`)
+      .pipe(
+        tap((response: any) => {
+          // Si la réponse est un tableau, prendre le premier élément
+          if (Array.isArray(response) && response.length > 0) {
+            this.client = response[0];
+          } else {
+            this.client = response;
+          }
           
-          // Charger les comptes depuis le tableau de bord
-          this.accounts = dashboard.accounts || [];
+          // Extraire le nom d'utilisateur puisque firstName et lastName sont null
+          this.clientName = this.client.username || 'Client';
           
-          // Mettre à jour les données financières
-          this.financialSummary = dashboard.financialSummary || {
-            totalBalance: dashboard.client.balance || 0,
-            totalBalanceChange: 0,
-            monthlyIncome: dashboard.client.income || 0,
-            monthlyIncomeChange: 0,
-            monthlyExpenses: (dashboard.client.income || 0) * 0.7,
-            monthlyExpensesChange: 0
+          // Extraire le solde total de tous les comptes
+          let totalBalance = 0;
+          if (this.client.accounts && Array.isArray(this.client.accounts)) {
+            totalBalance = this.client.accounts.reduce((sum: number, account: ClientAccount) => 
+              sum + (account.balance || 0), 0);
+          }
+          
+          // Créer un résumé financier estimé
+          // Nous n'avons pas d'income, donc on estime à partir du solde
+          const estimatedMonthlyIncome = totalBalance * 0.2 || 5000;
+          this.summary = {
+            totalBalance: totalBalance,
+            monthlyIncome: estimatedMonthlyIncome,
+            monthlyExpenses: estimatedMonthlyIncome * 0.7
           };
-        } else {
-          this.error = "Client non trouvé";
-        }
-      }),
-      catchError(err => {
-        this.error = "Erreur lors du chargement des données client";
-        console.error(err);
-        return of(null);
-      }),
-      finalize(() => {
-        // Maintenant, chargeons les cartes
-        if (this.currentClient) {
-          this.loadClientCards();
-        } else {
-          this.isLoading = false;
-        }
-      })
-    ).subscribe();
+          
+          // Charger les cartes directement
+          this.loadCardsByClientId();
+        }),
+        catchError(err => {
+          console.error('Erreur lors du chargement du client:', err);
+          this.error = 'Impossible de charger les données client';
+          
+          // Créer des données de démo
+          this.createDemoData();
+          return of(null);
+        }),
+        finalize(() => {
+          // Si tout échoue, au moins s'assurer que l'interface n'est plus en chargement
+          if (this.loading) {
+            this.loading = false;
+          }
+        })
+      )
+      .subscribe();
   }
 
-  loadClientCards(): void {
-    // Récupérer les cartes pour chaque compte du client
-    if (!this.accounts || this.accounts.length === 0) {
-      this.isLoading = false;
+  // Charger directement les cartes par ID de compte
+  loadCardsByClientId(): void {
+    if (!this.client || !this.client.accounts || !this.client.accounts.length) {
+      this.loading = false;
       return;
     }
-
-    const cardRequests = this.accounts.map(account => 
-      this.cardService.getCardsByCardholderName(this.currentName)
-    );
     
-    forkJoin(cardRequests).pipe(
-      tap(cardArrays => {
-        // Fusionner tous les tableaux de cartes
-        this.clientCards = cardArrays.flat();
-        this.prepareDisplayCards();
-        
-        // Générer des transactions de test
-        this.generateTransactions();
-      }),
-      catchError(err => {
-        this.error = "Erreur lors du chargement des cartes";
-        console.error(err);
-        return of([]);
-      }),
-      finalize(() => {
-        this.isLoading = false;
-      })
-    ).subscribe();
+    // Récupérer l'ID du premier compte disponible
+    const accountId = this.client.accounts[0].id;
+    
+    // Appel direct pour les cartes avec l'ID du compte
+    this.http.get(`${this.apiUrl}/cards/account/${accountId}`)
+      .pipe(
+        tap((cardsResponse: any) => {
+          // Formater les cartes pour l'affichage
+          this.formatDisplayCards(cardsResponse || []);
+          
+          // Si aucune carte n'est trouvée, en créer une virtuelle
+          if (this.cards.length === 0) {
+            this.createVirtualCard();
+          }
+          
+          // Créer des transactions de test
+          this.generateDemoTransactions();
+        }),
+        catchError(err => {
+          console.error('Erreur lors du chargement des cartes:', err);
+          // Créer une carte virtuelle en cas d'erreur
+          this.createVirtualCard();
+          this.generateDemoTransactions();
+          return of([]);
+        }),
+        finalize(() => {
+          this.loading = false;
+        })
+      )
+      .subscribe();
   }
 
-  prepareDisplayCards(): void {
-    this.displayCards = [];
-    
-    // Convert cards to display format
-    this.clientCards.forEach((card, index) => {
-      // Find the associated account
-      const linkedAccount = this.accounts.find(acc => acc.id === card.accountId);
-      
-      if (card.network) {
-        this.displayCards.push({
-          id: card.id,
-          network: card.network as any,
-          maskedNumber: card.maskedNumber,
-          cardholderName: card.cardholderName,
-          expiryDate: this.cardService.getExpiryDate(card.expiryMonth, card.expiryYear),
-          balance: linkedAccount?.balance || 0,
-          currency: linkedAccount?.currency || 'MAD',
-          status: card.status as any,
-          accountId: card.accountId,
-          cardBackground: this.getCardBackground(index, card.network)
-        });
+  // Formater les cartes pour l'affichage
+  formatDisplayCards(cardsData: any[]): void {
+    this.cards = cardsData.map(card => {
+      // Déterminer le style de l'arrière-plan basé sur le réseau
+      let background;
+      switch(card.network?.toLowerCase()) {
+        case 'visa':
+          background = 'bg-gradient-to-r from-blue-600 to-blue-800';
+          break;
+        case 'mastercard':
+          background = 'bg-gradient-to-r from-red-500 to-orange-500';
+          break;
+        case 'amex':
+          background = 'bg-gradient-to-r from-cyan-500 to-blue-500';
+          break;
+        default:
+          background = 'bg-gradient-to-r from-gray-700 to-gray-900';
       }
-    });
-    
-    // Create a virtual card if none exists
-    if (this.displayCards.length === 0 && this.currentClient) {
-      // Si le client a au moins un compte, utiliser les données du premier compte
-      const primaryAccount = this.accounts.length > 0 ? 
-        this.accounts.find(acc => acc.isPrimary) || this.accounts[0] : null;
       
-      this.displayCards.push({
-        id: 'virtual',
-        network: 'visa',
-        maskedNumber: '4539 **** **** 5678',
-        cardholderName: `${this.currentClient.firstName} ${this.currentClient.lastName}`,
-        expiryDate: '12/25',
-        balance: primaryAccount?.balance || this.currentClient.balance || 0,
-        currency: primaryAccount?.currency || this.currentClient.currency || 'MAD',
+      // Formatage de la date d'expiration
+      const expiryDate = card.expiryMonth && card.expiryYear 
+        ? `${card.expiryMonth}/${card.expiryYear.substring(2)}` 
+        : '00/00';
+      
+      // Récupérer la devise et le solde du compte client
+      const currency = this.client.accounts && this.client.accounts.length > 0 
+        ? this.client.accounts[0].currency 
+        : 'EUR';
+      const balance = this.client.accounts && this.client.accounts.length > 0 
+        ? this.client.accounts[0].balance 
+        : 0;
+      
+      return {
+        id: card.id,
+        type: card.type,
+        network: card.network,
+        maskedNumber: card.maskedNumber,
+        cardholderName: card.cardholderName || this.clientName,
+        expiryDate: expiryDate,
+        status: card.status,
+        isContactless: card.isContactless,
+        onlinePaymentEnabled: card.onlinePaymentEnabled,
+        internationalPaymentEnabled: card.internationalPaymentEnabled,
+        dailyLimit: card.dailyLimit,
+        monthlyLimit: card.monthlyLimit,
+        balance: balance,
+        currency: currency,
+        cardBackground: background
+      };
+    });
+  }
+
+  // Créer des données de démo en cas d'erreur
+  createDemoData(): void {
+    this.client = {
+      id: 'demo-client',
+      username: 'Client Démo',
+      email: 'demo@example.com',
+      accounts: [{
+        id: 'demo-account',
+        accountNumber: '1234567890',
+        balance: 25000,
+        availableBalance: 25000,
+        currency: 'MAD',
         status: 'active',
-        accountId: primaryAccount?.id || 'main',
-        cardBackground: 'bg-gradient-to-r from-blue-500 to-blue-700'
-      });
-    }
+        iban: 'MA1234567890'
+      }]
+    };
+    
+    this.clientName = 'Client Démo';
+    
+    this.summary = {
+      totalBalance: 25000,
+      monthlyIncome: 12000,
+      monthlyExpenses: 8400
+    };
+    
+    this.createVirtualCard();
+    this.generateDemoTransactions();
   }
 
-  getCardBackground(index: number, network: string): string {
-    // Simplified card background logic
-    if (network === 'visa') {
-      return 'bg-gradient-to-r from-blue-500 to-blue-700';
-    } else if (network === 'mastercard') {
-      return 'bg-gradient-to-r from-red-500 to-orange-500';
-    } else {
-      return 'bg-gradient-to-r from-gray-700 to-gray-900';
-    }
+  // Créer une carte virtuelle
+  createVirtualCard(): void {
+    const currency = this.client.accounts && this.client.accounts.length > 0 
+      ? this.client.accounts[0].currency 
+      : 'EUR';
+    
+    this.cards = [{
+      id: 'virtual',
+      type: 'debit',
+      network: 'visa',
+      maskedNumber: '**** **** **** 1234',
+      cardholderName: this.clientName,
+      expiryDate: '12/25',
+      status: 'active',
+      cardBackground: 'bg-gradient-to-r from-blue-600 to-blue-800',
+      isContactless: true,
+      onlinePaymentEnabled: true,
+      balance: this.summary.totalBalance,
+      currency: currency
+    }];
   }
 
-  generateTransactions(): void {
-    // Create sample transactions for demonstration
-    this.transactions = [];
+  // Générer des transactions fictives
+  generateDemoTransactions(): void {
+    const currency = this.client.accounts && this.client.accounts.length > 0 ? 
+      this.client.accounts[0].currency : 'EUR';
     
-    // Use the first account or a default
-    const mainAccount = this.accounts.find(acc => acc.isPrimary) || 
-                       (this.accounts.length > 0 ? this.accounts[0] : null);
-    const mainAccountId = mainAccount?.id || 'main';
-    const mainCurrency = mainAccount?.currency || this.currentClient?.currency || 'MAD';
-    
-    // Add deposits
-    this.addTransaction('txn1', mainAccountId, 'Virement entrant', 'deposit', 
-      new Date(2023, 4, 15), 'transfer', 1250.00, mainCurrency, 
-      'completed', 4500.00, this.currentName);
-    
-    this.addTransaction('txn2', mainAccountId, 'Salaire', 'deposit', 
-      new Date(2023, 4, 5), 'finance', this.currentClient?.income || 3500.00, 
-      mainCurrency, 'completed', 3250.00, 'ACME Corporation');
-    
-    // Add payments - simplified
-    const payments = [
-      { name: 'Carrefour', amount: 120.50, category: 'shopping', status: 'pending' },
-      { name: 'Netflix', amount: 45.99, category: 'entertainment', status: 'completed' },
-      { name: 'Amazon', amount: 67.80, category: 'shopping', status: 'completed' },
-      { name: 'Loyer', amount: 255.30, category: 'housing', status: 'completed' },
-      { name: 'Restaurant', amount: 22.50, category: 'food', status: 'failed' }
+    this.transactions = [
+      {
+        id: 'txn1',
+        name: 'Virement entrant',
+        type: 'deposit',
+        date: new Date(2023, 4, 15),
+        amount: 1250,
+        currency: currency,
+        status: 'completed',
+        merchant: this.clientName,
+        icon: 'exchange-alt'
+      },
+      {
+        id: 'txn2',
+        name: 'Salaire',
+        type: 'deposit',
+        date: new Date(2023, 4, 5),
+        amount: this.summary.monthlyIncome,
+        currency: currency,
+        status: 'completed',
+        merchant: 'ACME Corporation',
+        icon: 'money-bill'
+      },
+      {
+        id: 'txn3',
+        name: 'Carrefour',
+        type: 'payment',
+        date: new Date(2023, 4, 20),
+        amount: -120.50,
+        currency: currency,
+        status: 'pending',
+        merchant: 'Carrefour',
+        icon: 'shopping-cart'
+      },
+      {
+        id: 'txn4',
+        name: 'Netflix',
+        type: 'payment',
+        date: new Date(2023, 4, 19),
+        amount: -45.99,
+        currency: currency,
+        status: 'completed',
+        merchant: 'Netflix',
+        icon: 'film'
+      },
+      {
+        id: 'txn5',
+        name: 'Loyer',
+        type: 'payment',
+        date: new Date(2023, 4, 18),
+        amount: -255.30,
+        currency: currency,
+        status: 'completed',
+        merchant: 'Loyer',
+        icon: 'home'
+      }
     ];
     
-    let balance = 3250.00;
-    
-    payments.forEach((payment, i) => {
-      balance -= payment.amount;
-      
-      this.addTransaction(
-        `txn${i+3}`, 
-        mainAccountId, 
-        payment.name, 
-        'payment', 
-        new Date(2023, 4, 20 - i), 
-        payment.category, 
-        -payment.amount, 
-        mainCurrency, 
-        payment.status,
-        balance,
-        payment.name
-      );
-    });
-    
-    // Sort transactions by date (most recent first)
+    // Trier par date (le plus récent d'abord)
     this.transactions.sort((a, b) => b.date.getTime() - a.date.getTime());
   }
   
-  // Helper method to create transactions
-  private addTransaction(
-    id: string, 
-    accountId: string, 
-    name: string, 
-    type: string, 
-    date: Date, 
-    category: string, 
-    amount: number, 
-    currency: string, 
-    status: string, 
-    balanceAfter: number,
-    merchant: string
-  ): void {
-    this.transactions.push({
-      id: id,
-      accountId: accountId,
-      name: name,
-      type: type as any,
-      date: date,
-      category: category as any,
-      amount: amount,
-      currency: currency,
-      status: status as any,
-      icon: this.getCategoryIcon(category),
-      merchantName: merchant,
-      balanceAfterTransaction: balanceAfter,
-      reference: `REF-${Date.now().toString().substring(5)}-${id}`
-    });
-  }
-
-  getCategoryIcon(category: string): string {
-    const icons: Record<string, string> = {
-      'shopping': 'shopping-cart',
-      'entertainment': 'film',
-      'housing': 'home',
-      'food': 'utensils',
-      'transfer': 'exchange-alt',
-      'finance': 'money-bill'
-    };
-    
-    return icons[category] || 'tag';
-  }
-  
-  // Formatting helpers
+  // Utilitaires pour le formatage
   formatCurrency(amount: number, currency: string = 'MAD'): string {
     return new Intl.NumberFormat('fr-MA', { 
       style: 'currency', 
@@ -312,32 +357,31 @@ export class ClientPageComponent implements OnInit {
 
   formatDate(date: Date): string {
     return new Date(date).toLocaleDateString('fr-FR', { 
-      weekday: 'long', 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
     });
   }
 
-  getTransactionStatusClass(status: string): string {
-    const statusClasses: Record<string, string> = {
+  getStatusClass(status: string): string {
+    const classes: Record<string, string> = {
       'completed': 'bg-green-100 text-green-800',
       'pending': 'bg-yellow-100 text-yellow-800',
       'failed': 'bg-red-100 text-red-800',
-      'cancelled': 'bg-gray-100 text-gray-800'
+      'active': 'bg-green-100 text-green-800',
+      'inactive': 'bg-gray-100 text-gray-800',
+      'blocked': 'bg-red-100 text-red-800'
     };
     
-    return statusClasses[status] || 'bg-gray-100 text-gray-800';
+    return classes[status] || 'bg-gray-100 text-gray-800';
   }
 
-  // UI helpers
+  // Fonctions d'interface utilisateur
   toggleAllTransactions(): void {
     this.showAllTransactions = !this.showAllTransactions;
   }
   
-  // Simplified export function
-  exportData(): void {
-    console.log('Export requested');
-    alert('Export functionality will be available in a future update.');
+  refreshData(): void {
+    this.loadClient();
   }
 }
