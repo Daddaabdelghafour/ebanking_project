@@ -1,134 +1,173 @@
-<div class="container mx-auto p-4">
-    <!-- Header -->
-    <div class="mb-6">
-        <h1 class="text-2xl font-bold text-gray-800">Paramètres d'alerte</h1>
-        <p class="text-gray-600">Configurez comment et quand vous souhaitez être
-            alerté concernant votre activité bancaire</p>
+<div class="min-h-screen bg-gray-50 p-6">
+  <!-- Header -->
+  <div class="mb-8">
+    <h1 class="text-3xl font-bold text-gray-900 mb-2">Paramètres d'alerte</h1>
+    <p class="text-gray-600">Configurez comment et quand vous souhaitez être alerté concernant votre activité bancaire</p>
+  </div>
+
+  <!-- Messages -->
+  <div *ngIf="error" class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+    <div class="flex items-center">
+      <i class="fas fa-exclamation-triangle text-red-400 mr-3"></i>
+      <p class="text-red-800">{{ error }}</p>
     </div>
+  </div>
 
-    <!-- Messages -->
-    <div *ngIf="error"
-        class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4"
-        role="alert">
-        <p>{{ error }}</p>
+  <div *ngIf="successMessage" class="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+    <div class="flex items-center">
+      <i class="fas fa-check-circle text-green-400 mr-3"></i>
+      <p class="text-green-800">{{ successMessage }}</p>
     </div>
+  </div>
 
-    <div *ngIf="successMessage"
-        class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-4"
-        role="alert">
-        <p>{{ successMessage }}</p>
-    </div>
+  <!-- Loading -->
+  <div *ngIf="isLoading" class="flex justify-center items-center h-64">
+    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+  </div>
 
-    <!-- Loading indicator -->
-    <div *ngIf="isLoading" class="flex items-center justify-center py-8">
-        <div
-            class="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
-        <span class="ml-2">Chargement...</span>
-    </div>
+  <!-- Alert Settings -->
+  <div *ngIf="!isLoading && alertSettings" class="space-y-8">
+    
+    <!-- Alertes groupées par catégorie -->
+    <div *ngFor="let category of getAlertsByCategory() | keyvalue" class="bg-white rounded-xl shadow-sm overflow-hidden">
+      
+      <!-- Category Header -->
+      <div class="bg-gray-50 px-6 py-4 border-b border-gray-200">
+        <h2 class="text-lg font-semibold text-gray-900">
+          Alertes {{ getCategoryName(category.key) }}
+        </h2>
+        <p class="text-sm text-gray-600 mt-1">
+          <span *ngIf="category.key === 'security'">Protégez votre compte contre les accès non autorisés</span>
+          <span *ngIf="category.key === 'financial'">Surveillez vos transactions et votre budget</span>
+          <span *ngIf="category.key === 'informational'">Restez informé de l'activité de votre compte</span>
+        </p>
+      </div>
 
-    <!-- Alert settings form -->
-    <div *ngIf="!isLoading"
-        class="bg-white rounded-lg shadow-md overflow-hidden">
-        <div class="p-4 border-b border-gray-200">
-            <h2 class="text-lg font-medium text-gray-900">Alertes
-                disponibles</h2>
-            <p class="text-gray-600 text-sm">Activez les types d'alertes que
-                vous souhaitez recevoir et choisissez comment les recevoir</p>
-        </div>
-
-        <!-- Alert types -->
-        <div class="divide-y divide-gray-200">
-            <div *ngFor="let preference of alertPreferences"
-                class="p-4 hover:bg-gray-50">
-                <div class="flex items-center justify-between mb-2">
-                    <div class="flex items-center">
-                        <div
-                            class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center mr-3">
-                            <i
-                                [class]="'fa-solid ' + getAlertIcon(preference.type) + ' text-blue-600'"></i>
-                        </div>
-                        <div>
-                            <h3 class="text-lg font-medium text-gray-900">
-                                {{ preference.description }}
-                            </h3>
-                        </div>
-                    </div>
-
-                    <!-- Toggle switch -->
-                    <div
-                        class="relative inline-block w-12 mr-2 align-middle select-none">
-                        <input type="checkbox"
-                            [id]="'toggle-' + preference.type"
-                            [checked]="preference.enabled"
-                            (change)="toggleAlertEnabled(preference)"
-                            [disabled]="isSaving"
-                            class="hidden">
-                        <label [for]="'toggle-' + preference.type"
-                            [ngClass]="preference.enabled ? 'bg-blue-600' : 'bg-gray-300'"
-                            class="block overflow-hidden h-6 rounded-full cursor-pointer transition-colors">
-                            <span
-                                [ngClass]="preference.enabled ? 'translate-x-6' : 'translate-x-0'"
-                                class="absolute block w-6 h-6 rounded-full bg-white border-2 transform transition-transform"></span>
-                        </label>
-                    </div>
-                </div>
-
-                <!-- Settings (only visible when enabled) -->
-                <div *ngIf="preference.enabled" class="ml-14 mt-4 space-y-4">
-                    <!-- Threshold for financial alerts -->
-                    <div
-                        *ngIf="preference.type === 'balance_below' || preference.type === 'large_transaction'"
-                        class="flex items-center space-x-2">
-                        <label [for]="'threshold-' + preference.type"
-                            class="text-sm text-gray-700 w-28">
-                            {{ preference.type === 'balance_below' ?
-                            'Seuil minimal:' : 'Montant à partir de:' }}
-                        </label>
-                        <input type="number"
-                            [id]="'threshold-' + preference.type"
-                            [(ngModel)]="preference.threshold"
-                            (blur)="updateThreshold(preference)"
-                            min="0"
-                            class="border border-gray-300 rounded-md px-3 py-1 w-40">
-                        <span class="text-sm text-gray-500">MAD</span>
-                    </div>
-
-                    <!-- Notification channels -->
-                    <div class="flex items-center space-x-4">
-                        <p class="text-sm text-gray-700 w-28">Recevoir via:</p>
-                        <div class="flex space-x-4">
-                            <div class="flex items-center">
-                                <input type="checkbox"
-                                    [id]="'email-' + preference.type"
-                                    [(ngModel)]="preference.channels.email"
-                                    (change)="toggleChannel(preference, 'email')"
-                                    class="h-4 w-4 text-blue-600">
-                                <label [for]="'email-' + preference.type"
-                                    class="ml-2 text-sm text-gray-700">Email</label>
-                            </div>
-                            <div class="flex items-center">
-                                <input type="checkbox"
-                                    [id]="'sms-' + preference.type"
-                                    [(ngModel)]="preference.channels.sms"
-                                    (change)="toggleChannel(preference, 'sms')"
-                                    class="h-4 w-4 text-blue-600">
-                                <label [for]="'sms-' + preference.type"
-                                    class="ml-2 text-sm text-gray-700">SMS</label>
-                            </div>
-                            <div class="flex items-center">
-                                <input type="checkbox"
-                                    [id]="'push-' + preference.type"
-                                    [(ngModel)]="preference.channels.push"
-                                    (change)="toggleChannel(preference, 'push')"
-                                    class="h-4 w-4 text-blue-600">
-                                <label [for]="'push-' + preference.type"
-                                    class="ml-2 text-sm text-gray-700">Notification
-                                    push</label>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+      <!-- Alert Items -->
+      <div class="divide-y divide-gray-200">
+        <div *ngFor="let alert of category.value" class="p-6">
+          
+          <!-- Alert Header -->
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center">
+              <div class="w-12 h-12 rounded-full flex items-center justify-center mr-4"
+                   [ngClass]="getCategoryColor(alert.category)">
+                <i [class]="'fas ' + alert.icon"></i>
+              </div>
+              <div>
+                <h3 class="text-lg font-medium text-gray-900">{{ alert.label }}</h3>
+                <p class="text-sm text-gray-500">{{ alert.description }}</p>
+                <span [ngClass]="getCategoryColor(alert.category)"
+                      class="inline-block px-2 py-1 rounded-full text-xs font-medium mt-1">
+                  {{ getCategoryName(alert.category) }}
+                </span>
+              </div>
             </div>
+
+            <!-- Toggle Switch -->
+            <div class="relative inline-block w-14 mr-2 align-middle select-none">
+              <input type="checkbox"
+                     [id]="'toggle-' + alert.key"
+                     [checked]="isAlertEnabled(alert.key)"
+                     (change)="toggleAlert(alert.key)"
+                     [disabled]="isSaving"
+                     class="sr-only">
+              <label [for]="'toggle-' + alert.key"
+                     [ngClass]="isAlertEnabled(alert.key) ? 'bg-blue-600' : 'bg-gray-300'"
+                     class="block overflow-hidden h-7 rounded-full cursor-pointer transition-colors duration-300">
+                <span [ngClass]="isAlertEnabled(alert.key) ? 'translate-x-7' : 'translate-x-0'"
+                      class="absolute block w-7 h-7 rounded-full bg-white shadow transform transition-transform duration-300"></span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Alert Configuration -->
+          <div *ngIf="isAlertEnabled(alert.key)" class="ml-16 space-y-6 pt-4 border-t border-gray-100">
+            
+            <!-- Threshold Setting -->
+            <div *ngIf="alert.hasThreshold" class="bg-gray-50 rounded-lg p-4">
+              <label [for]="'threshold-' + alert.key" class="block text-sm font-medium text-gray-700 mb-2">
+                {{ alert.thresholdLabel }}
+              </label>
+              <div class="flex items-center space-x-2">
+                <input type="number"
+                       [id]="'threshold-' + alert.key"
+                       [value]="getThresholdValue(alert.key)"
+                       (input)="updateThreshold(alert.key, +$any($event.target).value)"
+                       [min]="alert.key === 'budgetExceeded' ? 1 : 0"
+                       [max]="alert.key === 'budgetExceeded' ? 100 : null"
+                       class="w-32 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                <span class="text-sm text-gray-500">
+                  {{ alert.key === 'budgetExceeded' ? '%' : 'MAD' }}
+                </span>
+              </div>
+            </div>
+
+            <!-- Notification Channels -->
+            <div class="bg-gray-50 rounded-lg p-4">
+              <h4 class="text-sm font-medium text-gray-700 mb-3">Canaux de notification</h4>
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                
+                <!-- Email -->
+                <div class="flex items-center p-3 border border-gray-200 rounded-lg hover:bg-white transition-colors">
+                  <input type="checkbox"
+                         [id]="'email-' + alert.key"
+                         [checked]="isChannelEnabled(alert.key, 'email')"
+                         (change)="toggleChannel(alert.key, 'email')"
+                         class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                  <div class="ml-3">
+                    <label [for]="'email-' + alert.key" class="flex items-center cursor-pointer">
+                      <i class="fas fa-envelope text-gray-500 mr-2"></i>
+                      <span class="text-sm font-medium text-gray-700">Email</span>
+                    </label>
+                    <p class="text-xs text-gray-500 mt-1">Notification par email</p>
+                  </div>
+                </div>
+
+                <!-- SMS -->
+                <div class="flex items-center p-3 border border-gray-200 rounded-lg hover:bg-white transition-colors">
+                  <input type="checkbox"
+                         [id]="'sms-' + alert.key"
+                         [checked]="isChannelEnabled(alert.key, 'sms')"
+                         (change)="toggleChannel(alert.key, 'sms')"
+                         class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                  <div class="ml-3">
+                    <label [for]="'sms-' + alert.key" class="flex items-center cursor-pointer">
+                      <i class="fas fa-mobile-alt text-gray-500 mr-2"></i>
+                      <span class="text-sm font-medium text-gray-700">SMS</span>
+                    </label>
+                    <p class="text-xs text-gray-500 mt-1">Message SMS</p>
+                  </div>
+                </div>
+
+                <!-- Push -->
+                <div class="flex items-center p-3 border border-gray-200 rounded-lg hover:bg-white transition-colors">
+                  <input type="checkbox"
+                         [id]="'push-' + alert.key"
+                         [checked]="isChannelEnabled(alert.key, 'push')"
+                         (change)="toggleChannel(alert.key, 'push')"
+                         class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                  <div class="ml-3">
+                    <label [for]="'push-' + alert.key" class="flex items-center cursor-pointer">
+                      <i class="fas fa-bell text-gray-500 mr-2"></i>
+                      <span class="text-sm font-medium text-gray-700">Push</span>
+                    </label>
+                    <p class="text-xs text-gray-500 mt-1">Notification push</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
+      </div>
     </div>
+
+    <!-- Save Indicator -->
+    <div *ngIf="isSaving" class="fixed bottom-6 right-6 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg">
+      <div class="flex items-center">
+        <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+        Sauvegarde en cours...
+      </div>
+    </div>
+  </div>
 </div>

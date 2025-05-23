@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, RouterOutlet } from '@angular/router';
 import { ClientService } from '../../services/client/client.service';
@@ -34,31 +34,32 @@ export class ClientLayoutComponent implements OnInit {
   currentClient: Client | null = null;
   isLoading = true;
   showNotifications = false;
+  showUserMenu = false;
   
   // Navigation simplifiée et organisée
   sidebarItems: SidebarItem[] = [
     {
       id: 'dashboard',
       label: 'Tableau de bord',
-      icon: 'fa-solid fa-house',
+      icon: 'fas fa-home',
       route: ''
     },
     {
       id: 'accounts',
       label: 'Mes comptes',
-      icon: 'fa-solid fa-wallet',
+      icon: 'fas fa-wallet',
       route: 'accounts'
     },
     {
       id: 'transfers',
       label: 'Virements',
-      icon: 'fa-solid fa-arrow-right-arrow-left',
+      icon: 'fas fa-exchange-alt',
       route: 'transfers'
     },
     {
       id: 'crypto',
       label: 'Crypto',
-      icon: 'fa-brands fa-bitcoin',
+      icon: 'fab fa-bitcoin',
       route: 'crypto'
     },
     { 
@@ -68,19 +69,19 @@ export class ClientLayoutComponent implements OnInit {
     {
       id: 'budget',
       label: 'Budget',
-      icon: 'fa-solid fa-chart-pie',
+      icon: 'fas fa-chart-pie',
       route: 'budget'
     },
     {
       id: 'documents',
       label: 'Documents',
-      icon: 'fa-solid fa-file-lines',
+      icon: 'fas fa-file-alt',
       route: 'documents'
     },
     {
       id: 'announcements',
       label: 'Annonces',
-      icon: 'fa-solid fa-bullhorn',
+      icon: 'fas fa-bullhorn',
       route: 'announcements'
     },
     { 
@@ -88,9 +89,15 @@ export class ClientLayoutComponent implements OnInit {
       divider: true
     },
     {
+      id: 'alert-settings',
+      label: 'Alertes',
+      icon: 'fas fa-bell',
+      route: 'alert-settings'
+    },
+    {
       id: 'settings',
       label: 'Paramètres',
-      icon: 'fa-solid fa-gear',
+      icon: 'fas fa-cog',
       route: 'settings'
     }
   ];
@@ -110,6 +117,20 @@ export class ClientLayoutComponent implements OnInit {
   ngOnInit(): void {
     this.loadClientData();
     this.loadNotifications();
+  }
+
+  /**
+   * Fermer les menus quand on clique ailleurs
+   */
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: Event): void {
+    const target = event.target as HTMLElement;
+    if (!target.closest('.notifications-container') && !target.closest('.notification-button')) {
+      this.showNotifications = false;
+    }
+    if (!target.closest('.user-menu-container') && !target.closest('.user-menu-button')) {
+      this.showUserMenu = false;
+    }
   }
   
   loadClientData(): void {
@@ -132,10 +153,10 @@ export class ClientLayoutComponent implements OnInit {
       error: (err) => {
         console.error('Erreur lors du chargement des données client', err);
         this.userInfo = {
-          name: 'Utilisateur',
-          email: 'user@example.com',
-          accountNumber: 'N/A',
-          balance: 0
+          name: 'Mohammed Alami',
+          email: 'mohammed.alami@email.com',
+          accountNumber: 'ACC-2024-001',
+          balance: 15750
         };
         this.isLoading = false;
       }
@@ -160,6 +181,13 @@ export class ClientLayoutComponent implements OnInit {
       },
       {
         id: '3',
+        message: 'Solde faible détecté',
+        time: 'Il y a 3h',
+        read: false,
+        type: 'warning'
+      },
+      {
+        id: '4',
         message: 'Nouveau relevé disponible',
         time: 'Il y a 1 jour',
         read: true,
@@ -174,6 +202,12 @@ export class ClientLayoutComponent implements OnInit {
   
   toggleNotifications(): void {
     this.showNotifications = !this.showNotifications;
+    this.showUserMenu = false;
+  }
+
+  toggleUserMenu(): void {
+    this.showUserMenu = !this.showUserMenu;
+    this.showNotifications = false;
   }
   
   markNotificationAsRead(notificationId: string): void {
@@ -181,6 +215,12 @@ export class ClientLayoutComponent implements OnInit {
     if (notification) {
       notification.read = true;
     }
+  }
+
+  markAllAsRead(): void {
+    this.notifications.forEach(notification => {
+      notification.read = true;
+    });
   }
   
   logout(): void {
@@ -213,22 +253,28 @@ export class ClientLayoutComponent implements OnInit {
     }
   }
   
-  // Ajoutez cette méthode dans le composant :
-getCurrentDate(): string {
-  return new Intl.DateTimeFormat('fr-FR', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  }).format(new Date());
-}
+  getCurrentDate(): string {
+    return new Intl.DateTimeFormat('fr-FR', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    }).format(new Date());
+  }
 
   getNotificationIcon(type: string): string {
     switch (type) {
-      case 'success': return 'fa-circle-check text-green-500';
-      case 'warning': return 'fa-triangle-exclamation text-yellow-500';
+      case 'success': return 'fa-check-circle text-green-500';
+      case 'warning': return 'fa-exclamation-triangle text-yellow-500';
       case 'info': 
-      default: return 'fa-circle-info text-blue-500';
+      default: return 'fa-info-circle text-blue-500';
     }
+  }
+
+  /**
+   * Formater la date relative
+   */
+  formatRelativeTime(timeString: string): string {
+    return timeString; // Déjà formaté dans les données
   }
 }

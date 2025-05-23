@@ -1,455 +1,445 @@
-<div class="space-y-6">
-    <!-- Page Header -->
-    <div
-        class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+<div class="max-w-7xl mx-auto p-6 space-y-6">
+  
+  <!-- Header -->
+  <div class="bg-white rounded-xl shadow-sm p-6">
+    <div class="flex justify-between items-center">
+      <div>
+        <h1 class="text-3xl font-bold text-gray-900">💰 Gestion de Budget</h1>
+        <p class="text-gray-600 mt-1">Gérez vos finances intelligemment avec des alertes automatiques</p>
+      </div>
+      <div class="text-right">
+        <p class="text-sm text-gray-500">Budget total du mois</p>
+        <p class="text-2xl font-bold text-blue-600">{{ formatCurrency(totalBudget) }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Alertes -->
+  <div *ngIf="alerts.length > 0" class="space-y-3">
+    <div *ngFor="let alert of alerts" 
+         class="bg-white rounded-lg border-l-4 p-4 shadow-sm"
+         [ngClass]="{
+           'border-red-500 bg-red-50': alert.severity === 'danger',
+           'border-yellow-500 bg-yellow-50': alert.severity === 'warning',
+           'border-blue-500 bg-blue-50': alert.severity === 'info'
+         }">
+      <div class="flex justify-between items-start">
+        <div class="flex items-center">
+          <i [class]="'fas ' + getAlertIcon(alert.severity) + ' mr-3'"></i>
+          <p class="font-medium text-gray-900">{{ alert.message }}</p>
+        </div>
+        <button (click)="dismissAlert(alert.id)" 
+                class="text-gray-400 hover:text-gray-600">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Résumé rapide -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div class="bg-white rounded-xl shadow-sm p-6">
+      <div class="flex items-center">
+        <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mr-4">
+          <i class="fas fa-wallet text-blue-600 text-xl"></i>
+        </div>
         <div>
-            <h1 class="text-2xl font-bold text-gray-800">Gestion Budgétaire</h1>
-            <p class="text-gray-600">Suivez et gérez vos dépenses mensuelles</p>
+          <p class="text-sm text-gray-500">Budget Total</p>
+          <p class="text-xl font-bold text-gray-900">{{ formatCurrency(totalBudget) }}</p>
         </div>
-
-        <div class="flex items-center space-x-2">
-            <button (click)="getPreviousMonth()"
-                class="p-2 rounded hover:bg-gray-100">
-                <i class="fa-solid fa-chevron-left"></i>
-            </button>
-            <span class="font-medium">{{ getMonthName(selectedMonthYear)
-                }}</span>
-            <button (click)="getNextMonth()"
-                class="p-2 rounded hover:bg-gray-100">
-                <i class="fa-solid fa-chevron-right"></i>
-            </button>
-        </div>
+      </div>
     </div>
 
-    <!-- Loading state -->
-    <div *ngIf="isLoading" class="flex justify-center py-12">
-        <div
-            class="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-blue-600"></div>
+    <div class="bg-white rounded-xl shadow-sm p-6">
+      <div class="flex items-center">
+        <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mr-4">
+          <i class="fas fa-credit-card text-red-600 text-xl"></i>
+        </div>
+        <div>
+          <p class="text-sm text-gray-500">Dépensé</p>
+          <p class="text-xl font-bold text-gray-900">{{ formatCurrency(totalSpent) }}</p>
+          <p class="text-xs" [ngClass]="getStatusColor(totalSpent/totalBudget > 0.8 ? 'warning' : 'safe')">
+            {{ (totalSpent/totalBudget*100) | number:'1.0-0' }}% du budget
+          </p>
+        </div>
+      </div>
     </div>
 
-    <!-- Tab Navigation -->
-    <div *ngIf="!isLoading" class="border-b">
-        <nav class="-mb-px flex space-x-6">
-            <button (click)="setActiveTab('overview')"
-                [ngClass]="{'border-blue-500 text-blue-600': activeTab === 'overview', 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300': activeTab !== 'overview'}"
-                class="py-2 px-1 border-b-2 font-medium text-sm">
-                <i class="fa-solid fa-chart-pie mr-1"></i> Vue d'ensemble
-            </button>
-            <button (click)="setActiveTab('budgets')"
-                [ngClass]="{'border-blue-500 text-blue-600': activeTab === 'budgets', 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300': activeTab !== 'budgets'}"
-                class="py-2 px-1 border-b-2 font-medium text-sm">
-                <i class="fa-solid fa-wallet mr-1"></i> Budgets
-            </button>
-            <button (click)="setActiveTab('goals')"
-                [ngClass]="{'border-blue-500 text-blue-600': activeTab === 'goals', 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300': activeTab !== 'goals'}"
-                class="py-2 px-1 border-b-2 font-medium text-sm">
-                <i class="fa-solid fa-bullseye mr-1"></i> Objectifs d'épargne
-            </button>
-        </nav>
+    <div class="bg-white rounded-xl shadow-sm p-6">
+      <div class="flex items-center">
+        <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mr-4">
+          <i class="fas fa-piggy-bank text-green-600 text-xl"></i>
+        </div>
+        <div>
+          <p class="text-sm text-gray-500">Restant</p>
+          <p class="text-xl font-bold text-gray-900">{{ formatCurrency(totalRemaining) }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Navigation par onglets -->
+  <div class="bg-white rounded-xl shadow-sm">
+    <div class="border-b border-gray-200">
+      <nav class="flex space-x-8 px-6">
+        <button (click)="setActiveTab('overview')"
+                [ngClass]="{'border-blue-500 text-blue-600': activeTab === 'overview', 'border-transparent text-gray-500': activeTab !== 'overview'}"
+                class="py-4 px-1 border-b-2 font-medium text-sm hover:text-gray-700">
+          📊 Vue d'ensemble
+        </button>
+        <button (click)="setActiveTab('budgets')"
+                [ngClass]="{'border-blue-500 text-blue-600': activeTab === 'budgets', 'border-transparent text-gray-500': activeTab !== 'budgets'}"
+                class="py-4 px-1 border-b-2 font-medium text-sm hover:text-gray-700">
+          💳 Mes Budgets
+        </button>
+        <button (click)="setActiveTab('goals')"
+                [ngClass]="{'border-blue-500 text-blue-600': activeTab === 'goals', 'border-transparent text-gray-500': activeTab !== 'goals'}"
+                class="py-4 px-1 border-b-2 font-medium text-sm hover:text-gray-700">
+          🎯 Objectifs d'épargne
+        </button>
+      </nav>
     </div>
 
-    <!-- Overview Tab Content -->
-    <div *ngIf="!isLoading && activeTab === 'overview'" class="space-y-6">
-        <!-- Budget Summary Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <!-- Total Budget Card -->
-            <div class="bg-white rounded-xl shadow p-6">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-sm font-medium text-gray-500">Budget
-                            Total</p>
-                        <h3 class="text-2xl font-bold mt-1">{{
-                            budgetSummary.totalBudget | currency:'MAD ' }}</h3>
-                    </div>
-                    <div
-                        class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-                        <i class="fa-solid fa-wallet text-blue-600"></i>
-                    </div>
+    <!-- Contenu des onglets -->
+    <div class="p-6">
+      
+      <!-- Vue d'ensemble -->
+      <div *ngIf="activeTab === 'overview'" class="space-y-6">
+        
+        <!-- Budgets rapides -->
+        <div>
+          <h3 class="text-lg font-semibold mb-4">📊 Vos budgets ce mois-ci</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div *ngFor="let budget of budgets" 
+                 class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+              <div class="flex justify-between items-center mb-3">
+                <div class="flex items-center">
+                  <div class="w-10 h-10 rounded-full flex items-center justify-center mr-3"
+                       [style.background-color]="getCategoryById(budget.categoryId)?.color + '20'">
+                    <i [class]="'fas ' + getCategoryById(budget.categoryId)?.icon"
+                       [style.color]="getCategoryById(budget.categoryId)?.color"></i>
+                  </div>
+                  <span class="font-medium">{{ budget.categoryName }}</span>
                 </div>
-            </div>
-
-            <!-- Total Spent Card -->
-            <div class="bg-white rounded-xl shadow p-6">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-sm font-medium text-gray-500">Dépenses
-                            Totales</p>
-                        <h3 class="text-2xl font-bold mt-1">{{
-                            budgetSummary.totalSpent | currency:'MAD ' }}</h3>
-                    </div>
-                    <div
-                        class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
-                        <i class="fa-solid fa-credit-card text-red-600"></i>
-                    </div>
+                <span [ngClass]="getStatusColor(budget.status)" class="text-sm font-medium">
+                  {{ budget.percentage }}%
+                </span>
+              </div>
+              
+              <div class="space-y-2">
+                <div class="flex justify-between text-sm">
+                  <span>{{ formatCurrency(budget.spent) }}</span>
+                  <span class="text-gray-500">/ {{ formatCurrency(budget.limit) }}</span>
                 </div>
-            </div>
-
-            <!-- Remaining Budget Card -->
-            <div class="bg-white rounded-xl shadow p-6">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-sm font-medium text-gray-500">Budget
-                            Restant</p>
-                        <h3 class="text-2xl font-bold mt-1">{{
-                            budgetSummary.remainingBudget | currency:'MAD '
-                            }}</h3>
-                    </div>
-                    <div
-                        class="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
-                        <i class="fa-solid fa-piggy-bank text-green-600"></i>
-                    </div>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                  <div class="h-2 rounded-full transition-all duration-300"
+                       [style.width.%]="Math.min(100, budget.percentage)"
+                       [style.background-color]="getProgressColor(budget.status)"></div>
                 </div>
+              </div>
             </div>
+          </div>
         </div>
 
-        <!-- Expense by Category Chart and Budget Alerts -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <!-- Expense Chart -->
-            <div class="bg-white rounded-xl shadow p-6 md:col-span-2">
-                <h3 class="text-lg font-medium mb-4">Dépenses par Catégorie</h3>
-                <app-expense-chart
-                    [categorySummaries]="budgetSummary.categorySummaries"></app-expense-chart>
-            </div>
-
-            <!-- Budget Alerts -->
-            <div class="bg-white rounded-xl shadow p-6">
-                <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-lg font-medium">Alertes Budgétaires</h3>
-                    <span
-                        class="bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full">{{
-                        budgetAlerts.length }}</span>
+        <!-- Objectifs d'épargne rapides -->
+        <div *ngIf="savingsGoals.length > 0">
+          <h3 class="text-lg font-semibold mb-4">🎯 Vos objectifs d'épargne</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div *ngFor="let goal of savingsGoals" 
+                 class="border border-gray-200 rounded-lg p-4">
+              <div class="flex justify-between items-center mb-3">
+                <h4 class="font-medium">{{ goal.name }}</h4>
+                <span class="text-sm" [ngClass]="getStatusColor(goal.status)">
+                  {{ goal.percentage }}%
+                </span>
+              </div>
+              
+              <div class="space-y-2">
+                <div class="flex justify-between text-sm">
+                  <span>{{ formatCurrency(goal.currentAmount) }}</span>
+                  <span class="text-gray-500">/ {{ formatCurrency(goal.targetAmount) }}</span>
                 </div>
-                <app-budget-alerts [alerts]="budgetAlerts"></app-budget-alerts>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                  <div class="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                       [style.width.%]="goal.percentage"></div>
+                </div>
+                <p class="text-xs text-gray-500">
+                  {{ getDaysRemaining(goal.targetDate) }} jours restants
+                </p>
+              </div>
             </div>
+          </div>
         </div>
+      </div>
 
-        <!-- Savings Goals -->
-        <div class="bg-white rounded-xl shadow p-6">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-medium">Objectifs d'épargne</h3>
-                <button (click)="toggleGoalForm()"
-                    class="text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-full px-4 py-1">
-                    <i class="fa-solid fa-plus mr-1"></i> Ajouter
-                </button>
-            </div>
-
-            <div *ngIf="savingsGoals.length === 0"
-                class="text-center py-8 text-gray-500">
-                <i class="fa-solid fa-piggy-bank text-4xl mb-2"></i>
-                <p>Vous n'avez pas encore d'objectifs d'épargne</p>
-                <button (click)="toggleGoalForm()"
-                    class="mt-3 text-blue-600 font-medium underline">Ajouter un
-                    objectif</button>
-            </div>
-
-            <div *ngIf="savingsGoals.length > 0" class="space-y-4">
-                <app-savings-goal-tracker
-                    *ngFor="let goal of savingsGoals"
-                    [goal]="goal">
-                </app-savings-goal-tracker>
-            </div>
-        </div>
-    </div>
-
-    <!-- Budgets Tab Content -->
-    <div *ngIf="!isLoading && activeTab === 'budgets'" class="space-y-6">
+      <!-- Gestion des budgets -->
+      <div *ngIf="activeTab === 'budgets'" class="space-y-6">
+        
+        <!-- Bouton d'ajout -->
         <div class="flex justify-between items-center">
-            <h3 class="text-lg font-medium">Vos budgets</h3>
+          <h3 class="text-lg font-semibold">💳 Gérez vos budgets</h3>
+          <button (click)="toggleBudgetForm()"
+                  class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors">
+            <i class="fas fa-plus mr-2"></i>Nouveau Budget
+          </button>
+        </div>
+
+        <!-- Formulaire de création -->
+        <div *ngIf="showBudgetForm" 
+             class="bg-blue-50 border border-blue-200 rounded-lg p-6">
+          <h4 class="text-lg font-medium mb-4">✨ Créer un nouveau budget</h4>
+          
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Catégorie</label>
+              <select [(ngModel)]="newBudget.categoryId"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500">
+                <option value="">Choisir une catégorie</option>
+                <option *ngFor="let category of getAvailableCategories()" 
+                        [value]="category.id">
+                  {{ category.name }}
+                </option>
+              </select>
+            </div>
+            
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Budget (MAD)</label>
+              <input type="number" 
+                     [(ngModel)]="newBudget.limit"
+                     placeholder="Ex: 3000"
+                     class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500">
+            </div>
+            
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">
+                Alerte à {{ newBudget.alertThreshold }}%
+              </label>
+              <input type="range" 
+                     [(ngModel)]="newBudget.alertThreshold"
+                     min="50" max="100" step="10"
+                     class="w-full">
+            </div>
+          </div>
+          
+          <div class="flex justify-end space-x-3 mt-4">
             <button (click)="toggleBudgetForm()"
-                class="text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-full px-4 py-2">
-                <i class="fa-solid fa-plus mr-1"></i> Nouveau Budget
+                    class="px-4 py-2 text-gray-600 hover:text-gray-800">
+              Annuler
             </button>
+            <button (click)="createBudget()"
+                    [disabled]="!newBudget.categoryId || newBudget.limit <= 0"
+                    class="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-md">
+              Créer le budget
+            </button>
+          </div>
         </div>
 
-        <!-- Budget Creation Form -->
-        <div *ngIf="showBudgetForm"
-            class="bg-white rounded-xl shadow p-6 mb-6 border-l-4 border-blue-500">
-            <h4 class="text-lg font-medium mb-4">Créer un nouveau budget</h4>
-
-            <div class="space-y-4">
-                <div>
-                    <label for="category"
-                        class="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
-                    <select
-                        id="category"
-                        [(ngModel)]="newBudget.categoryId"
-                        class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                        <option value disabled>Sélectionnez une
-                            catégorie</option>
-                        <option *ngFor="let category of categories"
-                            [value]="category.id">{{ category.name }}</option>
-                    </select>
-                </div>
-
-                <div>
-                    <label for="amount"
-                        class="block text-sm font-medium text-gray-700 mb-1">Montant</label>
-                    <div class="mt-1 relative rounded-md shadow-sm">
-                        <div
-                            class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <span class="text-gray-500 sm:text-sm">MAD</span>
-                        </div>
-                        <input
-                            type="number"
-                            id="amount"
-                            [(ngModel)]="newBudget.amount"
-                            class="block w-full pl-12 pr-12 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                    </div>
-                </div>
-
-                <div>
-                    <label for="period"
-                        class="block text-sm font-medium text-gray-700 mb-1">Période</label>
-                    <select
-                        id="period"
-                        [(ngModel)]="newBudget.period"
-                        class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                        <option value="weekly">Hebdomadaire</option>
-                        <option value="monthly">Mensuel</option>
-                        <option value="quarterly">Trimestriel</option>
-                        <option value="yearly">Annuel</option>
-                    </select>
-                </div>
-
-                <div>
-                    <label for="alert"
-                        class="block text-sm font-medium text-gray-700 mb-1">
-                        Seuil d'alerte ({{ newBudget.alertThreshold }}%)
-                    </label>
-                    <input
-                        type="range"
-                        id="alert"
-                        [(ngModel)]="newBudget.alertThreshold"
-                        min="50"
-                        max="100"
-                        step="5"
-                        class="block w-full">
-                </div>
-
-                <div class="flex justify-end space-x-3 mt-6">
-                    <button
-                        (click)="toggleBudgetForm()"
-                        class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">
-                        Annuler
-                    </button>
-                    <button
-                        (click)="createBudget()"
-                        [disabled]="!newBudget.categoryId || newBudget.amount <= 0"
-                        [ngClass]="{'bg-blue-600 hover:bg-blue-700': newBudget.categoryId && newBudget.amount > 0, 'bg-blue-300 cursor-not-allowed': !newBudget.categoryId || newBudget.amount <= 0}"
-                        class="px-4 py-2 border border-transparent rounded-md text-white shadow-sm">
-                        Créer le budget
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Budget List -->
+        <!-- Liste des budgets -->
         <div class="space-y-4">
-            <div *ngFor="let budget of budgets"
-                class="bg-white rounded-xl shadow">
-                <div class="p-6">
-                    <div class="flex justify-between items-center mb-3">
-                        <div class="flex items-center">
-                            <div
-                                class="w-10 h-10 rounded-full flex items-center justify-center mr-3"
-                                [style.background-color]="getCategoryById(budget.categoryId)?.color + '30'">
-                                <i
-                                    [class]="'fa-solid ' + getCategoryById(budget.categoryId)?.icon"
-                                    [style.color]="getCategoryById(budget.categoryId)?.color"></i>
-                            </div>
-                            <h4 class="font-medium">{{
-                                getCategoryById(budget.categoryId)?.name }}</h4>
-                        </div>
-                        <div class="text-right">
-                            <p class="font-bold text-lg">{{ budget.spentAmount |
-                                currency:'MAD ' }} <span
-                                    class="text-sm text-gray-500">/ {{
-                                    budget.amount | currency:'MAD '
-                                    }}</span></p>
-                            <p class="text-sm" [ngClass]="{
-                'text-green-600': budget.spentAmount/budget.amount < 0.8,
-                'text-yellow-600': budget.spentAmount/budget.amount >= 0.8 && budget.spentAmount/budget.amount < 1,
-                'text-red-600': budget.spentAmount/budget.amount >= 1
-              }">
-                                {{ (budget.spentAmount / budget.amount * 100) |
-                                number:'1.0-0' }}% utilisé
-                            </p>
-                        </div>
-                    </div>
-
-                    <!-- Progress Bar -->
-                    <div class="w-full bg-gray-200 rounded-full h-2.5 mb-1">
-                        <div class="h-2.5 rounded-full"
-                            [style.width.%]="Math.min(100, budget.spentAmount / budget.amount * 100)"
-                            [style.background-color]="getCategoryById(budget.categoryId)?.color">
-                        </div>
-                    </div>
-
-                    <div
-                        class="flex justify-between text-xs text-gray-500 mt-1">
-                        <span>0 MAD</span>
-                        <span>{{ budget.amount | currency:'MAD ' }}</span>
-                    </div>
+          <div *ngFor="let budget of budgets" 
+               class="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
+            
+            <div class="flex justify-between items-start mb-4">
+              <div class="flex items-center">
+                <div class="w-12 h-12 rounded-full flex items-center justify-center mr-4"
+                     [style.background-color]="getCategoryById(budget.categoryId)?.color + '20'">
+                  <i [class]="'fas ' + getCategoryById(budget.categoryId)?.icon + ' text-xl'"
+                     [style.color]="getCategoryById(budget.categoryId)?.color"></i>
                 </div>
+                <div>
+                  <h4 class="font-semibold text-lg">{{ budget.categoryName }}</h4>
+                  <p class="text-sm text-gray-500">
+                    Alerte configurée à {{ budget.alertThreshold }}%
+                  </p>
+                </div>
+              </div>
+              
+              <div class="text-right">
+                <p class="text-2xl font-bold" [ngClass]="getStatusColor(budget.status)">
+                  {{ budget.percentage }}%
+                </p>
+                <p class="text-sm text-gray-500">utilisé</p>
+              </div>
             </div>
 
-            <div *ngIf="budgets.length === 0"
-                class="text-center py-12 bg-white rounded-xl shadow">
-                <i class="fa-solid fa-wallet text-4xl text-gray-400 mb-3"></i>
-                <p class="text-gray-500">Vous n'avez pas encore créé de
-                    budget</p>
-                <button (click)="toggleBudgetForm()"
-                    class="mt-3 text-blue-600 font-medium">Créer votre premier
-                    budget</button>
+            <!-- Barre de progression -->
+            <div class="mb-4">
+              <div class="flex justify-between text-sm mb-2">
+                <span class="font-medium">{{ formatCurrency(budget.spent) }}</span>
+                <span class="text-gray-500">{{ formatCurrency(budget.limit) }}</span>
+              </div>
+              <div class="w-full bg-gray-200 rounded-full h-3">
+                <div class="h-3 rounded-full transition-all duration-500"
+                     [style.width.%]="Math.min(100, budget.percentage)"
+                     [style.background-color]="getProgressColor(budget.status)"></div>
+              </div>
+              <div class="flex justify-between text-xs text-gray-500 mt-1">
+                <span>Restant: {{ formatCurrency(budget.remaining) }}</span>
+                <span *ngIf="budget.percentage >= budget.alertThreshold" 
+                      [ngClass]="getStatusColor(budget.status)">
+                  ⚠️ Seuil d'alerte atteint
+                </span>
+              </div>
             </div>
+
+            <!-- Actions -->
+            <div class="flex justify-between items-center">
+              <div class="flex space-x-2">
+                <button (click)="addExpense(budget.id, 100)"
+                        class="text-sm bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded">
+                  +100 MAD
+                </button>
+                <button (click)="addExpense(budget.id, 500)"
+                        class="text-sm bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded">
+                  +500 MAD
+                </button>
+              </div>
+              <button (click)="deleteBudget(budget.id)"
+                      class="text-red-600 hover:text-red-800 text-sm">
+                🗑️ Supprimer
+              </button>
+            </div>
+          </div>
+          
+          <div *ngIf="budgets.length === 0" 
+               class="text-center py-12 text-gray-500">
+            <i class="fas fa-wallet text-4xl mb-4"></i>
+            <p class="text-lg mb-2">Aucun budget créé</p>
+            <p class="text-sm">Commencez par créer votre premier budget !</p>
+          </div>
         </div>
-    </div>
+      </div>
 
-    <!-- Goals Tab Content -->
-    <div *ngIf="!isLoading && activeTab === 'goals'" class="space-y-6">
+      <!-- Objectifs d'épargne -->
+      <div *ngIf="activeTab === 'goals'" class="space-y-6">
+        
+        <!-- Bouton d'ajout -->
         <div class="flex justify-between items-center">
-            <h3 class="text-lg font-medium">Vos objectifs d'épargne</h3>
+          <h3 class="text-lg font-semibold">🎯 Vos objectifs d'épargne</h3>
+          <button (click)="toggleGoalForm()"
+                  class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors">
+            <i class="fas fa-plus mr-2"></i>Nouvel Objectif
+          </button>
+        </div>
+
+        <!-- Formulaire de création -->
+        <div *ngIf="showGoalForm" 
+             class="bg-green-50 border border-green-200 rounded-lg p-6">
+          <h4 class="text-lg font-medium mb-4">✨ Créer un nouvel objectif</h4>
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Nom de l'objectif</label>
+              <input type="text" 
+                     [(ngModel)]="newGoal.name"
+                     placeholder="Ex: Vacances d'été"
+                     class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500">
+            </div>
+            
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Montant cible (MAD)</label>
+              <input type="number" 
+                     [(ngModel)]="newGoal.targetAmount"
+                     placeholder="Ex: 15000"
+                     class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500">
+            </div>
+            
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Montant déjà épargné (MAD)</label>
+              <input type="number" 
+                     [(ngModel)]="newGoal.currentAmount"
+                     placeholder="Ex: 5000"
+                     class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500">
+            </div>
+            
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Date cible</label>
+              <input type="date" 
+                     [(ngModel)]="newGoal.targetDate"
+                     class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500">
+            </div>
+          </div>
+          
+          <div class="flex justify-end space-x-3 mt-4">
             <button (click)="toggleGoalForm()"
-                class="text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-full px-4 py-2">
-                <i class="fa-solid fa-plus mr-1"></i> Nouvel Objectif
+                    class="px-4 py-2 text-gray-600 hover:text-gray-800">
+              Annuler
             </button>
+            <button (click)="createSavingsGoal()"
+                    [disabled]="!newGoal.name || newGoal.targetAmount <= 0"
+                    class="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-md">
+              Créer l'objectif
+            </button>
+          </div>
         </div>
 
-        <!-- Savings Goal Creation Form -->
-        <div *ngIf="showGoalForm"
-            class="bg-white rounded-xl shadow p-6 mb-6 border-l-4 border-blue-500">
-            <h4 class="text-lg font-medium mb-4">Créer un nouvel objectif
-                d'épargne</h4>
-
-            <div class="space-y-4">
-                <div>
-                    <label for="title"
-                        class="block text-sm font-medium text-gray-700 mb-1">Titre</label>
-                    <input
-                        type="text"
-                        id="title"
-                        [(ngModel)]="newGoal.title"
-                        placeholder="Ex: Vacances d'été"
-                        class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                </div>
-
-                <div>
-                    <label for="targetAmount"
-                        class="block text-sm font-medium text-gray-700 mb-1">Montant
-                        cible</label>
-                    <div class="mt-1 relative rounded-md shadow-sm">
-                        <div
-                            class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <span class="text-gray-500 sm:text-sm">MAD</span>
-                        </div>
-                        <input
-                            type="number"
-                            id="targetAmount"
-                            [(ngModel)]="newGoal.targetAmount"
-                            class="block w-full pl-12 pr-12 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                    </div>
-                </div>
-
-                <div>
-                    <label for="currentAmount"
-                        class="block text-sm font-medium text-gray-700 mb-1">Montant
-                        déjà épargné</label>
-                    <div class="mt-1 relative rounded-md shadow-sm">
-                        <div
-                            class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <span class="text-gray-500 sm:text-sm">MAD</span>
-                        </div>
-                        <input
-                            type="number"
-                            id="currentAmount"
-                            [(ngModel)]="newGoal.currentAmount"
-                            class="block w-full pl-12 pr-12 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                    </div>
-                </div>
-
-                <div>
-                    <label for="deadline"
-                        class="block text-sm font-medium text-gray-700 mb-1">Date
-                        limite</label>
-                    <input
-                        type="date"
-                        id="deadline"
-                        [(ngModel)]="newGoal.deadline"
-                        class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                </div>
-
-                <div class="flex justify-end space-x-3 mt-6">
-                    <button
-                        (click)="toggleGoalForm()"
-                        class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">
-                        Annuler
-                    </button>
-                    <button
-                        (click)="createSavingsGoal()"
-                        [disabled]="!newGoal.title || newGoal.targetAmount <= 0"
-                        [ngClass]="{'bg-blue-600 hover:bg-blue-700': newGoal.title && newGoal.targetAmount > 0, 'bg-blue-300 cursor-not-allowed': !newGoal.title || newGoal.targetAmount <= 0}"
-                        class="px-4 py-2 border border-transparent rounded-md text-white shadow-sm">
-                        Créer l'objectif
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Goals List -->
+        <!-- Liste des objectifs -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div *ngFor="let goal of savingsGoals"
-                class="bg-white rounded-xl shadow p-6">
-                <div class="flex justify-between items-center mb-4">
-                    <div class="flex items-center">
-                        <div
-                            class="w-10 h-10 rounded-full flex items-center justify-center mr-3"
-                            [style.background-color]="goal.color + '30'">
-                            <i [class]="'fa-solid ' + goal.icon"
-                                [style.color]="goal.color"></i>
-                        </div>
-                        <div>
-                            <h4 class="font-medium">{{ goal.title }}</h4>
-                            <p *ngIf="goal.deadline"
-                                class="text-xs text-gray-500">
-                                Date limite: {{ goal.deadline |
-                                date:'dd/MM/yyyy' }}
-                            </p>
-                        </div>
-                    </div>
-                    <div class="text-right">
-                        <p class="font-bold">{{ goal.currentAmount |
-                            currency:'MAD ' }} <span
-                                class="text-sm text-gray-500">/ {{
-                                goal.targetAmount | currency:'MAD '
-                                }}</span></p>
-                        <p class="text-xs text-blue-600">{{ (goal.currentAmount
-                            / goal.targetAmount * 100) | number:'1.0-0' }}%</p>
-                    </div>
-                </div>
-
-                <app-savings-goal-tracker
-                    [goal]="goal"></app-savings-goal-tracker>
-
-                <div class="mt-4 flex justify-between">
-                    <button class="text-sm text-gray-500 hover:text-gray-700">
-                        <i class="fa-solid fa-pen-to-square mr-1"></i> Modifier
-                    </button>
-                    <button class="text-sm text-blue-600 hover:text-blue-800">
-                        <i class="fa-solid fa-plus mr-1"></i> Ajouter des fonds
-                    </button>
-                </div>
+          <div *ngFor="let goal of savingsGoals" 
+               class="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
+            
+            <div class="flex justify-between items-start mb-4">
+              <div>
+                <h4 class="font-semibold text-lg">{{ goal.name }}</h4>
+                <p class="text-sm text-gray-500">
+                  Date cible: {{ goal.targetDate | date:'dd/MM/yyyy' }}
+                </p>
+                <p class="text-xs text-gray-500">
+                  {{ getDaysRemaining(goal.targetDate) }} jours restants
+                </p>
+              </div>
+              
+              <div class="text-right">
+                <p class="text-2xl font-bold text-blue-600">{{ goal.percentage }}%</p>
+                <p class="text-sm" [ngClass]="getStatusColor(goal.status)">
+                  {{ goal.status === 'completed' ? 'Terminé' : 
+                     goal.status === 'on-track' ? 'En cours' : 'En retard' }}
+                </p>
+              </div>
             </div>
 
-            <div *ngIf="savingsGoals.length === 0"
-                class="col-span-full text-center py-12 bg-white rounded-xl shadow">
-                <i
-                    class="fa-solid fa-piggy-bank text-4xl text-gray-400 mb-3"></i>
-                <p class="text-gray-500">Vous n'avez pas encore créé d'objectif
-                    d'épargne</p>
-                <button (click)="toggleGoalForm()"
-                    class="mt-3 text-blue-600 font-medium">Créer votre premier
-                    objectif</button>
+            <!-- Montants -->
+            <div class="mb-4">
+              <div class="flex justify-between text-sm mb-2">
+                <span class="font-medium">{{ formatCurrency(goal.currentAmount) }}</span>
+                <span class="text-gray-500">{{ formatCurrency(goal.targetAmount) }}</span>
+              </div>
+              <div class="w-full bg-gray-200 rounded-full h-3">
+                <div class="bg-blue-500 h-3 rounded-full transition-all duration-500"
+                     [style.width.%]="goal.percentage"></div>
+              </div>
+              <p class="text-xs text-gray-500 mt-1">
+                Restant: {{ formatCurrency(goal.targetAmount - goal.currentAmount) }}
+              </p>
             </div>
+
+            <!-- Actions -->
+            <div class="flex justify-between items-center">
+              <div class="flex space-x-2">
+                <button (click)="addToSavingsGoal(goal.id, 500)"
+                        class="text-sm bg-blue-100 hover:bg-blue-200 text-blue-600 px-3 py-1 rounded">
+                  +500 MAD
+                </button>
+                <button (click)="addToSavingsGoal(goal.id, 1000)"
+                        class="text-sm bg-blue-100 hover:bg-blue-200 text-blue-600 px-3 py-1 rounded">
+                  +1000 MAD
+                </button>
+              </div>
+              <button (click)="deleteGoal(goal.id)"
+                      class="text-red-600 hover:text-red-800 text-sm">
+                🗑️ Supprimer
+              </button>
+            </div>
+          </div>
+          
+          <div *ngIf="savingsGoals.length === 0" 
+               class="col-span-full text-center py-12 text-gray-500">
+            <i class="fas fa-piggy-bank text-4xl mb-4"></i>
+            <p class="text-lg mb-2">Aucun objectif d'épargne</p>
+            <p class="text-sm">Créez votre premier objectif d'épargne !</p>
+          </div>
         </div>
+      </div>
     </div>
+  </div>
 </div>

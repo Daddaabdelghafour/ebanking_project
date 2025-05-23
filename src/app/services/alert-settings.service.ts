@@ -1,196 +1,124 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { Observable, of, throwError } from 'rxjs';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { Observable, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
-import { AlertSettings , AlertPreference , AlertType } from '../shared/models/alert.model';
+
+interface AlertSetting {
+  id?: string;
+  clientId: string;
+  balanceBelow: {
+    enabled: boolean;
+    threshold?: number;
+    channels: { email: boolean; sms: boolean; push: boolean; }
+  };
+  largeTransaction: {
+    enabled: boolean;
+    threshold?: number;
+    channels: { email: boolean; sms: boolean; push: boolean; }
+  };
+  loginNewDevice: {
+    enabled: boolean;
+    channels: { email: boolean; sms: boolean; push: boolean; }
+  };
+  suspiciousActivity: {
+    enabled: boolean;
+    channels: { email: boolean; sms: boolean; push: boolean; }
+  };
+  newStatement: {
+    enabled: boolean;
+    channels: { email: boolean; sms: boolean; push: boolean; }
+  };
+  paymentDue: {
+    enabled: boolean;
+    channels: { email: boolean; sms: boolean; push: boolean; }
+  };
+  budgetExceeded: {
+    enabled: boolean;
+    threshold?: number;
+    channels: { email: boolean; sms: boolean; push: boolean; }
+  };
+  savingsGoalReached: {
+    enabled: boolean;
+    channels: { email: boolean; sms: boolean; push: boolean; }
+  };
+}
 
 @Injectable({
   providedIn: 'root'
 })
 export class AlertSettingsService {
-  private apiUrl = '/api/alert-settings';
+  private apiUrl = 'http://localhost:8085/E-BANKING1/api/alerts';
+  
+  private httpOptions = {
+    headers: new HttpHeaders({
+      'Content-Type': 'application/json'
+    })
+  };
 
-  constructor(private http: HttpClient) { }
+  constructor(private http: HttpClient) {}
 
   /**
-   * Récupère les paramètres d'alerte de l'utilisateur
+   * Récupérer les paramètres d'alerte d'un client
    */
-  getAlertSettings(): Observable<AlertSettings> {
-    return of(this.getMockAlertSettings()).pipe(
-      catchError(this.handleError)
-    );
-
-    // return this.http.get<AlertSettings>(this.apiUrl).pipe(
-    //   catchError(this.handleError)
-    // );
+  getClientAlertSettings(clientId: string): Observable<AlertSetting | null> {
+    return this.http.get<AlertSetting>(`${this.apiUrl}/client/${clientId}`)
+      .pipe(
+        catchError(error => {
+          console.error('Error fetching alert settings:', error);
+          return of(null);
+        })
+      );
   }
 
   /**
-   * Met à jour les paramètres d'alerte de l'utilisateur
+   * Sauvegarder les paramètres d'alerte
    */
-  updateAlertSettings(settings: Partial<AlertSettings>): Observable<AlertSettings> {
-    // Simuler une mise à jour réussie
-    const mockSettings = this.getMockAlertSettings();
-    const updatedSettings = { ...mockSettings, ...settings };
-    return of(updatedSettings).pipe(catchError(this.handleError));
-
-    // return this.http.put<AlertSettings>(this.apiUrl, settings).pipe(
-    //   catchError(this.handleError)
-    // );
+  saveAlertSettings(alertSettings: AlertSetting): Observable<AlertSetting> {
+    return this.http.post<AlertSetting>(this.apiUrl, alertSettings, this.httpOptions)
+      .pipe(
+        catchError(error => {
+          console.error('Error saving alert settings:', error);
+          throw error;
+        })
+      );
   }
 
   /**
-   * Active ou désactive un type d'alerte spécifique
+   * Récupérer tous les paramètres d'alerte
    */
-  toggleAlertType(type: AlertType, enabled: boolean): Observable<AlertSettings> {
-    // Simuler une mise à jour réussie
-    return of(this.getMockAlertSettings()).pipe(catchError(this.handleError));
-
-    // return this.http.patch<AlertSettings>(`${this.apiUrl}/toggle`, { type, enabled }).pipe(
-    //   catchError(this.handleError)
-    // );
+  getAllAlertSettings(): Observable<AlertSetting[]> {
+    return this.http.get<AlertSetting[]>(this.apiUrl)
+      .pipe(
+        catchError(error => {
+          console.error('Error fetching all alert settings:', error);
+          return of([]);
+        })
+      );
   }
 
   /**
-   * Met à jour le seuil pour un type d'alerte
+   * Récupérer un paramètre d'alerte par ID
    */
-  updateAlertThreshold(type: AlertType, threshold: number): Observable<AlertSettings> {
-    // Simuler une mise à jour réussie
-    return of(this.getMockAlertSettings()).pipe(catchError(this.handleError));
-
-    // return this.http.patch<AlertSettings>(`${this.apiUrl}/threshold`, { type, threshold }).pipe(
-    //   catchError(this.handleError)
-    // );
+  getAlertSettingById(id: string): Observable<AlertSetting | null> {
+    return this.http.get<AlertSetting>(`${this.apiUrl}/${id}`)
+      .pipe(
+        catchError(error => {
+          console.error('Error fetching alert setting by ID:', error);
+          return of(null);
+        })
+      );
   }
 
   /**
-   * Met à jour les canaux de notification pour un type d'alerte
+   * Supprimer des paramètres d'alerte
    */
-  updateAlertChannels(type: AlertType, email: boolean, sms: boolean, push: boolean): Observable<AlertSettings> {
-    // Simuler une mise à jour réussie
-    return of(this.getMockAlertSettings()).pipe(catchError(this.handleError));
-
-    // return this.http.patch<AlertSettings>(`${this.apiUrl}/channels`, { type, email, sms, push }).pipe(
-    //   catchError(this.handleError)
-    // );
-  }
-
-  /**
-   * Obtient des préférences d'alerte formatées pour l'interface utilisateur
-   */
-  getAlertPreferences(): Observable<AlertPreference[]> {
-    return of(this.getMockAlertPreferences()).pipe(catchError(this.handleError));
-
-    // return this.http.get<AlertPreference[]>(`${this.apiUrl}/preferences`).pipe(
-    //   catchError(this.handleError)
-    // );
-  }
-
-  /**
-   * Gestion des erreurs
-   */
-  private handleError(error: HttpErrorResponse) {
-    console.error('Une erreur est survenue', error);
-    
-    // Log détaillé pour débogage
-    if (error.error instanceof ErrorEvent) {
-      console.error('Erreur côté client:', error.error.message);
-    } else {
-      console.error(`Erreur serveur: ${error.status}, message: ${error.message}`);
-      console.error('Corps de la réponse:', error.error);
-    }
-    
-    return throwError(() => new Error('Une erreur est survenue lors de l\'opération. Veuillez réessayer plus tard.'));
-  }
-
-  /**
-   * Données mockées pour les paramètres d'alerte
-   */
-  private getMockAlertSettings(): AlertSettings {
-    return {
-      id: 'als1',
-      clientId: 'client1',
-      balanceBelow: 1000,
-      largeTransactions: 5000,
-      loginNewDevice: true,
-      suspiciousActivity: true,
-      newStatement: true,
-      paymentDue: true,
-      emailEnabled: true,
-      smsEnabled: true,
-      pushEnabled: false,
-      createdAt: new Date('2025-01-01'),
-      updatedAt: new Date('2025-04-15')
-    };
-  }
-
-  /**
-   * Données mockées pour les préférences d'alerte
-   */
-  private getMockAlertPreferences(): AlertPreference[] {
-    return [
-      {
-        type: 'balance_below',
-        description: 'Alerte de solde bas',
-        enabled: true,
-        threshold: 1000,
-        channels: {
-          email: true,
-          sms: true,
-          push: false
-        }
-      },
-      {
-        type: 'large_transaction',
-        description: 'Transactions importantes',
-        enabled: true,
-        threshold: 5000,
-        channels: {
-          email: true,
-          sms: true,
-          push: false
-        }
-      },
-      {
-        type: 'login_new_device',
-        description: 'Connexion depuis un nouvel appareil',
-        enabled: true,
-        channels: {
-          email: true,
-          sms: true,
-          push: false
-        }
-      },
-      {
-        type: 'suspicious_activity',
-        description: 'Activité suspecte',
-        enabled: true,
-        channels: {
-          email: true,
-          sms: true,
-          push: false
-        }
-      },
-      {
-        type: 'new_statement',
-        description: 'Nouveau relevé disponible',
-        enabled: true,
-        channels: {
-          email: true,
-          sms: false,
-          push: false
-        }
-      },
-      {
-        type: 'payment_due',
-        description: 'Échéance de paiement',
-        enabled: true,
-        channels: {
-          email: true,
-          sms: false,
-          push: false
-        }
-      }
-    ];
+  deleteAlertSettings(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/${id}`)
+      .pipe(
+        catchError(error => {
+          console.error('Error deleting alert settings:', error);
+          throw error;
+        })
+      );
   }
 }
