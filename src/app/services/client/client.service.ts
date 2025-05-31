@@ -6,6 +6,55 @@ import { Client, ClientFormData } from '../../shared/models/client.model';
 import { Account } from '../../shared/models/account.model';
 import { User } from '../../shared/models/user.model';
 
+// Stripe interfaces for client view
+interface StripeAccount {
+  id: string;
+  email: string;
+  country: string;
+  chargesEnabled: boolean;
+  payoutsEnabled: boolean;
+  detailsSubmitted: boolean;
+  type: string;
+}
+
+interface StripeBalance {
+  available: Array<{
+    amount: number;
+    currency: string;
+  }>;
+  pending: Array<{
+    amount: number;
+    currency: string;
+  }>;
+}
+
+interface StripeCustomer {
+  id: string;
+  email: string;
+  name: string;
+  phone?: string;
+  created: number;
+}
+
+interface ClientFinancialData {
+  client: Client;
+  accounts: Account[];
+  stripeAccount?: StripeAccount;
+  stripeBalance?: StripeBalance;
+  stripeCustomer?: StripeCustomer;
+  hasStripeIntegration: boolean;
+  summary: {
+    totalBankBalance: number;
+    totalStripeBalance: number;
+    totalCombinedBalance: number;
+    availableBalance: number;
+    monthlyIncome: number;
+    monthlyExpenses: number;
+    activeAccountsCount: number;
+    stripeAccountStatus: string;
+  };
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -22,6 +71,417 @@ export class ClientService {
   private useMockData = false; // Mettre à true pour éviter les appels API
 
   constructor(private http: HttpClient) {}
+
+  // ===== NEW STRIPE INTEGRATION METHODS =====
+
+  /**
+   * Get complete client financial data including Stripe (READ-ONLY for client)
+   */
+  getClientFinancialData(clientId?: string): Observable<ClientFinancialData> {
+    const id = clientId || this.testClientId;
+    
+    console.log(`Loading financial data for client: ${id}`);
+    
+    if (this.useMockData) {
+      return this.getMockClientFinancialData(id);
+    }
+    
+    // First get client info to extract userId
+    return this.getClientById(id).pipe(
+      switchMap(client => {
+        if (!client) {
+          throw new Error(`Client with ID ${id} not found`);
+        }
+        
+        // Use client.id as userId (adjust based on your data structure)
+        const userId = client.id;
+        
+        // Load all data in parallel
+        return forkJoin({
+          client: of(client),
+          accounts: this.getClientAccounts(id),
+          stripeAccount: userId ? this.getStripeAccountInfo(userId) : of(null),
+          stripeBalance: userId ? this.getStripeBalanceInfo(userId) : of(null),
+          stripeCustomer: userId ? this.getStripeCustomerInfo(userId) : of(null)
+        });
+      }),
+      map(data => this.combineClientFinancialData(data)),
+      catchError(error => {
+        console.error('Error loading client financial data:', error);
+        return this.getMockClientFinancialData(id);
+      })
+    );
+  }
+
+  /**
+   * Get Stripe account info (READ-ONLY)
+   */
+  private getStripeAccountInfo(userId: string): Observable<StripeAccount | null> {
+    if (this.useMockData) {
+      return of(this.generateMockStripeAccount(userId)).pipe(delay(300));
+    }
+    
+    return this.http.get<StripeAccount>(`${this.apiUrl}/stripe/byuserid/${userId}`).pipe(
+      tap(account => console.log('Stripe account info loaded:', account?.id)),
+      catchError(error => {
+        console.log('No Stripe account found for user:', userId);
+        return of(null);
+      })
+    );
+  }
+
+  /**
+   * Get Stripe balance info (READ-ONLY)
+   */
+  private getStripeBalanceInfo(userId: string): Observable<StripeBalance | null> {
+    if (this.useMockData) {
+      return of(this.generateMockStripeBalance()).pipe(delay(300));
+    }
+    
+    return this.http.get<StripeBalance>(`${this.apiUrl}/stripe/balance/${userId}`).pipe(
+      tap(balance => console.log('Stripe balance loaded:', balance?.available?.length || 0, 'currencies')),
+      catchError(error => {
+        console.log('No Stripe balance found for user:', userId);
+        return of(null);
+      })
+    );
+  }
+
+  /**
+   * Get Stripe customer info (READ-ONLY)
+   */
+  private getStripeCustomerInfo(userId: string): Observable<StripeCustomer | null> {
+    if (this.useMockData) {
+      return of(this.generateMockStripeCustomer(userId)).pipe(delay(300));
+    }
+    
+    return this.http.get<StripeCustomer>(`${this.apiUrl}/stripe/customer/${userId}`).pipe(
+      tap(customer => console.log('Stripe customer info loaded:', customer?.id)),
+      catchError(error => {
+        console.log('No Stripe customer found for user:', userId);
+        return of(null);
+      })
+    );
+  }
+
+  /**
+   * Refresh client financial data
+   */
+  refreshClientFinancialData(clientId?: string): Observable<ClientFinancialData> {
+    const id = clientId || this.testClientId;
+    const cacheBuster = `?t=${Date.now()}`;
+    
+    if (this.useMockData) {
+      return this.getMockClientFinancialData(id);
+    }
+    
+    return this.getClientById(id).pipe(
+      switchMap(client => {
+        if (!client) {
+          throw new Error(`Client with ID ${id} not found`);
+        }
+        
+        const userId = client.id;
+        
+        return forkJoin({
+          client: of(client),
+          accounts: this.http.get<Account[]>(`${this.apiUrl}/accounts/client/${id}${cacheBuster}`).pipe(
+            catchError(() => of(this.generateMockAccounts(id)))
+          ),
+          stripeAccount: userId ? this.http.get<StripeAccount>(`${this.apiUrl}/stripe/byuserid/${userId}${cacheBuster}`).pipe(
+            catchError(() => of(null))
+          ) : of(null),
+          stripeBalance: userId ? this.http.get<StripeBalance>(`${this.apiUrl}/stripe/balance/${userId}${cacheBuster}`).pipe(
+            catchError(() => of(null))
+          ) : of(null),
+          stripeCustomer: userId ? this.http.get<StripeCustomer>(`${this.apiUrl}/stripe/customer/${userId}${cacheBuster}`).pipe(
+            catchError(() => of(null))
+          ) : of(null)
+        });
+      }),
+      map(data => this.combineClientFinancialData(data)),
+      catchError(error => {
+        console.error('Error refreshing client financial data:', error);
+        return this.getMockClientFinancialData(id);
+      })
+    );
+  }
+
+  // ===== STRIPE UTILITY METHODS FOR CLIENT VIEW =====
+
+  /**
+   * Get Stripe account status for display
+   */
+  getStripeAccountStatus(stripeAccount: StripeAccount | null): string {
+    return this.getStripeAccountStatusText(stripeAccount);
+  }
+
+  /**
+   * Get Stripe account status text
+   */
+  private getStripeAccountStatusText(stripeAccount: StripeAccount | null): string {
+    if (!stripeAccount) return 'Pas de compte Stripe';
+    
+    if (stripeAccount.chargesEnabled && stripeAccount.payoutsEnabled && stripeAccount.detailsSubmitted) {
+      return 'Compte actif';
+    } else if (stripeAccount.detailsSubmitted) {
+      return 'En cours de vérification';
+    } else {
+      return 'Configuration incomplète';
+    }
+  }
+
+  /**
+   * Get Stripe account status badge class
+   */
+  getStripeAccountStatusClass(stripeAccount: StripeAccount | null): string {
+    if (!stripeAccount) return 'bg-gray-100 text-gray-800';
+    
+    if (stripeAccount.chargesEnabled && stripeAccount.payoutsEnabled && stripeAccount.detailsSubmitted) {
+      return 'bg-green-100 text-green-800';
+    } else if (stripeAccount.detailsSubmitted) {
+      return 'bg-yellow-100 text-yellow-800';
+    } else {
+      return 'bg-red-100 text-red-800';
+    }
+  }
+
+  /**
+   * Check if Stripe account is fully active
+   */
+  isStripeAccountActive(stripeAccount: StripeAccount | null): boolean {
+    if (!stripeAccount) return false;
+    return stripeAccount.chargesEnabled && 
+           stripeAccount.payoutsEnabled && 
+           stripeAccount.detailsSubmitted;
+  }
+
+  /**
+   * Format Stripe amount (convert from cents)
+   */
+  formatStripeAmount(amount: number, currency: string): string {
+    const convertedAmount = amount / 100;
+    return this.formatCurrency(convertedAmount, currency.toUpperCase());
+  }
+
+  /**
+   * Get total Stripe balance formatted
+   */
+  getFormattedStripeBalance(stripeBalance: StripeBalance | null): string {
+    if (!stripeBalance?.available?.length) return '0,00 MAD';
+    
+    const totalAmount = stripeBalance.available.reduce((sum, bal) => {
+      return sum + (bal.amount / 100);
+    }, 0);
+    
+    return this.formatCurrency(totalAmount, 'MAD');
+  }
+
+  /**
+   * Get Stripe balance by currency
+   */
+  getStripeBalanceByCurrency(stripeBalance: StripeBalance | null, currency: string): number {
+    if (!stripeBalance?.available) return 0;
+    
+    const balance = stripeBalance.available.find(bal => 
+      bal.currency.toUpperCase() === currency.toUpperCase()
+    );
+    
+    return balance ? balance.amount / 100 : 0;
+  }
+
+  /**
+   * Get Stripe pending balance by currency
+   */
+  getStripePendingBalanceByCurrency(stripeBalance: StripeBalance | null, currency: string): number {
+    if (!stripeBalance?.pending) return 0;
+    
+    const balance = stripeBalance.pending.find(bal => 
+      bal.currency.toUpperCase() === currency.toUpperCase()
+    );
+    
+    return balance ? balance.amount / 100 : 0;
+  }
+
+  /**
+   * Get client full name safely
+   */
+  getClientFullName(client: Client | null): string {
+    if (!client) return 'Client';
+    return `${client.firstName || ''} ${client.lastName || ''}`.trim() || 'Client';
+  }
+
+  /**
+   * Format currency with proper locale
+   */
+  formatCurrency(amount: number, currency: string = 'MAD'): string {
+    return new Intl.NumberFormat('fr-MA', {
+      style: 'currency',
+      currency: currency,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(amount);
+  }
+
+  /**
+   * Get account type display name in French
+   */
+  getAccountTypeDisplayName(type: string): string {
+    const typeMap: Record<string, string> = {
+      'current': 'Compte Courant',
+      'savings': 'Compte Épargne',
+      'investment': 'Compte Investissement',
+      'fixed': 'Compte à Terme',
+      'other': 'Autre'
+    };
+    return typeMap[type] || type;
+  }
+
+  /**
+   * Check if client has any active accounts
+   */
+  hasActiveAccounts(accounts: Account[]): boolean {
+    return accounts?.some(account => account.status === 'active') || false;
+  }
+
+  /**
+   * Get primary account
+   */
+  getPrimaryAccount(accounts: Account[]): Account | null {
+    if (!accounts?.length) return null;
+    return accounts.find(account => account.isPrimary && account.status === 'active') || 
+           accounts.find(account => account.status === 'active') || 
+           null;
+  }
+
+  // ===== PRIVATE HELPER METHODS =====
+
+  /**
+   * Combine client financial data
+   */
+  private combineClientFinancialData(data: any): ClientFinancialData {
+    const { client, accounts, stripeAccount, stripeBalance, stripeCustomer } = data;
+    
+    const summary = this.calculateClientFinancialSummary(accounts, stripeBalance, stripeAccount);
+    
+    return {
+      client,
+      accounts: accounts || [],
+      stripeAccount,
+      stripeBalance,
+      stripeCustomer,
+      hasStripeIntegration: !!stripeAccount,
+      summary
+    };
+  }
+
+  /**
+   * Calculate client financial summary
+   */
+  private calculateClientFinancialSummary(accounts: Account[], stripeBalance: StripeBalance | null, stripeAccount: StripeAccount | null) {
+    // Calculate total bank balance
+    const totalBankBalance = accounts?.reduce((sum, account) => {
+      return sum + (account.status === 'active' ? account.balance : 0);
+    }, 0) || 0;
+
+    // Calculate available bank balance
+    const availableBalance = accounts?.reduce((sum, account) => {
+      return sum + (account.status === 'active' ? account.availableBalance : 0);
+    }, 0) || 0;
+
+    // Calculate Stripe balance (convert from cents to main currency)
+    const totalStripeBalance = stripeBalance?.available?.reduce((sum, bal) => {
+      return sum + (bal.amount / 100); // Convert from cents
+    }, 0) || 0;
+
+    // Count active accounts
+    const activeAccountsCount = accounts?.filter(acc => acc.status === 'active').length || 0;
+
+    // Estimate income/expenses (simplified calculation)
+    const monthlyIncome = totalBankBalance * 0.15 || 5000;
+    const monthlyExpenses = monthlyIncome * 0.7;
+
+    // Get Stripe account status
+    const stripeAccountStatus = this.getStripeAccountStatusText(stripeAccount);
+
+    return {
+      totalBankBalance,
+      totalStripeBalance,
+      totalCombinedBalance: totalBankBalance + totalStripeBalance,
+      availableBalance,
+      monthlyIncome,
+      monthlyExpenses,
+      activeAccountsCount,
+      stripeAccountStatus
+    };
+  }
+
+  /**
+   * Get mock client financial data
+   */
+  private getMockClientFinancialData(clientId: string): Observable<ClientFinancialData> {
+    const client = this.generateBasicMockClient(clientId);
+    const accounts = this.generateMockAccounts(clientId);
+    const stripeAccount = this.generateMockStripeAccount(clientId);
+    const stripeBalance = this.generateMockStripeBalance();
+    const stripeCustomer = this.generateMockStripeCustomer(clientId);
+    const summary = this.calculateClientFinancialSummary(accounts, stripeBalance, stripeAccount);
+    
+    return of({
+      client,
+      accounts,
+      stripeAccount,
+      stripeBalance,
+      stripeCustomer,
+      hasStripeIntegration: true,
+      summary
+    }).pipe(delay(300));
+  }
+
+  /**
+   * Generate mock Stripe account
+   */
+  private generateMockStripeAccount(userId: string): StripeAccount {
+    return {
+      id: 'acct_1234567890',
+      email: 'ahmed.bennani@email.com',
+      country: 'MA',
+      chargesEnabled: true,
+      payoutsEnabled: true,
+      detailsSubmitted: true,
+      type: 'express'
+    };
+  }
+
+  /**
+   * Generate mock Stripe balance
+   */
+  private generateMockStripeBalance(): StripeBalance {
+    return {
+      available: [
+        { amount: 1250000, currency: 'mad' }, // 12,500 MAD in cents
+        { amount: 85000, currency: 'eur' }    // 850 EUR in cents
+      ],
+      pending: [
+        { amount: 45000, currency: 'mad' }    // 450 MAD in cents
+      ]
+    };
+  }
+
+  /**
+   * Generate mock Stripe customer
+   */
+  private generateMockStripeCustomer(userId: string): StripeCustomer {
+    return {
+      id: 'cus_1234567890',
+      email: 'ahmed.bennani@email.com',
+      name: 'Ahmed Bennani',
+      phone: '+212600000000',
+      created: Math.floor(Date.now() / 1000)
+    };
+  }
+
+  // ===== ALL EXISTING METHODS (UNCHANGED) =====
 
   /**
    * Formate les dates en chaînes ISO si nécessaire
@@ -786,25 +1246,25 @@ export class ClientService {
   private generateBasicMockClient(id: string): Client {
     return {
       id: id,
-      firstName: 'Client',
-      lastName: 'Test',
-      email: 'client@test.com',
+      firstName: 'Ahmed',
+      lastName: 'Bennani',
+      email: 'ahmed.bennani@email.com',
       phone: '+212 600000000',
       clientId: `CLI${id.substring(0, 6)}`,
-      address: 'Adresse test',
+      address: '123 Avenue Mohammed V',
       city: 'Casablanca',
       postalCode: '20000',
       country: 'Maroc',
       status: 'active',
-      accountType: 'Standard',
+      accountType: 'Premium',
       balance: 75000,
       currency: 'MAD',
       dateJoined: new Date().toISOString(),
-      identityNumber: 'ID12345',
+      identityNumber: 'BE123456',
       identityType: 'CIN',
       birthDate: '1985-01-01',
-      occupation: 'Profession',
-      income: 20000,
+      occupation: 'Ingénieur',
+      income: 25000,
       contactPreference: 'Email',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -836,7 +1296,7 @@ export class ClientService {
         id: `acc${clientId.substring(0, 6)}1`,
         client: client,
         clientId: clientId,
-        accountNumber: '11223344556677',
+        accountNumber: '001234567890',
         type: 'current',
         balance: 50000,
         availableBalance: 49000,
@@ -844,7 +1304,7 @@ export class ClientService {
         status: 'active',
         openedDate: new Date().toISOString(),
         lastTransactionDate: new Date().toISOString(),
-        iban: 'MA641234567890123456789012',
+        iban: 'MA64001234567890123456789',
         rib: 'RIB12345',
         dailyLimit: 10000,
         monthlyLimit: 50000,
@@ -857,7 +1317,7 @@ export class ClientService {
         id: `acc${clientId.substring(0, 6)}2`,
         client: client,
         clientId: clientId,
-        accountNumber: '77665544332211',
+        accountNumber: '001234567891',
         type: 'savings',
         balance: 25000,
         availableBalance: 25000,
@@ -865,7 +1325,7 @@ export class ClientService {
         status: 'active',
         openedDate: new Date().toISOString(),
         lastTransactionDate: new Date().toISOString(),
-        iban: 'MA641234567890123456789078',
+        iban: 'MA64001234567891123456789',
         rib: 'RIB54321',
         dailyLimit: 5000,
         monthlyLimit: 20000,

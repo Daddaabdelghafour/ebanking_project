@@ -23,28 +23,38 @@ interface Transfer {
   recipientAccountNumber: string;
   amount: number;
   currency: string;
-  type: 'internal' | 'external' | 'international';
+  type: 'stripe' | 'direct';
   status: 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled';
   reason?: string;
   scheduledDate?: string;
   executedDate?: string;
   createdAt: string;
-  isRecurring?: boolean;
-  recurringFrequency?: string;
-  transactionFees?: number;
+  stripePaymentIntentId?: string;
+  stripeTransferId?: string;
 }
 
-interface TransferFormData {
-  transferType: string;
-  recipientAccountNumber: string;
-  recipientName: string;
-  amount: number;
+interface PaymentRequestDTO {
+  sourceUserId: string;
+  destinationStripeAccountId: string;
+  amount: number; // en centimes
   currency: string;
-  reason: string;
-  isScheduled: boolean;
-  scheduledDate?: string;
-  isRecurring: boolean;
-  recurringFrequency?: string;
+  applicationFeeAmount?: number;
+  description?: string;
+}
+
+interface StripeAccount {
+  id: string;
+  email: string;
+  chargesEnabled: boolean;
+  payoutsEnabled: boolean;
+  detailsSubmitted: boolean;
+  localAccount: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    username: string;
+  };
 }
 
 @Component({
@@ -55,39 +65,37 @@ interface TransferFormData {
   styleUrls: ['./transfers.component.css']
 })
 export class TransfersComponent implements OnInit {
+  // Fixed IDs like in stripe-management
   clientId: string = 'fe6f2c00-b906-454a-b57d-f79c8e4f9da4';
+  userId: string = 'f63a8753-6908-4130-a897-cf26f5f5d733';
   
   // UI States
   currentTab: 'history' | 'new' = 'history';
   isLoading: boolean = true;
   isSubmitting: boolean = false;
+  isLoadingRecipients: boolean = false;
   showError: boolean = false;
   showSuccess: boolean = false;
   showTransferDetails: boolean = false;
   errorMessage: string = '';
+  successMessage: string = '';
   
   // Data
   clientAccounts: Account[] = [];
   selectedAccount: Account | null = null;
+  availableRecipients: StripeAccount[] = [];
+  selectedRecipient: StripeAccount | null = null;
   transfers: Transfer[] = [];
   selectedTransfer: Transfer | null = null;
   transferForm: FormGroup;
   
   // Configuration
   transferTypes = [
-    { id: 'internal', label: 'Virement interne' },
-    { id: 'external', label: 'Virement externe' },
-    { id: 'international', label: 'Virement international' }
+    { id: 'stripe', label: 'Virement via Stripe' },
+    { id: 'direct', label: 'Transfert direct' }
   ];
   
-  currencies = ['MAD', 'EUR', 'USD', 'GBP'];
-  
-  recurringFrequencies = [
-    { id: 'weekly', label: 'Hebdomadaire' },
-    { id: 'monthly', label: 'Mensuel' },
-    { id: 'quarterly', label: 'Trimestriel' },
-    { id: 'yearly', label: 'Annuel' }
-  ];
+  currencies = ['EUR', 'USD', 'MAD'];
 
   private apiUrl = 'http://localhost:8085/E-BANKING1/api';
   private httpOptions = {
@@ -105,23 +113,20 @@ export class TransfersComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadClientAccounts();
+    this.loadAvailableRecipients();
   }
 
   /**
-   * Créer le formulaire de virement
+   * Créer le formulaire de virement simplifié
    */
   createTransferForm(): FormGroup {
     return this.fb.group({
-      transferType: ['external', Validators.required],
-      recipientAccountNumber: ['', [Validators.required, Validators.minLength(8)]],
-      recipientName: ['', [Validators.required, Validators.minLength(2)]],
-      amount: [0, [Validators.required, Validators.min(0.01)]],
-      currency: ['MAD', Validators.required],
-      reason: [''],
-      isScheduled: [false],
-      scheduledDate: [''],
-      isRecurring: [false],
-      recurringFrequency: ['monthly']
+      transferType: ['stripe', Validators.required],
+      recipientId: ['', Validators.required],
+      amount: [0, [Validators.required, Validators.min(0.01), Validators.max(10000)]],
+      currency: ['EUR', Validators.required],
+      description: ['Virement client', [Validators.required, Validators.minLength(3)]],
+      applicationFee: [0, [Validators.min(0), Validators.max(1000)]] // Frais plateforme en centimes
     });
   }
 
@@ -142,7 +147,8 @@ export class TransfersComponent implements OnInit {
         }),
         catchError(error => {
           console.error('Erreur lors du chargement des comptes:', error);
-          this.showErrorMessage('Impossible de charger vos comptes.');
+          // Utiliser des données de fallback pour la démo
+          this.createFallbackAccounts();
           return of([]);
         }),
         finalize(() => {
@@ -153,40 +159,74 @@ export class TransfersComponent implements OnInit {
   }
 
   /**
-   * Charger l'historique des virements
+   * Créer des comptes de fallback pour la démo
+   */
+  createFallbackAccounts(): void {
+    this.clientAccounts = [
+      {
+        id: 'acc_123456',
+        accountNumber: '001234567890',
+        type: 'checking',
+        balance: 5000.00,
+        currency: 'EUR',
+        status: 'active'
+      }
+    ];
+    this.selectedAccount = this.clientAccounts[0];
+    this.loadTransfers();
+  }
+
+  /**
+   * Charger les destinataires disponibles (comptes Stripe actifs)
+   */
+  loadAvailableRecipients(): void {
+    this.isLoadingRecipients = true;
+    
+    this.http.get<StripeAccount[]>(`${this.apiUrl}/stripe`)
+      .pipe(
+        tap((accounts: StripeAccount[]) => {
+          // Filtrer les comptes actifs et excluire le compte courant
+          this.availableRecipients = accounts.filter(acc => 
+            acc.chargesEnabled && 
+            acc.payoutsEnabled && 
+            acc.localAccount.id !== this.userId
+          );
+          console.log('Recipients loaded:', this.availableRecipients);
+        }),
+        catchError(error => {
+          console.error('Erreur lors du chargement des destinataires:', error);
+          this.showErrorMessage('Impossible de charger les destinataires disponibles.');
+          return of([]);
+        }),
+        finalize(() => {
+          this.isLoadingRecipients = false;
+        })
+      )
+      .subscribe();
+  }
+
+  /**
+   * Charger l'historique des virements (simulation pour l'instant)
    */
   loadTransfers(): void {
     if (!this.selectedAccount) return;
     
-    // Simuler des données pour l'instant (remplacer par votre endpoint réel)
+    // Simuler des données - remplacer par votre endpoint réel
     this.transfers = [
       {
         id: '1',
         reference: 'TRF-001-2024',
         senderAccountNumber: this.selectedAccount.accountNumber,
         recipientName: 'Mohammed Alami',
-        recipientAccountNumber: '1234567890123',
-        amount: 1500,
-        currency: 'MAD',
-        type: 'external',
+        recipientAccountNumber: 'acct_1Nv0FGQ9RKHgCVdK',
+        amount: 15.00,
+        currency: 'EUR',
+        type: 'stripe',
         status: 'completed',
-        reason: 'Paiement facture',
-        createdAt: '2024-01-15T10:30:00Z',
-        executedDate: '2024-01-15T10:32:00Z'
-      },
-      {
-        id: '2',
-        reference: 'TRF-002-2024',
-        senderAccountNumber: this.selectedAccount.accountNumber,
-        recipientName: 'Fatima Benali',
-        recipientAccountNumber: '9876543210987',
-        amount: 850,
-        currency: 'MAD',
-        type: 'external',
-        status: 'pending',
-        reason: 'Remboursement',
-        createdAt: '2024-01-16T14:20:00Z',
-        scheduledDate: '2024-01-17T09:00:00Z'
+        reason: 'Paiement service',
+        createdAt: new Date().toISOString(),
+        executedDate: new Date().toISOString(),
+        stripePaymentIntentId: 'pi_test_1234567890'
       }
     ];
   }
@@ -208,122 +248,159 @@ export class TransfersComponent implements OnInit {
   }
 
   /**
-   * Gérer le changement de type de virement
+   * Sélectionner un destinataire
    */
-  onTransferTypeChange(): void {
-    const transferType = this.transferForm.get('transferType')?.value;
-    
-    // Ajuster les validations selon le type
-    if (transferType === 'international') {
-      this.transferForm.get('recipientAccountNumber')?.setValidators([
-        Validators.required, 
-        Validators.minLength(15)
-      ]);
-    } else {
-      this.transferForm.get('recipientAccountNumber')?.setValidators([
-        Validators.required, 
-        Validators.minLength(8)
-      ]);
-    }
-    
-    this.transferForm.get('recipientAccountNumber')?.updateValueAndValidity();
+  onRecipientSelect(): void {
+    const recipientId = this.transferForm.get('recipientId')?.value;
+    this.selectedRecipient = this.availableRecipients.find(r => r.id === recipientId) || null;
   }
 
   /**
    * Soumettre le virement
    */
   onSubmitTransfer(): void {
-    if (this.transferForm.invalid || this.isSubmitting) return;
+    if (this.transferForm.invalid || this.isSubmitting || !this.selectedAccount || !this.selectedRecipient) {
+      this.showErrorMessage('Veuillez remplir correctement tous les champs requis.');
+      return;
+    }
     
     this.isSubmitting = true;
     this.clearMessages();
     
-    const formData: TransferFormData = this.transferForm.value;
+    const formData = this.transferForm.value;
     
     // Vérifier le solde
-    if (this.selectedAccount && formData.amount > this.selectedAccount.balance) {
+    const amountInEur = formData.amount;
+    if (amountInEur > this.selectedAccount.balance) {
       this.showErrorMessage('Solde insuffisant pour effectuer ce virement.');
       this.isSubmitting = false;
       return;
     }
-    
-    // Préparer les données pour l'API
-    const transferData = {
-      senderAccountId: this.selectedAccount?.id,
-      recipientAccountNumber: formData.recipientAccountNumber,
-      recipientName: formData.recipientName,
-      amount: formData.amount,
-      currency: formData.currency,
-      type: formData.transferType,
-      reason: formData.reason,
-      isScheduled: formData.isScheduled,
-      scheduledDate: formData.isScheduled ? formData.scheduledDate : null,
-      isRecurring: formData.isRecurring,
-      recurringFrequency: formData.isRecurring ? formData.recurringFrequency : null
-    };
-    
-    // Simuler l'appel API et redirection vers Stripe
-    this.processTransferWithStripe(transferData);
-  }
 
-  /**
-   * Traiter le virement avec Stripe
-   */
-  processTransferWithStripe(transferData: any): void {
-    console.log('Processing transfer with Stripe:', transferData);
-    
-    // Simuler la création d'une session Stripe
-    setTimeout(() => {
-      // Générer une URL Stripe simulée
-      const stripeSessionId = 'cs_test_' + Math.random().toString(36).substr(2, 9);
-      const stripeUrl = `https://checkout.stripe.com/pay/${stripeSessionId}#fidkdWxOYHwnPyd1blpxYHZxWjA0S05MZ1FJQGNkYUEyVElCYlBTTDJBUTRJT2dVd2xVcT1gJE1qNkNAaU9kYUZSfV1VPGRJcmtKNUt8MTRtaVJFZ29UaHYwc3JQaVV0YHR8MEh%2FQ0FCYjU8ZGtoNicpJ2N3amhWYHdzYHcnP3F3cGApJ2lkfGpwcVF8dWAnPyd2bGtiaWBabHFgaCcpJ2BrZGdpYFVpZGZgbWppYWB3dic%2FcXdwYHgl`;
-      
-      // Rediriger vers Stripe
-      this.redirectToStripe(stripeUrl, transferData);
-    }, 1000);
-  }
-
-  /**
-   * Rediriger vers Stripe
-   */
-  redirectToStripe(stripeUrl: string, transferData: any): void {
-    // Sauvegarder les données du transfert localement pour le retour
-    localStorage.setItem('pendingTransfer', JSON.stringify(transferData));
-    
-    // Message d'information
-    if (confirm('Vous allez être redirigé vers Stripe pour finaliser le paiement. Continuer ?')) {
-      // En production, vous ouvrirez la vraie URL Stripe
-      // window.location.href = stripeUrl;
-      
-      // Pour la démo, on simule le succès
-      this.simulateStripeSuccess();
+    // Préparer la demande selon le type de transfert
+    if (formData.transferType === 'stripe') {
+      this.processStripePayment(formData);
     } else {
-      this.isSubmitting = false;
+      this.processDirectTransfer(formData);
     }
   }
 
   /**
-   * Simuler le succès Stripe (pour la démo)
+   * Traiter le paiement via Stripe
    */
-  simulateStripeSuccess(): void {
-    setTimeout(() => {
-      this.isSubmitting = false;
-      this.showSuccessMessage('Virement créé avec succès !');
-      this.transferForm.reset();
-      this.transferForm.patchValue({
-        transferType: 'external',
-        currency: 'MAD',
-        isScheduled: false,
-        isRecurring: false,
-        recurringFrequency: 'monthly'
-      });
-      
-      // Recharger les virements
-      this.loadTransfers();
-      
-      // Retourner à l'historique
-      this.currentTab = 'history';
-    }, 2000);
+  processStripePayment(formData: any): void {
+    const paymentRequest: PaymentRequestDTO = {
+      sourceUserId: this.userId,
+      destinationStripeAccountId: this.selectedRecipient!.id,
+      amount: Math.round(formData.amount * 100), // Convertir en centimes
+      currency: formData.currency.toLowerCase(),
+      applicationFeeAmount: formData.applicationFee > 0 ? formData.applicationFee : undefined,
+      description: formData.description
+    };
+
+    console.log('Processing Stripe payment:', paymentRequest);
+
+    this.http.post(`${this.apiUrl}/transaction/pay`, paymentRequest, this.httpOptions)
+      .pipe(
+        tap((response: any) => {
+          console.log('Stripe payment response:', response);
+          
+          // Créer un enregistrement de transfert local
+          const newTransfer: Transfer = {
+            id: response.id,
+            reference: `PAY-${Date.now()}`,
+            senderAccountNumber: this.selectedAccount!.accountNumber,
+            recipientName: this.selectedRecipient!.localAccount.firstName + ' ' + this.selectedRecipient!.localAccount.lastName,
+            recipientAccountNumber: this.selectedRecipient!.id,
+            amount: formData.amount,
+            currency: formData.currency,
+            type: 'stripe',
+            status: response.status === 'succeeded' ? 'completed' : 'processing',
+            reason: formData.description,
+            createdAt: new Date().toISOString(),
+            stripePaymentIntentId: response.id
+          };
+
+          this.transfers.unshift(newTransfer);
+          this.showSuccessMessage(`Paiement Stripe créé avec succès ! ID: ${response.id}`);
+          this.resetForm();
+        }),
+        catchError(error => {
+          console.error('Erreur Stripe payment:', error);
+          this.showErrorMessage(error.error || 'Erreur lors du traitement du paiement Stripe.');
+          return of(null);
+        }),
+        finalize(() => {
+          this.isSubmitting = false;
+        })
+      )
+      .subscribe();
+  }
+
+  /**
+   * Traiter le transfert direct
+   */
+  processDirectTransfer(formData: any): void {
+    const transferRequest = {
+      sourceAccountId: this.selectedAccount!.id, // Notre compte Stripe
+      destinationStripeAccountId: this.selectedRecipient!.id,
+      amount: Math.round(formData.amount * 100), // Convertir en centimes
+      currency: formData.currency.toLowerCase(),
+      description: formData.description
+    };
+
+    console.log('Processing direct transfer:', transferRequest);
+
+    this.http.post(`${this.apiUrl}/transaction/direct-transfer`, transferRequest, this.httpOptions)
+      .pipe(
+        tap((response: any) => {
+          console.log('Direct transfer response:', response);
+          
+          // Créer un enregistrement de transfert local
+          const newTransfer: Transfer = {
+            id: response.id,
+            reference: `TRF-${Date.now()}`,
+            senderAccountNumber: this.selectedAccount!.accountNumber,
+            recipientName: this.selectedRecipient!.localAccount.firstName + ' ' + this.selectedRecipient!.localAccount.lastName,
+            recipientAccountNumber: this.selectedRecipient!.id,
+            amount: formData.amount,
+            currency: formData.currency,
+            type: 'direct',
+            status: 'completed',
+            reason: formData.description,
+            createdAt: new Date().toISOString(),
+            stripeTransferId: response.id
+          };
+
+          this.transfers.unshift(newTransfer);
+          this.showSuccessMessage(`Transfert direct créé avec succès ! ID: ${response.id}`);
+          this.resetForm();
+        }),
+        catchError(error => {
+          console.error('Erreur direct transfer:', error);
+          this.showErrorMessage(error.error || 'Erreur lors du transfert direct.');
+          return of(null);
+        }),
+        finalize(() => {
+          this.isSubmitting = false;
+        })
+      )
+      .subscribe();
+  }
+
+  /**
+   * Réinitialiser le formulaire après succès
+   */
+  resetForm(): void {
+    this.transferForm.reset();
+    this.transferForm.patchValue({
+      transferType: 'stripe',
+      currency: 'EUR',
+      description: 'Virement client',
+      applicationFee: 0
+    });
+    this.selectedRecipient = null;
+    this.currentTab = 'history';
   }
 
   /**
@@ -342,31 +419,6 @@ export class TransfersComponent implements OnInit {
     this.selectedTransfer = null;
   }
 
-  /**
-   * Annuler un virement
-   */
-  cancelTransfer(transferId: string): void {
-    if (confirm('Êtes-vous sûr de vouloir annuler ce virement ?')) {
-      // Simuler l'annulation
-      const transfer = this.transfers.find(t => t.id === transferId);
-      if (transfer) {
-        transfer.status = 'cancelled';
-      }
-      
-      this.showSuccessMessage('Virement annulé avec succès.');
-    }
-  }
-
-  /**
-   * Gérer l'annulation depuis le modal
-   */
-  handleCancelTransfer(): void {
-    if (this.selectedTransfer) {
-      this.cancelTransfer(this.selectedTransfer.id);
-      this.closeTransferDetails();
-    }
-  }
-
   // ===== UTILITAIRES =====
 
   /**
@@ -375,6 +427,17 @@ export class TransfersComponent implements OnInit {
   hasError(controlName: string, errorType: string): boolean {
     const control = this.transferForm.get(controlName);
     return !!(control?.hasError(errorType) && (control?.dirty || control?.touched));
+  }
+
+  /**
+   * Obtenir le nom du destinataire
+   */
+  getRecipientName(recipientId: string): string {
+    const recipient = this.availableRecipients.find(r => r.id === recipientId);
+    if (recipient) {
+      return `${recipient.localAccount.firstName} ${recipient.localAccount.lastName}`;
+    }
+    return 'Destinataire inconnu';
   }
 
   /**
@@ -429,12 +492,20 @@ export class TransfersComponent implements OnInit {
   /**
    * Formater la devise
    */
-  formatCurrency(amount: number, currency: string = 'MAD'): string {
-    return new Intl.NumberFormat('fr-MA', {
+  formatCurrency(amount: number, currency: string = 'EUR'): string {
+    return new Intl.NumberFormat('fr-FR', {
       style: 'currency',
       currency: currency,
       minimumFractionDigits: 2
     }).format(amount);
+  }
+
+  /**
+   * Calculer les frais en euros
+   */
+  getApplicationFeeInEur(): number {
+    const feeInCents = this.transferForm.get('applicationFee')?.value || 0;
+    return feeInCents / 100;
   }
 
   /**
@@ -450,6 +521,7 @@ export class TransfersComponent implements OnInit {
    * Afficher un message de succès
    */
   showSuccessMessage(message: string): void {
+    this.successMessage = message;
     this.showSuccess = true;
     this.showError = false;
     
@@ -466,6 +538,7 @@ export class TransfersComponent implements OnInit {
     this.showError = false;
     this.showSuccess = false;
     this.errorMessage = '';
+    this.successMessage = '';
   }
 
   /**
