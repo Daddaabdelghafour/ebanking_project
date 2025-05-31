@@ -56,8 +56,7 @@ export const routes: Routes = [
       },
       {
         path: 'budget',
-        loadComponent: () => import('./features/client/budget-management/budget-management.component')
-          .then(c => c.BudgetManagementComponent)
+        loadComponent: () => import('./features/client/budget/budget.component').then(m => m.BudgetComponent)
       },
       {
         path: 'documents',

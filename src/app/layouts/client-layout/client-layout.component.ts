@@ -89,12 +89,6 @@ export class ClientLayoutComponent implements OnInit {
       divider: true
     },
     {
-      id: 'alert-settings',
-      label: 'Alertes',
-      icon: 'fas fa-bell',
-      route: 'alert-settings'
-    },
-    {
       id: 'settings',
       label: 'Paramètres',
       icon: 'fas fa-cog',
@@ -133,6 +127,10 @@ export class ClientLayoutComponent implements OnInit {
     }
   }
   
+  trackNotification(index: number, notification: Notification): string {
+  return notification.id;
+}
+
   loadClientData(): void {
     const clientId = 'fe6f2c00-b906-454a-b57d-f79c8e4f9da4';
     

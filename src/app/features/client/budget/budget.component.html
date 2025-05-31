@@ -1,0 +1,521 @@
+<div class="min-h-screen bg-gray-50 p-6">
+
+    <!-- Header -->
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">Gestion des
+            budgets</h1>
+        <p class="text-gray-600">Gérez vos budgets et surveillez vos dépenses
+            avec des alertes automatiques</p>
+    </div>
+
+    <!-- Messages -->
+    <div *ngIf="showError"
+        class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+        <div class="flex justify-between items-start">
+            <div class="flex">
+                <i
+                    class="fa-solid fa-triangle-exclamation text-red-400 mr-3 mt-1"></i>
+                <div>
+                    <h3 class="text-red-800 font-medium">Erreur</h3>
+                    <p class="text-red-600 text-sm mt-1">{{ errorMessage }}</p>
+                </div>
+            </div>
+            <button (click)="closeError()"
+                class="text-red-400 hover:text-red-600">
+                <i class="fa-solid fa-times"></i>
+            </button>
+        </div>
+    </div>
+
+    <div *ngIf="showSuccess"
+        class="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+        <div class="flex">
+            <i class="fa-solid fa-check-circle text-green-400 mr-3 mt-1"></i>
+            <div>
+                <h3 class="text-green-800 font-medium">Succès</h3>
+                <p class="text-green-600 text-sm mt-1">{{ successMessage }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Budget Alerts -->
+    <div *ngIf="getBudgetAlerts().length > 0" class="mb-8">
+        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <h3 class="text-yellow-800 font-medium mb-3">
+                <i class="fa-solid fa-exclamation-triangle mr-2"></i>
+                Alertes budgétaires ({{ getBudgetAlerts().length }})
+            </h3>
+            <div class="space-y-2">
+                <div *ngFor="let alert of getBudgetAlerts()"
+                    class="text-sm text-yellow-700">
+                    {{ alert }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="border-b border-gray-200 mb-6">
+        <nav class="-mb-px flex space-x-8">
+            <button (click)="switchTab('overview')"
+                [class]="currentTab === 'overview' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'"
+                class="whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm">
+                <i class="fa-solid fa-chart-pie mr-2"></i>
+                Vue d'ensemble
+            </button>
+            <button (click)="switchTab('manage')"
+                [class]="currentTab === 'manage' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'"
+                class="whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm">
+                <i class="fa-solid fa-list mr-2"></i>
+                Gérer les budgets
+            </button>
+            <button (click)="switchTab('add')"
+                [class]="currentTab === 'add' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'"
+                class="whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm">
+                <i class="fa-solid fa-plus mr-2"></i>
+                Ajouter un budget
+            </button>
+            <button (click)="switchTab('alerts')"
+                [class]="currentTab === 'alerts' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'"
+                class="whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm">
+                <i class="fa-solid fa-bell mr-2"></i>
+                Alertes ({{ alertSettings.length }})
+            </button>
+        </nav>
+    </div>
+
+    <!-- Overview Tab -->
+    <div *ngIf="currentTab === 'overview'" class="space-y-6">
+
+        <!-- Summary Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="bg-white rounded-lg shadow-sm p-6">
+                <div class="flex items-center">
+                    <div
+                        class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                        <i class="fa-solid fa-wallet text-blue-600"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-500">Budget
+                            total</p>
+                        <p class="text-2xl font-bold text-gray-900">{{
+                            formatCurrency(totalBudget) }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow-sm p-6">
+                <div class="flex items-center">
+                    <div
+                        class="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+                        <i class="fa-solid fa-credit-card text-red-600"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-500">Total
+                            dépensé</p>
+                        <p class="text-2xl font-bold text-gray-900">{{
+                            formatCurrency(totalSpent) }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow-sm p-6">
+                <div class="flex items-center">
+                    <div
+                        class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                        <i class="fa-solid fa-piggy-bank text-green-600"></i>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-500">Restant</p>
+                        <p class="text-2xl font-bold"
+                            [class]="(totalBudget - totalSpent) >= 0 ? 'text-green-600' : 'text-red-600'">
+                            {{ formatCurrency(totalBudget - totalSpent) }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Budget Progress -->
+        <div class="bg-white rounded-lg shadow-sm">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-semibold text-gray-900">Progression des
+                    budgets</h3>
+            </div>
+
+            <div class="p-6">
+                <div *ngIf="budgets.length === 0" class="text-center py-8">
+                    <i
+                        class="fa-solid fa-chart-pie text-4xl text-gray-300 mb-4"></i>
+                    <p class="text-gray-500 mb-4">Aucun budget configuré</p>
+                    <button (click)="switchTab('add')"
+                        class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                        Créer un budget
+                    </button>
+                </div>
+
+                <div *ngIf="budgets.length > 0" class="space-y-4">
+                    <div *ngFor="let budget of budgets"
+                        class="border rounded-lg p-4">
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="flex items-center">
+                                <div
+                                    class="w-8 h-8 rounded-full flex items-center justify-center mr-3"
+                                    [class]="'bg-' + getCategoryColor(budget.category) + '-100 text-' + getCategoryColor(budget.category) + '-600'">
+                                    <i
+                                        [class]="getCategoryIcon(budget.category)"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-medium text-gray-900">{{
+                                        getCategoryLabel(budget.category)
+                                        }}</h4>
+                                    <p class="text-sm text-gray-500">{{
+                                        budget.period === 'monthly' ? 'Mensuel'
+                                        : 'Annuel' }}</p>
+                                </div>
+                            </div>
+
+                            <div class="text-right">
+                                <p class="font-semibold"
+                                    [class]="budget.isOverBudget ? 'text-red-600' : 'text-gray-900'">
+                                    {{ formatCurrency(budget.spent) }} / {{
+                                    formatCurrency(budget.limit) }}
+                                </p>
+                                <p class="text-sm"
+                                    [class]="budget.remaining >= 0 ? 'text-green-600' : 'text-red-600'">
+                                    {{ budget.remaining >= 0 ? 'Reste' :
+                                    'Dépassé de' }} {{
+                                    formatCurrency(Math.abs(budget.remaining))
+                                    }}
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Progress Bar -->
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div [class]="getProgressBarClass(budget)"
+                                class="h-2 rounded-full transition-all duration-300"
+                                [style.width]="Math.min(budget.percentage, 100) + '%'"></div>
+                        </div>
+
+                        <div class="flex justify-between items-center mt-2">
+                            <span class="text-sm font-medium"
+                                [class]="budget.isOverBudget ? 'text-red-600' : 'text-gray-700'">
+                                {{ budget.percentage }}%
+                            </span>
+                            <span *ngIf="budget.isOverBudget"
+                                class="text-xs bg-red-100 text-red-800 px-2 py-1 rounded-full">
+                                DÉPASSÉ
+                            </span>
+                            <span
+                                *ngIf="budget.alertLevel === 'warning' && !budget.isOverBudget"
+                                class="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">
+                                ATTENTION
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Manage Tab -->
+    <div *ngIf="currentTab === 'manage'" class="space-y-6">
+
+        <div class="bg-white rounded-lg shadow-sm">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-semibold text-gray-900">Mes budgets</h3>
+            </div>
+
+            <div class="p-6">
+                <div *ngIf="budgets.length === 0" class="text-center py-8">
+                    <i class="fa-solid fa-list text-4xl text-gray-300 mb-4"></i>
+                    <p class="text-gray-500 mb-4">Aucun budget à gérer</p>
+                    <button (click)="switchTab('add')"
+                        class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                        Créer votre premier budget
+                    </button>
+                </div>
+
+                <div *ngIf="budgets.length > 0" class="space-y-4">
+                    <div *ngFor="let budget of budgets"
+                        class="border rounded-lg p-4">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center">
+                                <div
+                                    class="w-10 h-10 rounded-full flex items-center justify-center mr-4"
+                                    [class]="'bg-' + getCategoryColor(budget.category) + '-100 text-' + getCategoryColor(budget.category) + '-600'">
+                                    <i
+                                        [class]="getCategoryIcon(budget.category)"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-medium text-gray-900">{{
+                                        getCategoryLabel(budget.category)
+                                        }}</h4>
+                                    <p class="text-sm text-gray-500">
+                                        Limite: {{ formatCurrency(budget.limit)
+                                        }} ({{ budget.period === 'monthly' ?
+                                        'mensuel' : 'annuel' }})
+                                    </p>
+                                    <p class="text-sm"
+                                        [class]="budget.isOverBudget ? 'text-red-600' : 'text-gray-600'">
+                                        Dépensé: {{ formatCurrency(budget.spent)
+                                        }} ({{ budget.percentage }}%)
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div class="flex items-center space-x-2">
+                                <!-- Quick add expense buttons -->
+                                <button (click)="addExpense(budget, 10)"
+                                    class="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200">
+                                    +10€
+                                </button>
+                                <button (click)="addExpense(budget, 25)"
+                                    class="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200">
+                                    +25€
+                                </button>
+                                <button (click)="addExpense(budget, 50)"
+                                    class="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200">
+                                    +50€
+                                </button>
+
+                                <button (click)="deleteBudget(budget)"
+                                    class="px-3 py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Mini progress bar -->
+                        <div class="mt-3">
+                            <div class="w-full bg-gray-200 rounded-full h-1">
+                                <div [class]="getProgressBarClass(budget)"
+                                    class="h-1 rounded-full transition-all"
+                                    [style.width]="Math.min(budget.percentage, 100) + '%'"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Budget Tab -->
+    <div *ngIf="currentTab === 'add'" class="space-y-6">
+
+        <div class="bg-white rounded-lg shadow-sm">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-semibold text-gray-900">Créer un nouveau
+                    budget</h3>
+            </div>
+
+            <form [formGroup]="budgetForm" (ngSubmit)="onSubmitBudget()"
+                class="p-6 space-y-4">
+
+                <!-- Category Selection -->
+                <div>
+                    <label
+                        class="block text-sm font-medium text-gray-700 mb-2">Catégorie</label>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <div *ngFor="let category of categories">
+                            <label
+                                class="relative flex flex-col items-center p-4 border rounded-lg cursor-pointer hover:bg-gray-50"
+                                [class]="budgetForm.get('category')?.value === category.id ? 'border-blue-500 bg-blue-50' : 'border-gray-300'">
+                                <input type="radio" [value]="category.id"
+                                    formControlName="category" class="sr-only">
+                                <div
+                                    class="w-8 h-8 rounded-full flex items-center justify-center mb-2"
+                                    [class]="'bg-' + category.color + '-100 text-' + category.color + '-600'">
+                                    <i [class]="category.icon"></i>
+                                </div>
+                                <span class="text-sm font-medium text-center">{{
+                                    category.label }}</span>
+                            </label>
+                        </div>
+                    </div>
+                    <p
+                        *ngIf="budgetForm.get('category')?.invalid && budgetForm.get('category')?.touched"
+                        class="mt-1 text-sm text-red-600">
+                        Veuillez sélectionner une catégorie.
+                    </p>
+                </div>
+
+                <!-- Budget Limit -->
+                <div>
+                    <label
+                        class="block text-sm font-medium text-gray-700 mb-2">Limite
+                        du budget</label>
+                    <div class="relative">
+                        <input type="number" formControlName="limit" min="1"
+                            step="1"
+                            placeholder="Ex: 500"
+                            class="w-full px-3 py-2 pr-8 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <div
+                            class="absolute right-3 top-2 text-gray-400">€</div>
+                    </div>
+                    <p
+                        *ngIf="budgetForm.get('limit')?.invalid && budgetForm.get('limit')?.touched"
+                        class="mt-1 text-sm text-red-600">
+                        Veuillez entrer un montant valide.
+                    </p>
+                </div>
+
+                <!-- Period -->
+                <div>
+                    <label
+                        class="block text-sm font-medium text-gray-700 mb-2">Période</label>
+                    <select formControlName="period"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <option value="monthly">Mensuel</option>
+                        <option value="yearly">Annuel</option>
+                    </select>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="flex justify-end space-x-3 pt-4">
+                    <button type="button" (click)="switchTab('overview')"
+                        class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">
+                        Annuler
+                    </button>
+
+                    <button type="submit"
+                        [disabled]="budgetForm.invalid || isSubmitting"
+                        class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <span *ngIf="!isSubmitting">
+                            <i class="fa-solid fa-plus mr-2"></i>
+                            Créer le budget
+                        </span>
+                        <span *ngIf="isSubmitting">
+                            <i class="fa-solid fa-spinner fa-spin mr-2"></i>
+                            Création...
+                        </span>
+                    </button>
+                </div>
+
+            </form>
+        </div>
+    </div>
+
+    <!-- Alerts Tab -->
+    <div *ngIf="currentTab === 'alerts'" class="space-y-6">
+
+        <!-- Current Alert Settings -->
+        <div class="bg-white rounded-lg shadow-sm">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-semibold text-gray-900">Alertes
+                    configurées</h3>
+            </div>
+
+            <div class="p-6">
+                <div *ngIf="alertSettings.length === 0"
+                    class="text-center py-8">
+                    <i class="fa-solid fa-bell text-4xl text-gray-300 mb-4"></i>
+                    <p class="text-gray-500">Aucune alerte configurée</p>
+                </div>
+
+                <div *ngIf="alertSettings.length > 0" class="space-y-3">
+                    <div *ngFor="let alert of alertSettings"
+                        class="border rounded-lg p-4">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h4 class="font-medium text-gray-900">{{
+                                    getCategoryLabel(alert.budgetCategory)
+                                    }}</h4>
+                                <p class="text-sm text-gray-500">Seuil d'alerte:
+                                    {{ alert.threshold }}%</p>
+                                <p class="text-sm text-gray-500">Type: {{
+                                    alert.alertType }}</p>
+                            </div>
+                            <button (click)="deleteAlert(alert)"
+                                class="px-3 py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add Alert Form -->
+        <div class="bg-white rounded-lg shadow-sm">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-semibold text-gray-900">Configurer une
+                    nouvelle alerte</h3>
+            </div>
+
+            <form [formGroup]="alertForm" (ngSubmit)="onSubmitAlert()"
+                class="p-6 space-y-4">
+
+                <!-- Budget Category -->
+                <div>
+                    <label
+                        class="block text-sm font-medium text-gray-700 mb-2">Catégorie
+                        de budget</label>
+                    <select formControlName="budgetCategory"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <option value>Sélectionnez une catégorie</option>
+                        <option *ngFor="let budget of budgets"
+                            [value]="budget.category">
+                            {{ getCategoryLabel(budget.category) }}
+                        </option>
+                    </select>
+                    <p
+                        *ngIf="alertForm.get('budgetCategory')?.invalid && alertForm.get('budgetCategory')?.touched"
+                        class="mt-1 text-sm text-red-600">
+                        Veuillez sélectionner une catégorie.
+                    </p>
+                </div>
+
+                <!-- Threshold -->
+                <div>
+                    <label
+                        class="block text-sm font-medium text-gray-700 mb-2">Seuil
+                        d'alerte (%)</label>
+                    <input type="number" formControlName="threshold" min="1"
+                        max="100"
+                        placeholder="80"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    <p class="mt-1 text-xs text-gray-500">Pourcentage du budget
+                        qui déclenche l'alerte</p>
+                </div>
+
+                <!-- Alert Type -->
+                <div>
+                    <label
+                        class="block text-sm font-medium text-gray-700 mb-2">Type
+                        d'alerte</label>
+                    <select formControlName="alertType"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <option value="email">Email</option>
+                        <option value="notification">Notification</option>
+                        <option value="both">Email + Notification</option>
+                    </select>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="flex justify-end space-x-3 pt-4">
+                    <button type="button" (click)="switchTab('overview')"
+                        class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">
+                        Annuler
+                    </button>
+
+                    <button type="submit"
+                        [disabled]="alertForm.invalid || isSubmitting"
+                        class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <span *ngIf="!isSubmitting">
+                            <i class="fa-solid fa-bell mr-2"></i>
+                            Créer l'alerte
+                        </span>
+                        <span *ngIf="isSubmitting">
+                            <i class="fa-solid fa-spinner fa-spin mr-2"></i>
+                            Création...
+                        </span>
+                    </button>
+                </div>
+
+            </form>
+        </div>
+    </div>
+
+</div>
