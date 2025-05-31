@@ -4,10 +4,11 @@ import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { ClientService } from '../../../services/client/client.service';
 import { CardService, Card, CardRequest } from '../../../services/card/card.service';
+import { StripeService, StripeAccount, StripeBalance } from '../../../services/stripe/stripe.service'; // ADD THIS
 import { Client } from '../../../shared/models/client.model';
 import { Transaction } from '../../../shared/models/transaction';
 import { catchError, finalize, tap } from 'rxjs/operators';
-import { of } from 'rxjs';
+import { of, forkJoin } from 'rxjs';
 
 // Interface simplifiée pour l'affichage
 interface DisplayCard {
@@ -29,6 +30,8 @@ interface FinancialSummary {
   totalBalance: number;
   monthlyIncome: number;
   monthlyExpenses: number;
+  stripeBalance?: number; // ADD THIS
+  combinedBalance?: number; // ADD THIS
 }
 
 interface ClientAccount {
@@ -63,11 +66,18 @@ export class ClientPageComponent implements OnInit {
   summary: FinancialSummary = {
     totalBalance: 0,
     monthlyIncome: 0,
-    monthlyExpenses: 0
+    monthlyExpenses: 0,
+    stripeBalance: 0, // ADD THIS
+    combinedBalance: 0 // ADD THIS
   };
   transactions: any[] = [];
   
   showAllTransactions: boolean = false;
+  
+  // ADD STRIPE PROPERTIES
+  stripeAccount: StripeAccount | null = null;
+  stripeBalance: StripeBalance | null = null;
+  hasStripeAccount: boolean = false;
   
   // Propriétés pour les demandes de cartes
   showCardRequestModal = false;
@@ -80,11 +90,13 @@ export class ClientPageComponent implements OnInit {
   requestReason = '';
   
   private apiUrl = 'http://localhost:8085/E-BANKING1/api';
-  
+  userId = 'f63a8753-6908-4130-a897-cf26f5f5d733';
+
   constructor(
     private http: HttpClient,
     private clientService: ClientService,
-    private cardService: CardService
+    private cardService: CardService,
+    private stripeService: StripeService // ADD THIS
   ) {}
 
   ngOnInit(): void {
@@ -117,10 +129,14 @@ export class ClientPageComponent implements OnInit {
           this.summary = {
             totalBalance: totalBalance,
             monthlyIncome: estimatedMonthlyIncome,
-            monthlyExpenses: estimatedMonthlyIncome * 0.7
+            monthlyExpenses: estimatedMonthlyIncome * 0.7,
+            stripeBalance: 0,
+            combinedBalance: totalBalance
           };
           
+          // LOAD BOTH CARDS AND STRIPE DATA
           this.loadCardsByClientId();
+          this.loadStripeData(); // ADD THIS
         }),
         catchError(err => {
           console.error('Erreur lors du chargement du client:', err);
@@ -135,6 +151,112 @@ export class ClientPageComponent implements OnInit {
         })
       )
       .subscribe();
+  }
+
+  // ADD NEW METHOD TO LOAD STRIPE DATA
+  loadStripeData(): void {
+    if (!this.userId) {
+      console.log('No client ID available for Stripe data');
+      return;
+    }
+
+    console.log('Loading Stripe data for client:', this.userId);
+
+    // Load both Stripe account and balance
+    forkJoin({
+      account: this.stripeService.getStripeAccountByUserId(this.userId),
+      balance: this.stripeService.getUserStripeBalance(this.userId)
+    }).pipe(
+      tap(({ account, balance }) => {
+        this.stripeAccount = account;
+        this.stripeBalance = balance;
+        this.hasStripeAccount = account !== null;
+
+        console.log('Stripe data loaded:', {
+          hasAccount: this.hasStripeAccount,
+          accountId: account?.id,
+          balance: balance
+        });
+
+        // Update summary with Stripe balance
+        if (balance && balance.available && balance.available.length > 0) {
+          const stripeBalanceAmount = balance.available.reduce((sum, bal) => {
+            return sum + (bal.amount / 100); // Convert from cents
+          }, 0);
+          
+          this.summary.stripeBalance = stripeBalanceAmount;
+          this.summary.combinedBalance = this.summary.totalBalance + stripeBalanceAmount;
+          
+          console.log('Updated summary:', {
+            bankBalance: this.summary.totalBalance,
+            stripeBalance: this.summary.stripeBalance,
+            combinedBalance: this.summary.combinedBalance
+          });
+        }
+      }),
+      catchError(error => {
+        console.error('Error loading Stripe data:', error);
+        this.stripeAccount = null;
+        this.stripeBalance = null;
+        this.hasStripeAccount = false;
+        return of({ account: null, balance: null });
+      })
+    ).subscribe();
+  }
+
+  // ADD STRIPE UTILITY METHODS
+  getStripeAccountStatus(): string {
+    if (!this.stripeAccount) return 'Pas de compte Stripe';
+    
+    if (this.stripeService.isAccountFullySetup(this.stripeAccount)) {
+      return 'Compte actif';
+    } else if (this.stripeAccount.detailsSubmitted) {
+      return 'En cours de vérification';
+    } else {
+      return 'Configuration incomplète';
+    }
+  }
+
+  getStripeAccountStatusClass(): string {
+    if (!this.stripeAccount) return 'bg-gray-100 text-gray-800';
+    
+    if (this.stripeService.isAccountFullySetup(this.stripeAccount)) {
+      return 'bg-green-100 text-green-800';
+    } else if (this.stripeAccount.detailsSubmitted) {
+      return 'bg-yellow-100 text-yellow-800';
+    } else {
+      return 'bg-red-100 text-red-800';
+    }
+  }
+
+  getFormattedStripeBalance(): string {
+    if (!this.stripeBalance) return '0,00 EUR';
+    return this.stripeService.formatBalance(this.stripeBalance);
+  }
+
+
+  // Add this method to your component
+getCardGradient(index: number): string {
+  const gradients = [
+    'linear-gradient(135deg, #3B82F6 0%, #1E40AF 100%)', // Blue
+    'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)', // Purple
+    'linear-gradient(135deg, #10B981 0%, #059669 100%)', // Green
+    'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)', // Red
+    'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)', // Orange
+    'linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)', // Indigo
+  ];
+  
+  return gradients[index % gradients.length];
+}
+
+  getStripeBalanceInCurrency(currency: string): number {
+    if (!this.stripeBalance?.available) return 0;
+    
+    const balance = this.stripeBalance.available.find(bal => 
+      bal.currency.toUpperCase() === currency.toUpperCase()
+    );
+    
+    return balance ? balance.amount / 100 : 0;
   }
 
   // Charger directement les cartes par ID de compte
@@ -238,7 +360,9 @@ export class ClientPageComponent implements OnInit {
     this.summary = {
       totalBalance: 25000,
       monthlyIncome: 12000,
-      monthlyExpenses: 8400
+      monthlyExpenses: 8400,
+      stripeBalance: 0,
+      combinedBalance: 25000
     };
     
     this.createVirtualCard();

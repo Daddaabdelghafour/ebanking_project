@@ -1,18 +1,25 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { ReactiveFormsModule, FormBuilder, FormGroup, Validators, FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { catchError, tap, finalize } from 'rxjs/operators';
-import { of } from 'rxjs';
+import { of, forkJoin } from 'rxjs';
+import { StripeService, StripeBalance } from '../../../services/stripe/stripe.service';
 
+// Interfaces
 interface Account {
   id: string;
   accountNumber: string;
   type: string;
   balance: number;
+  stripeBalance?: number; // Add Stripe balance
+  combinedBalance?: number; // Total balance including Stripe
   currency: string;
   status: string;
+  hasStripe?: boolean; // Flag if account has Stripe
+  iban?: string;
+  availableBalance?: number;
 }
 
 interface Transfer {
@@ -23,80 +30,90 @@ interface Transfer {
   recipientAccountNumber: string;
   amount: number;
   currency: string;
-  type: 'stripe' | 'direct';
+  type: 'rapid' | 'stripe' | 'external';
   status: 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled';
-  reason?: string;
-  scheduledDate?: string;
-  executedDate?: string;
+  reason: string;
   createdAt: string;
+  executedDate?: string;
   stripePaymentIntentId?: string;
-  stripeTransferId?: string;
+}
+
+interface QuickTransferRequest {
+  sourceAccountId: string;
+  destinationAccountId: string;
+  amount: number;
+  description: string;
+}
+
+interface Recipient {
+  id: string;
+  email: string;
+  localAccount: {
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
 }
 
 interface PaymentRequestDTO {
   sourceUserId: string;
   destinationStripeAccountId: string;
-  amount: number; // en centimes
+  amount: number;
   currency: string;
   applicationFeeAmount?: number;
-  description?: string;
-}
-
-interface StripeAccount {
-  id: string;
-  email: string;
-  chargesEnabled: boolean;
-  payoutsEnabled: boolean;
-  detailsSubmitted: boolean;
-  localAccount: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-    username: string;
-  };
+  description: string;
 }
 
 @Component({
   selector: 'app-transfers',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterModule],
+  imports: [CommonModule, ReactiveFormsModule, RouterModule, FormsModule],
   templateUrl: './transfers.component.html',
   styleUrls: ['./transfers.component.css']
 })
 export class TransfersComponent implements OnInit {
-  // Fixed IDs like in stripe-management
+  // Fixed IDs
   clientId: string = 'fe6f2c00-b906-454a-b57d-f79c8e4f9da4';
   userId: string = 'f63a8753-6908-4130-a897-cf26f5f5d733';
   
-  // UI States
-  currentTab: 'history' | 'new' = 'history';
+  // State management
+  currentTab: 'history' | 'rapid' | 'stripe' = 'history';
   isLoading: boolean = true;
   isSubmitting: boolean = false;
-  isLoadingRecipients: boolean = false;
-  showError: boolean = false;
-  showSuccess: boolean = false;
-  showTransferDetails: boolean = false;
-  errorMessage: string = '';
-  successMessage: string = '';
+  isTransferring: boolean = false;
   
   // Data
-  clientAccounts: Account[] = [];
+  accounts: Account[] = [];
   selectedAccount: Account | null = null;
-  availableRecipients: StripeAccount[] = [];
-  selectedRecipient: StripeAccount | null = null;
   transfers: Transfer[] = [];
+  availableRecipients: Recipient[] = [];
+  selectedRecipient: Recipient | null = null;
+  
+  // Rapid Transfer
+  quickTransfer: QuickTransferRequest = {
+    sourceAccountId: '',
+    destinationAccountId: '',
+    amount: 0,
+    description: ''
+  };
+  
+  // Stripe Transfer Form
+  stripeTransferForm: FormGroup;
+  
+  // Messages
+  showError: boolean = false;
+  showSuccess: boolean = false;
+  errorMessage: string = '';
+  successMessage: string = '';
+  transferSuccess: boolean = false;
+  
+  // Modal
+  showTransferDetails: boolean = false;
   selectedTransfer: Transfer | null = null;
-  transferForm: FormGroup;
   
   // Configuration
-  transferTypes = [
-    { id: 'stripe', label: 'Virement via Stripe' },
-    { id: 'direct', label: 'Transfert direct' }
-  ];
+  currencies = ['EUR', 'USD', 'GBP', 'MAD'];
   
-  currencies = ['EUR', 'USD', 'MAD'];
-
   private apiUrl = 'http://localhost:8085/E-BANKING1/api';
   private httpOptions = {
     headers: new HttpHeaders({
@@ -106,160 +123,351 @@ export class TransfersComponent implements OnInit {
 
   constructor(
     private fb: FormBuilder,
-    private http: HttpClient
+    private http: HttpClient,
+    private stripeService: StripeService
   ) {
-    this.transferForm = this.createTransferForm();
+    this.stripeTransferForm = this.createStripeTransferForm();
   }
 
   ngOnInit(): void {
-    this.loadClientAccounts();
+    this.loadAccountsWithStripe();
     this.loadAvailableRecipients();
   }
 
   /**
-   * Créer le formulaire de virement simplifié
+   * Create Stripe transfer form
    */
-  createTransferForm(): FormGroup {
+  createStripeTransferForm(): FormGroup {
     return this.fb.group({
-      transferType: ['stripe', Validators.required],
       recipientId: ['', Validators.required],
-      amount: [0, [Validators.required, Validators.min(0.01), Validators.max(10000)]],
+      amount: ['', [Validators.required, Validators.min(0.01), Validators.max(10000)]],
       currency: ['EUR', Validators.required],
-      description: ['Virement client', [Validators.required, Validators.minLength(3)]],
-      applicationFee: [0, [Validators.min(0), Validators.max(1000)]] // Frais plateforme en centimes
+      applicationFee: [0],
+      description: ['', [Validators.required, Validators.minLength(3)]]
     });
   }
 
   /**
-   * Charger les comptes du client
+   * Load accounts and combine with Stripe balances
    */
-  loadClientAccounts(): void {
+  loadAccountsWithStripe(): void {
     this.isLoading = true;
     
-    this.http.get<Account[]>(`${this.apiUrl}/accounts/client/${this.clientId}/active`)
-      .pipe(
-        tap((accounts: Account[]) => {
-          this.clientAccounts = accounts || [];
-          if (this.clientAccounts.length > 0) {
-            this.selectedAccount = this.clientAccounts[0];
-            this.loadTransfers();
-          }
-        }),
-        catchError(error => {
-          console.error('Erreur lors du chargement des comptes:', error);
-          // Utiliser des données de fallback pour la démo
+    // Load bank accounts
+    const accounts$ = this.http.get<Account[]>(`${this.apiUrl}/accounts/client/${this.clientId}/active`);
+    
+    // Load Stripe balance
+    const stripeBalance$ = this.stripeService.getUserStripeBalance(this.userId).pipe(
+      catchError(() => of(null))
+    );
+    
+    forkJoin({
+      accounts: accounts$,
+      stripeBalance: stripeBalance$
+    })
+    .pipe(
+      tap(({ accounts, stripeBalance }) => {
+        this.accounts = accounts || [];
+        
+        // Add Stripe balance to accounts if available
+        if (stripeBalance && stripeBalance.available && stripeBalance.available.length > 0) {
+          console.log('Stripe balance loaded for transfers:', stripeBalance);
+          this.addStripeBalanceToAccounts(stripeBalance);
+        } else {
+          console.log('No Stripe balance available for transfers');
+        }
+        
+        if (this.accounts.length > 0) {
+          this.selectedAccount = this.accounts[0];
+          this.quickTransfer.sourceAccountId = this.accounts[0].id;
+          this.loadTransfers();
+        } else {
+          // Fallback for demo
           this.createFallbackAccounts();
-          return of([]);
-        }),
-        finalize(() => {
-          this.isLoading = false;
-        })
-      )
-      .subscribe();
+        }
+      }),
+      catchError(error => {
+        console.error('Error loading accounts with Stripe:', error);
+        this.createFallbackAccounts();
+        return of({ accounts: [], stripeBalance: null });
+      }),
+      finalize(() => {
+        this.isLoading = false;
+      })
+    )
+    .subscribe();
   }
 
   /**
-   * Créer des comptes de fallback pour la démo
+   * Add Stripe balance to the first account (or primary account)
+   */
+  private addStripeBalanceToAccounts(stripeBalance: StripeBalance): void {
+    if (this.accounts.length === 0) return;
+    
+    // Find EUR balance in Stripe (Stripe amounts are always in cents)
+    const eurBalance = stripeBalance.available.find(b => b.currency.toLowerCase() === 'eur');
+    
+    if (eurBalance) {
+      const stripeAmountEUR = eurBalance.amount / 100; // Convert from cents to EUR
+      
+      // Add to the first account (or find primary account)
+      const primaryAccount = this.accounts[0];
+      primaryAccount.stripeBalance = stripeAmountEUR; // Always in EUR
+      
+      if (primaryAccount.currency === 'EUR') {
+        // Account is in EUR, direct addition
+        primaryAccount.combinedBalance = (primaryAccount.balance || 0) + stripeAmountEUR;
+      } else {
+        // Account is in different currency, convert Stripe EUR to account currency
+        const stripeInAccountCurrency = this.convertFromEUR(stripeAmountEUR, primaryAccount.currency);
+        primaryAccount.combinedBalance = (primaryAccount.balance || 0) + stripeInAccountCurrency;
+      }
+      
+      primaryAccount.hasStripe = true;
+      
+      console.log(`[TRANSFERS] Added Stripe balance: ${stripeAmountEUR} EUR to account ${primaryAccount.accountNumber}`);
+      console.log(`[TRANSFERS] Account balance: ${primaryAccount.balance} ${primaryAccount.currency}`);
+      console.log(`[TRANSFERS] Combined balance: ${primaryAccount.combinedBalance} ${primaryAccount.currency}`);
+    }
+  }
+
+  /**
+   * Convert from EUR to another currency
+   */
+  private convertFromEUR(amountEUR: number, toCurrency: string): number {
+    if (toCurrency === 'EUR') return amountEUR;
+    
+    // Conversion rates from EUR
+    const fromEURRates: Record<string, number> = {
+      'MAD': 10.8,   // 1 EUR = 10.8 MAD
+      'USD': 1.18,   // 1 EUR = 1.18 USD
+      'GBP': 0.85    // 1 EUR = 0.85 GBP
+    };
+    
+    const rate = fromEURRates[toCurrency] || 1;
+    return amountEUR * rate;
+  }
+
+  /**
+   * Create fallback accounts for demo
    */
   createFallbackAccounts(): void {
-    this.clientAccounts = [
+    this.accounts = [
       {
-        id: 'acc_123456',
-        accountNumber: '001234567890',
-        type: 'checking',
-        balance: 5000.00,
+        id: '1',
+        accountNumber: 'FR76 1000 0000 0000 0000 0001',
+        type: 'current',
+        balance: 2500.00,
+        currency: 'EUR',
+        status: 'active'
+      },
+      {
+        id: '2',
+        accountNumber: 'FR76 1000 0000 0000 0000 0002',
+        type: 'savings',
+        balance: 15000.00,
         currency: 'EUR',
         status: 'active'
       }
     ];
-    this.selectedAccount = this.clientAccounts[0];
+    this.selectedAccount = this.accounts[0];
+    this.quickTransfer.sourceAccountId = this.accounts[0].id;
     this.loadTransfers();
   }
 
   /**
-   * Charger les destinataires disponibles (comptes Stripe actifs)
+   * Load available recipients
    */
   loadAvailableRecipients(): void {
-    this.isLoadingRecipients = true;
-    
-    this.http.get<StripeAccount[]>(`${this.apiUrl}/stripe`)
+    this.http.get<Recipient[]>(`${this.apiUrl}/stripe/accounts/all`)
       .pipe(
-        tap((accounts: StripeAccount[]) => {
-          // Filtrer les comptes actifs et excluire le compte courant
-          this.availableRecipients = accounts.filter(acc => 
-            acc.chargesEnabled && 
-            acc.payoutsEnabled && 
-            acc.localAccount.id !== this.userId
-          );
-          console.log('Recipients loaded:', this.availableRecipients);
+        tap((recipients: Recipient[]) => {
+          this.availableRecipients = recipients.filter(r => r.id !== this.userId);
+          console.log('Available recipients loaded:', this.availableRecipients);
         }),
         catchError(error => {
-          console.error('Erreur lors du chargement des destinataires:', error);
-          this.showErrorMessage('Impossible de charger les destinataires disponibles.');
+          console.error('Error loading recipients:', error);
+          this.createFallbackRecipients();
           return of([]);
-        }),
-        finalize(() => {
-          this.isLoadingRecipients = false;
         })
       )
       .subscribe();
   }
 
   /**
-   * Charger l'historique des virements (simulation pour l'instant)
+   * Create fallback recipients for demo
    */
-  loadTransfers(): void {
-    if (!this.selectedAccount) return;
-    
-    // Simuler des données - remplacer par votre endpoint réel
-    this.transfers = [
+  createFallbackRecipients(): void {
+    this.availableRecipients = [
       {
-        id: '1',
-        reference: 'TRF-001-2024',
-        senderAccountNumber: this.selectedAccount.accountNumber,
-        recipientName: 'Mohammed Alami',
-        recipientAccountNumber: 'acct_1Nv0FGQ9RKHgCVdK',
-        amount: 15.00,
-        currency: 'EUR',
-        type: 'stripe',
-        status: 'completed',
-        reason: 'Paiement service',
-        createdAt: new Date().toISOString(),
-        executedDate: new Date().toISOString(),
-        stripePaymentIntentId: 'pi_test_1234567890'
+        id: 'acct_demo1',
+        email: 'alice@example.com',
+        localAccount: {
+          firstName: 'Alice',
+          lastName: 'Martin',
+          email: 'alice@example.com'
+        }
+      },
+      {
+        id: 'acct_demo2', 
+        email: 'bob@example.com',
+        localAccount: {
+          firstName: 'Bob',
+          lastName: 'Dupont',
+          email: 'bob@example.com'
+        }
       }
     ];
   }
 
   /**
-   * Sélectionner un compte
+   * Load transfers history
+   */
+  loadTransfers(): void {
+    if (!this.selectedAccount) return;
+    
+    // For demo, create some sample transfers
+    this.transfers = [
+      {
+        id: '1',
+        reference: 'RAP-001',
+        senderAccountNumber: this.selectedAccount.accountNumber,
+        recipientName: 'Compte Épargne',
+        recipientAccountNumber: 'FR76 1000 0000 0000 0000 0002',
+        amount: 500.00,
+        currency: 'EUR',
+        type: 'rapid',
+        status: 'completed',
+        reason: 'Transfert rapide',
+        createdAt: new Date(Date.now() - 86400000).toISOString(),
+        executedDate: new Date(Date.now() - 86400000).toISOString()
+      },
+      {
+        id: '2',
+        reference: 'STR-002',
+        senderAccountNumber: this.selectedAccount.accountNumber,
+        recipientName: 'Alice Martin',
+        recipientAccountNumber: 'acct_1234567890',
+        amount: 250.00,
+        currency: 'EUR',
+        type: 'stripe',
+        status: 'completed',
+        reason: 'Paiement Stripe',
+        createdAt: new Date(Date.now() - 172800000).toISOString(),
+        executedDate: new Date(Date.now() - 172800000).toISOString(),
+        stripePaymentIntentId: 'pi_1234567890'
+      }
+    ];
+  }
+
+  /**
+   * Switch tabs
+   */
+  switchTab(tab: 'history' | 'rapid' | 'stripe'): void {
+    this.currentTab = tab;
+    this.clearMessages();
+    this.transferSuccess = false;
+  }
+
+  /**
+   * Select account
    */
   selectAccount(account: Account): void {
     this.selectedAccount = account;
+    this.quickTransfer.sourceAccountId = account.id;
     this.loadTransfers();
   }
 
   /**
-   * Changer d'onglet
+   * Perform rapid transfer between own accounts
    */
-  switchTab(tab: 'history' | 'new'): void {
-    this.currentTab = tab;
+  performQuickTransfer(): void {
+    if (this.isTransferring) return;
+    
+    if (!this.quickTransfer.sourceAccountId || !this.quickTransfer.destinationAccountId) {
+      this.showErrorMessage('Veuillez sélectionner les comptes source et destination.');
+      return;
+    }
+    
+    if (this.quickTransfer.sourceAccountId === this.quickTransfer.destinationAccountId) {
+      this.showErrorMessage('Le compte source et destination ne peuvent pas être identiques.');
+      return;
+    }
+    
+    if (this.quickTransfer.amount <= 0) {
+      this.showErrorMessage('Le montant doit être supérieur à zéro.');
+      return;
+    }
+    
+    const sourceAccount = this.accounts.find(a => a.id === this.quickTransfer.sourceAccountId);
+    const availableBalance = sourceAccount?.combinedBalance || sourceAccount?.balance || 0;
+    
+    if (sourceAccount && availableBalance < this.quickTransfer.amount) {
+      this.showErrorMessage('Solde insuffisant pour effectuer ce transfert.');
+      return;
+    }
+    
+    this.isTransferring = true;
     this.clearMessages();
+    
+    // Simulate transfer
+    setTimeout(() => {
+      this.transferSuccess = true;
+      this.isTransferring = false;
+      
+      // Update balances locally
+      const sourceAcc = this.accounts.find(a => a.id === this.quickTransfer.sourceAccountId);
+      const destAcc = this.accounts.find(a => a.id === this.quickTransfer.destinationAccountId);
+      
+      if (sourceAcc && destAcc) {
+        sourceAcc.balance -= this.quickTransfer.amount;
+        if (sourceAcc.combinedBalance) {
+          sourceAcc.combinedBalance -= this.quickTransfer.amount;
+        }
+        
+        destAcc.balance += this.quickTransfer.amount;
+        if (destAcc.combinedBalance) {
+          destAcc.combinedBalance += this.quickTransfer.amount;
+        }
+        
+        // Add to transfers list
+        const newTransfer: Transfer = {
+          id: Date.now().toString(),
+          reference: `RAP-${Date.now()}`,
+          senderAccountNumber: sourceAcc.accountNumber,
+          recipientName: this.getAccountTypeLabel(destAcc.type),
+          recipientAccountNumber: destAcc.accountNumber,
+          amount: this.quickTransfer.amount,
+          currency: sourceAcc.currency,
+          type: 'rapid',
+          status: 'completed',
+          reason: this.quickTransfer.description || 'Transfert rapide',
+          createdAt: new Date().toISOString(),
+          executedDate: new Date().toISOString()
+        };
+        
+        this.transfers.unshift(newTransfer);
+      }
+      
+      setTimeout(() => {
+        this.resetQuickTransfer();
+      }, 3000);
+    }, 1500);
   }
 
   /**
-   * Sélectionner un destinataire
+   * Handle recipient selection for Stripe
    */
   onRecipientSelect(): void {
-    const recipientId = this.transferForm.get('recipientId')?.value;
+    const recipientId = this.stripeTransferForm.get('recipientId')?.value;
     this.selectedRecipient = this.availableRecipients.find(r => r.id === recipientId) || null;
   }
 
   /**
-   * Soumettre le virement
+   * Submit Stripe transfer
    */
-  onSubmitTransfer(): void {
-    if (this.transferForm.invalid || this.isSubmitting || !this.selectedAccount || !this.selectedRecipient) {
+  onSubmitStripeTransfer(): void {
+    if (this.stripeTransferForm.invalid || this.isSubmitting || !this.selectedAccount || !this.selectedRecipient) {
       this.showErrorMessage('Veuillez remplir correctement tous les champs requis.');
       return;
     }
@@ -267,32 +475,28 @@ export class TransfersComponent implements OnInit {
     this.isSubmitting = true;
     this.clearMessages();
     
-    const formData = this.transferForm.value;
+    const formData = this.stripeTransferForm.value;
     
-    // Vérifier le solde
-    const amountInEur = formData.amount;
-    if (amountInEur > this.selectedAccount.balance) {
-      this.showErrorMessage('Solde insuffisant pour effectuer ce virement.');
+    // Use combined balance for verification
+    const availableBalance = this.selectedAccount.combinedBalance || this.selectedAccount.balance || 0;
+    
+    if (formData.amount > availableBalance) {
+      this.showErrorMessage(`Solde insuffisant pour effectuer ce virement. Disponible: ${this.formatCurrency(availableBalance, this.selectedAccount.currency)}`);
       this.isSubmitting = false;
       return;
     }
 
-    // Préparer la demande selon le type de transfert
-    if (formData.transferType === 'stripe') {
-      this.processStripePayment(formData);
-    } else {
-      this.processDirectTransfer(formData);
-    }
+    this.processStripePayment(formData);
   }
 
   /**
-   * Traiter le paiement via Stripe
+   * Process Stripe payment
    */
   processStripePayment(formData: any): void {
     const paymentRequest: PaymentRequestDTO = {
       sourceUserId: this.userId,
       destinationStripeAccountId: this.selectedRecipient!.id,
-      amount: Math.round(formData.amount * 100), // Convertir en centimes
+      amount: Math.round(formData.amount * 100), // Convert to cents
       currency: formData.currency.toLowerCase(),
       applicationFeeAmount: formData.applicationFee > 0 ? formData.applicationFee : undefined,
       description: formData.description
@@ -305,10 +509,26 @@ export class TransfersComponent implements OnInit {
         tap((response: any) => {
           console.log('Stripe payment response:', response);
           
-          // Créer un enregistrement de transfert local
+          // Update account balances locally
+          if (this.selectedAccount) {
+            const deductAmount = formData.amount;
+            
+            if (this.selectedAccount.combinedBalance) {
+              this.selectedAccount.combinedBalance -= deductAmount;
+            }
+            
+            // Deduct from Stripe balance first if available
+            if (this.selectedAccount.stripeBalance && this.selectedAccount.stripeBalance >= deductAmount) {
+              this.selectedAccount.stripeBalance -= deductAmount;
+            } else {
+              this.selectedAccount.balance -= deductAmount;
+            }
+          }
+          
+          // Create transfer record
           const newTransfer: Transfer = {
             id: response.id,
-            reference: `PAY-${Date.now()}`,
+            reference: `STR-${Date.now()}`,
             senderAccountNumber: this.selectedAccount!.accountNumber,
             recipientName: this.selectedRecipient!.localAccount.firstName + ' ' + this.selectedRecipient!.localAccount.lastName,
             recipientAccountNumber: this.selectedRecipient!.id,
@@ -323,7 +543,7 @@ export class TransfersComponent implements OnInit {
 
           this.transfers.unshift(newTransfer);
           this.showSuccessMessage(`Paiement Stripe créé avec succès ! ID: ${response.id}`);
-          this.resetForm();
+          this.resetStripeForm();
         }),
         catchError(error => {
           console.error('Erreur Stripe payment:', error);
@@ -338,65 +558,25 @@ export class TransfersComponent implements OnInit {
   }
 
   /**
-   * Traiter le transfert direct
+   * Reset quick transfer form
    */
-  processDirectTransfer(formData: any): void {
-    const transferRequest = {
-      sourceAccountId: this.selectedAccount!.id, // Notre compte Stripe
-      destinationStripeAccountId: this.selectedRecipient!.id,
-      amount: Math.round(formData.amount * 100), // Convertir en centimes
-      currency: formData.currency.toLowerCase(),
-      description: formData.description
+  resetQuickTransfer(): void {
+    this.quickTransfer = {
+      sourceAccountId: this.accounts.length > 0 ? this.accounts[0].id : '',
+      destinationAccountId: '',
+      amount: 0,
+      description: ''
     };
-
-    console.log('Processing direct transfer:', transferRequest);
-
-    this.http.post(`${this.apiUrl}/transaction/direct-transfer`, transferRequest, this.httpOptions)
-      .pipe(
-        tap((response: any) => {
-          console.log('Direct transfer response:', response);
-          
-          // Créer un enregistrement de transfert local
-          const newTransfer: Transfer = {
-            id: response.id,
-            reference: `TRF-${Date.now()}`,
-            senderAccountNumber: this.selectedAccount!.accountNumber,
-            recipientName: this.selectedRecipient!.localAccount.firstName + ' ' + this.selectedRecipient!.localAccount.lastName,
-            recipientAccountNumber: this.selectedRecipient!.id,
-            amount: formData.amount,
-            currency: formData.currency,
-            type: 'direct',
-            status: 'completed',
-            reason: formData.description,
-            createdAt: new Date().toISOString(),
-            stripeTransferId: response.id
-          };
-
-          this.transfers.unshift(newTransfer);
-          this.showSuccessMessage(`Transfert direct créé avec succès ! ID: ${response.id}`);
-          this.resetForm();
-        }),
-        catchError(error => {
-          console.error('Erreur direct transfer:', error);
-          this.showErrorMessage(error.error || 'Erreur lors du transfert direct.');
-          return of(null);
-        }),
-        finalize(() => {
-          this.isSubmitting = false;
-        })
-      )
-      .subscribe();
+    this.transferSuccess = false;
+    this.currentTab = 'history';
   }
 
   /**
-   * Réinitialiser le formulaire après succès
+   * Reset Stripe form
    */
-  resetForm(): void {
-    this.transferForm.reset();
-    this.transferForm.patchValue({
-      transferType: 'stripe',
+  resetStripeForm(): void {
+    this.stripeTransferForm.reset({
       currency: 'EUR',
-      description: 'Virement client',
       applicationFee: 0
     });
     this.selectedRecipient = null;
@@ -404,7 +584,7 @@ export class TransfersComponent implements OnInit {
   }
 
   /**
-   * Afficher les détails d'un virement
+   * View transfer details
    */
   viewTransferDetails(transfer: Transfer): void {
     this.selectedTransfer = transfer;
@@ -412,104 +592,15 @@ export class TransfersComponent implements OnInit {
   }
 
   /**
-   * Fermer les détails du virement
+   * Close transfer details modal
    */
   closeTransferDetails(): void {
     this.showTransferDetails = false;
     this.selectedTransfer = null;
   }
 
-  // ===== UTILITAIRES =====
-
   /**
-   * Vérifier les erreurs de formulaire
-   */
-  hasError(controlName: string, errorType: string): boolean {
-    const control = this.transferForm.get(controlName);
-    return !!(control?.hasError(errorType) && (control?.dirty || control?.touched));
-  }
-
-  /**
-   * Obtenir le nom du destinataire
-   */
-  getRecipientName(recipientId: string): string {
-    const recipient = this.availableRecipients.find(r => r.id === recipientId);
-    if (recipient) {
-      return `${recipient.localAccount.firstName} ${recipient.localAccount.lastName}`;
-    }
-    return 'Destinataire inconnu';
-  }
-
-  /**
-   * Obtenir le texte du type de virement
-   */
-  getTransferTypeText(type: string): string {
-    const typeObj = this.transferTypes.find(t => t.id === type);
-    return typeObj?.label || type;
-  }
-
-  /**
-   * Obtenir le texte du statut
-   */
-  getStatusText(status: string): string {
-    const statusMap: Record<string, string> = {
-      'pending': 'En attente',
-      'processing': 'En cours',
-      'completed': 'Complété',
-      'failed': 'Échec',
-      'cancelled': 'Annulé'
-    };
-    return statusMap[status] || status;
-  }
-
-  /**
-   * Obtenir la classe CSS du statut
-   */
-  getStatusClass(status: string): string {
-    const classMap: Record<string, string> = {
-      'pending': 'bg-yellow-100 text-yellow-800',
-      'processing': 'bg-blue-100 text-blue-800',
-      'completed': 'bg-green-100 text-green-800',
-      'failed': 'bg-red-100 text-red-800',
-      'cancelled': 'bg-gray-100 text-gray-800'
-    };
-    return classMap[status] || 'bg-gray-100 text-gray-800';
-  }
-
-  /**
-   * Formater la date
-   */
-  formatDate(date: string | Date): string {
-    return new Date(date).toLocaleDateString('fr-FR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  }
-
-  /**
-   * Formater la devise
-   */
-  formatCurrency(amount: number, currency: string = 'EUR'): string {
-    return new Intl.NumberFormat('fr-FR', {
-      style: 'currency',
-      currency: currency,
-      minimumFractionDigits: 2
-    }).format(amount);
-  }
-
-  /**
-   * Calculer les frais en euros
-   */
-  getApplicationFeeInEur(): number {
-    const feeInCents = this.transferForm.get('applicationFee')?.value || 0;
-    return feeInCents / 100;
-  }
-
-  /**
-   * Afficher un message d'erreur
+   * Message management
    */
   showErrorMessage(message: string): void {
     this.errorMessage = message;
@@ -517,23 +608,12 @@ export class TransfersComponent implements OnInit {
     this.showSuccess = false;
   }
 
-  /**
-   * Afficher un message de succès
-   */
   showSuccessMessage(message: string): void {
     this.successMessage = message;
     this.showSuccess = true;
     this.showError = false;
-    
-    // Auto-masquer après 5 secondes
-    setTimeout(() => {
-      this.showSuccess = false;
-    }, 5000);
   }
 
-  /**
-   * Fermer les messages
-   */
   clearMessages(): void {
     this.showError = false;
     this.showSuccess = false;
@@ -541,11 +621,88 @@ export class TransfersComponent implements OnInit {
     this.successMessage = '';
   }
 
-  /**
-   * Fermer le message d'erreur
-   */
   closeError(): void {
     this.showError = false;
     this.errorMessage = '';
+  }
+
+  /**
+   * Form validation helpers
+   */
+  hasError(fieldName: string, errorType: string): boolean {
+    const field = this.stripeTransferForm.get(fieldName);
+    return !!(field && field.hasError(errorType) && (field.dirty || field.touched));
+  }
+
+  /**
+   * Utility methods
+   */
+  getAccountTypeLabel(type: string): string {
+    const types: Record<string, string> = {
+      'current': 'Compte courant',
+      'savings': 'Compte épargne',
+      'investment': 'Compte d\'investissement',
+      'fixed': 'Dépôt à terme',
+      'business': 'Compte professionnel',
+      'other': 'Autre'
+    };
+    return types[type] || type;
+  }
+
+  formatCurrency(amount: number, currency: string = 'EUR'): string {
+    return new Intl.NumberFormat('fr-FR', {
+      style: 'currency',
+      currency: currency
+    }).format(amount || 0);
+  }
+
+  formatDate(date: string): string {
+    return new Date(date).toLocaleDateString('fr-FR', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }
+
+  getStatusClass(status: string): string {
+    switch (status) {
+      case 'completed': return 'bg-green-100 text-green-800';
+      case 'processing': return 'bg-blue-100 text-blue-800';
+      case 'pending': return 'bg-yellow-100 text-yellow-800';
+      case 'failed': return 'bg-red-100 text-red-800';
+      case 'cancelled': return 'bg-gray-100 text-gray-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  }
+
+  getStatusText(status: string): string {
+    switch (status) {
+      case 'completed': return 'Terminé';
+      case 'processing': return 'En cours';
+      case 'pending': return 'En attente';
+      case 'failed': return 'Échoué';
+      case 'cancelled': return 'Annulé';
+      default: return status;
+    }
+  }
+
+  getTransferTypeText(type: string): string {
+    switch (type) {
+      case 'rapid': return 'Transfert rapide';
+      case 'stripe': return 'Paiement Stripe';
+      case 'external': return 'Virement externe';
+      default: return type;
+    }
+  }
+
+  getTransferTypeIcon(type: string): string {
+    switch (type) {
+      case 'rapid': return 'fa-solid fa-bolt';
+      case 'stripe': return 'fab fa-stripe';
+      case 'external': return 'fa-solid fa-building-columns';
+      default: return 'fa-solid fa-money-bill-transfer';
+    }
   }
 }

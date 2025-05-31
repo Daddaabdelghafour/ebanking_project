@@ -120,10 +120,19 @@
                     </div>
                 </div>
 
-                <span [class]="getAccountStatusClass(account.status)"
-                    class="px-3 py-1 rounded-full text-xs font-medium uppercase tracking-wide">
-                    {{ account.status }}
-                </span>
+                <div class="flex items-center space-x-2">
+                    <span [class]="getAccountStatusClass(account.status)"
+                        class="px-3 py-1 rounded-full text-xs font-medium uppercase tracking-wide">
+                        {{ account.status }}
+                    </span>
+
+                    <!-- Stripe Badge -->
+                    <span *ngIf="account.hasStripe"
+                        class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                        <i class="fab fa-stripe mr-1"></i>
+                        Stripe
+                    </span>
+                </div>
             </div>
 
             <!-- Account Body -->
@@ -131,19 +140,44 @@
                 <div
                     class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
 
-                    <!-- Balance -->
+                    <!-- Balance with Stripe Integration - FIXED -->
                     <div>
                         <div class="text-sm text-gray-500 mb-1">Solde
                             disponible</div>
                         <div class="text-2xl font-bold text-gray-900">
-                            {{ formatCurrency(account.balance, account.currency)
-                            }}
+                            <!-- Show combined balance if Stripe is available -->
+                            {{ formatCurrency((account.combinedBalance ||
+                            account.balance) || 0, account.currency) }}
                         </div>
+
+                        <!-- Show Stripe breakdown if available - FIXED -->
                         <div
-                            *ngIf="account.availableBalance !== account.balance"
+                            *ngIf="account.hasStripe && (account.stripeBalance || 0) > 0"
+                            class="text-xs text-gray-500 mt-2 space-y-1">
+                            <div class="flex justify-between">
+                                <span>Banque:</span>
+                                <span>{{ formatCurrency(account.balance || 0,
+                                    account.currency) }}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>Stripe:</span>
+                                <span>{{ formatCurrency(account.stripeBalance ||
+                                    0, 'EUR') }}</span>
+                            </div>
+                            <hr class="my-1">
+                            <div
+                                class="flex justify-between font-medium text-gray-700">
+                                <span>Total:</span>
+                                <span>{{ formatCurrency(account.combinedBalance
+                                    || 0, account.currency) }}</span>
+                            </div>
+                        </div>
+
+                        <div
+                            *ngIf="account.availableBalance !== account.balance && !account.hasStripe"
                             class="text-sm text-gray-500 mt-1">
                             Disponible: {{
-                            formatCurrency(account.availableBalance,
+                            formatCurrency(account.availableBalance || 0,
                             account.currency) }}
                         </div>
                     </div>
@@ -161,17 +195,28 @@
                         <div class="text-sm text-gray-500 mb-1">Limite
                             journalière</div>
                         <div class="text-sm font-semibold text-gray-900">
-                            {{ formatCurrency(account.dailyLimit,
+                            {{ formatCurrency(account.dailyLimit || 0,
                             account.currency) }}
                         </div>
                     </div>
 
-                    <!-- Interest Rate -->
-                    <div *ngIf="account.interestRate">
-                        <div class="text-sm text-gray-500 mb-1">Taux
-                            d'intérêt</div>
-                        <div class="text-sm font-semibold text-green-600">{{
-                            account.interestRate }}%</div>
+                    <!-- Interest Rate or Additional Info -->
+                    <div>
+                        <div *ngIf="account.interestRate" class="mb-2">
+                            <div class="text-sm text-gray-500 mb-1">Taux
+                                d'intérêt</div>
+                            <div class="text-sm font-semibold text-green-600">{{
+                                account.interestRate }}%</div>
+                        </div>
+
+                        <!-- Stripe Connection Status -->
+                        <div *ngIf="account.hasStripe" class="mt-2">
+                            <div
+                                class="text-xs text-purple-600 bg-purple-50 px-2 py-1 rounded">
+                                <i class="fab fa-stripe mr-1"></i>
+                                Paiements en ligne activés
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -198,12 +243,6 @@
                         class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 flex items-center">
                         <i class="fa-solid fa-eye mr-2"></i>
                         Détails
-                    </button>
-
-                    <button (click)="showStatementsModal(account.id)"
-                        class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 flex items-center">
-                        <i class="fa-solid fa-file-text mr-2"></i>
-                        Relevés
                     </button>
 
                     <button (click)="openQuickTransfer(account.id)"
@@ -251,9 +290,19 @@
                 <div>
                     <label
                         class="text-sm font-medium text-gray-500">Solde</label>
-                    <p class="text-gray-900 font-bold">{{
-                        formatCurrency(selectedAccount.balance,
-                        selectedAccount.currency) }}</p>
+                    <p class="text-gray-900 font-bold">
+                        {{ formatCurrency((selectedAccount.combinedBalance ||
+                        selectedAccount.balance) || 0, selectedAccount.currency)
+                        }}
+                    </p>
+
+                    <!-- Stripe breakdown in details - FIXED -->
+                    <div
+                        *ngIf="selectedAccount.hasStripe && (selectedAccount.stripeBalance || 0) > 0"
+                        class="text-xs text-gray-500 mt-1">
+                        Dont {{ formatCurrency(selectedAccount.stripeBalance ||
+                        0, 'EUR') }} sur Stripe
+                    </div>
                 </div>
                 <div>
                     <label
@@ -263,11 +312,18 @@
                 <div>
                     <label
                         class="text-sm font-medium text-gray-500">Statut</label>
-                    <span
-                        [class]="getAccountStatusClass(selectedAccount.status)"
-                        class="inline-block px-2 py-1 rounded-full text-xs font-medium">
-                        {{ selectedAccount.status }}
-                    </span>
+                    <div class="flex items-center space-x-2">
+                        <span
+                            [class]="getAccountStatusClass(selectedAccount.status)"
+                            class="inline-block px-2 py-1 rounded-full text-xs font-medium">
+                            {{ selectedAccount.status }}
+                        </span>
+                        <span *ngIf="selectedAccount.hasStripe"
+                            class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                            <i class="fab fa-stripe mr-1"></i>
+                            Stripe
+                        </span>
+                    </div>
                 </div>
                 <div>
                     <label class="text-sm font-medium text-gray-500">Date
@@ -282,6 +338,28 @@
                 <label class="text-sm font-medium text-gray-500">IBAN</label>
                 <p class="text-gray-900 font-mono break-all">{{
                     selectedAccount.iban }}</p>
+            </div>
+
+            <!-- Stripe Account Details - FIXED -->
+            <div *ngIf="selectedAccount.hasStripe"
+                class="pt-4 border-t border-gray-200">
+                <h3
+                    class="text-sm font-medium text-gray-700 mb-2 flex items-center">
+                    <i class="fab fa-stripe mr-2 text-purple-600"></i>
+                    Informations Stripe
+                </h3>
+                <div class="bg-purple-50 rounded-lg p-3 text-sm">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-gray-600">Solde Stripe:</span>
+                        <span class="font-medium">{{
+                            formatCurrency(selectedAccount.stripeBalance || 0,
+                            'EUR') }}</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-600">Statut:</span>
+                        <span class="text-green-600">✓ Actif</span>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -368,7 +446,7 @@
                 {{ errorMessage }}
             </div>
 
-            <!-- Source Account -->
+            <!-- Source Account - FIXED -->
             <div>
                 <label
                     class="block text-sm font-medium text-gray-700 mb-2">Compte
@@ -379,7 +457,9 @@
                     <option *ngFor="let account of accounts"
                         [value]="account.id">
                         {{ account.accountNumber }} - {{
-                        formatCurrency(account.balance, account.currency) }}
+                        formatCurrency((account.combinedBalance ||
+                        account.balance) || 0, account.currency) }}
+                        <span *ngIf="account.hasStripe"> (avec Stripe)</span>
                     </option>
                 </select>
             </div>
@@ -406,11 +486,8 @@
             <div>
                 <label
                     class="block text-sm font-medium text-gray-700 mb-2">Montant</label>
-                <input type="number"
-                    [(ngModel)]="quickTransfer.amount"
-                    name="amount"
-                    min="0"
-                    step="0.01"
+                <input type="number" [(ngModel)]="quickTransfer.amount"
+                    name="amount" min="0" step="0.01"
                     placeholder="0.00"
                     class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
             </div>
@@ -420,8 +497,7 @@
                 <label
                     class="block text-sm font-medium text-gray-700 mb-2">Description
                     (optionnel)</label>
-                <input type="text"
-                    [(ngModel)]="quickTransfer.description"
+                <input type="text" [(ngModel)]="quickTransfer.description"
                     name="description"
                     placeholder="Motif du transfert"
                     class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
@@ -429,8 +505,7 @@
 
             <!-- Buttons -->
             <div class="flex gap-3 pt-4">
-                <button type="button"
-                    (click)="closeQuickTransfer()"
+                <button type="button" (click)="closeQuickTransfer()"
                     class="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
                     Annuler
                 </button>

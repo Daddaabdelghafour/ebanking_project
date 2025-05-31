@@ -4,13 +4,16 @@ import { RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { catchError, finalize, tap } from 'rxjs/operators';
-import { of } from 'rxjs';
-
+import { of, forkJoin } from 'rxjs';
+import { StripeService } from '../../../services/stripe/stripe.service';
+import { StripeBalance } from '../../../services/stripe/stripe.service';
 interface Account {
   id: string;
   accountNumber: string;
   type: string;
   balance: number;
+  stripeBalance?: number; // Add Stripe balance
+  combinedBalance?: number; // Total balance including Stripe
   availableBalance: number;
   currency: string;
   status: string;
@@ -20,6 +23,7 @@ interface Account {
   dailyLimit?: number;
   interestRate?: number;
   client?: any;
+  hasStripe?: boolean; // Flag if account has Stripe
 }
 
 interface TransferRequest {
@@ -38,7 +42,7 @@ interface TransferRequest {
 })
 export class AccountsComponent implements OnInit {
   clientId: string = 'fe6f2c00-b906-454a-b57d-f79c8e4f9da4';
-  
+  userId : string = 'f63a8753-6908-4130-a897-cf26f5f5d733'
   accounts: Account[] = [];
   totalBalance: number = 0;
   isLoading: boolean = true;
@@ -71,39 +75,93 @@ export class AccountsComponent implements OnInit {
     })
   };
 
-  constructor(private http: HttpClient) {}
+  constructor(
+    private http: HttpClient,
+    private stripeService: StripeService
+  ) {}
 
   ngOnInit(): void {
-    this.loadAccounts();
+    this.loadAccountsWithStripe();
+  }
+
+  /**
+   * Load accounts and combine with Stripe balances
+   */
+  loadAccountsWithStripe(): void {
+    this.isLoading = true;
+    this.errorMessage = '';
+    
+    // Load bank accounts
+    const accounts$ = this.http.get<Account[]>(`${this.apiUrl}/accounts/client/${this.clientId}/active`);
+    
+    // Load Stripe balance
+    const stripeBalance$ = this.stripeService.getUserStripeBalance(this.userId).pipe(
+      catchError(() => of(null))
+    );
+    
+    forkJoin({
+      accounts: accounts$,
+      stripeBalance: stripeBalance$
+    })
+    .pipe(
+      tap(({ accounts, stripeBalance }) => {
+        this.accounts = accounts || [];
+        
+        // Add Stripe balance to accounts if available
+        if (stripeBalance && stripeBalance.available && stripeBalance.available.length > 0) {
+          this.addStripeBalanceToAccounts(stripeBalance);
+        }
+        
+        this.calculateTotalBalance();
+        
+        if (this.accounts.length > 0) {
+          this.quickTransfer.sourceAccountId = this.accounts[0].id;
+        }
+      }),
+      catchError(error => {
+        console.error('Erreur lors du chargement:', error);
+        this.errorMessage = 'Impossible de charger vos comptes.';
+        return of({ accounts: [], stripeBalance: null });
+      }),
+      finalize(() => {
+        this.isLoading = false;
+      })
+    )
+    .subscribe();
+  }
+
+  /**
+   * Add Stripe balance to the first account (or primary account)
+   */
+  private addStripeBalanceToAccounts(stripeBalance: StripeBalance): void {
+    if (this.accounts.length === 0) return;
+    
+    // Find EUR balance in Stripe (or convert if needed)
+    const eurBalance = stripeBalance.available.find(b => b.currency.toLowerCase() === 'eur');
+    
+    if (eurBalance) {
+      const stripeAmount = eurBalance.amount / 100; // Convert from cents
+      
+      // Add to the first account (or find primary account)
+      const primaryAccount = this.accounts[0];
+      primaryAccount.stripeBalance = stripeAmount;
+      primaryAccount.combinedBalance = primaryAccount.balance + stripeAmount;
+      primaryAccount.hasStripe = true;
+    }
   }
 
   /**
    * Charge les comptes via l'endpoint accounts/client/{clientId}/active
    */
   loadAccounts(): void {
-    this.isLoading = true;
-    this.errorMessage = '';
-    
-    this.http.get<Account[]>(`${this.apiUrl}/accounts/client/${this.clientId}/active`)
-      .pipe(
-        tap((accounts: Account[]) => {
-          this.accounts = accounts || [];
-          this.calculateTotalBalance();
-          
-          if (this.accounts.length > 0) {
-            this.quickTransfer.sourceAccountId = this.accounts[0].id;
-          }
-        }),
-        catchError(error => {
-          console.error('Erreur lors du chargement des comptes:', error);
-          this.errorMessage = 'Impossible de charger vos comptes.';
-          return of([]);
-        }),
-        finalize(() => {
-          this.isLoading = false;
-        })
-      )
-      .subscribe();
+    this.loadAccountsWithStripe();
+  }
+
+  /**
+   * Refresh accounts including Stripe
+   */
+  refreshAccounts(): void {
+    this.loadAccountsWithStripe();
   }
 
   /**
@@ -113,6 +171,14 @@ export class AccountsComponent implements OnInit {
     this.http.get<Account>(`${this.apiUrl}/accounts/${accountId}`)
       .pipe(
         tap((account: Account) => {
+          // Add Stripe info if this account has it
+          const localAccount = this.accounts.find(a => a.id === accountId);
+          if (localAccount?.hasStripe) {
+            account.stripeBalance = localAccount.stripeBalance;
+            account.combinedBalance = localAccount.combinedBalance;
+            account.hasStripe = true;
+          }
+          
           this.selectedAccount = account;
           this.showAccountDetails = true;
         }),
@@ -147,7 +213,6 @@ export class AccountsComponent implements OnInit {
     startDate.setMonth(startDate.getMonth() - 1);
     const startDateStr = startDate.toISOString().split('T')[0];
     
-    // Simuler le téléchargement (remplacer par votre endpoint réel)
     const url = `${this.apiUrl}/accounts/${this.selectedAccount.id}/statements?from=${startDateStr}&to=${endDate}&format=${format}`;
     window.open(url, '_blank');
   }
@@ -170,7 +235,6 @@ export class AccountsComponent implements OnInit {
   performQuickTransfer(): void {
     if (this.isTransferring) return;
     
-    // Validations
     if (!this.quickTransfer.sourceAccountId || !this.quickTransfer.destinationAccountId) {
       this.errorMessage = 'Veuillez sélectionner les comptes source et destination.';
       return;
@@ -187,7 +251,9 @@ export class AccountsComponent implements OnInit {
     }
     
     const sourceAccount = this.accounts.find(a => a.id === this.quickTransfer.sourceAccountId);
-    if (sourceAccount && sourceAccount.balance < this.quickTransfer.amount) {
+    const availableBalance = sourceAccount?.combinedBalance || sourceAccount?.balance || 0;
+    
+    if (sourceAccount && availableBalance < this.quickTransfer.amount) {
       this.errorMessage = 'Solde insuffisant pour effectuer ce transfert.';
       return;
     }
@@ -195,59 +261,33 @@ export class AccountsComponent implements OnInit {
     this.isTransferring = true;
     this.errorMessage = '';
     
-    // Simuler le transfert (remplacer par votre endpoint réel)
-    const transferData = {
-      sourceAccountId: this.quickTransfer.sourceAccountId,
-      destinationAccountId: this.quickTransfer.destinationAccountId,
-      amount: this.quickTransfer.amount,
-      description: this.quickTransfer.description || 'Transfert entre comptes',
-      type: 'INTERNAL_TRANSFER'
-    };
-    
-    // Pour la simulation, on fait juste un timeout
+    // Simuler le transfert
     setTimeout(() => {
       this.transferSuccess = true;
       this.isTransferring = false;
       
-      // Mettre à jour les soldes localement pour la démo
+      // Mettre à jour les soldes localement
       const sourceAcc = this.accounts.find(a => a.id === this.quickTransfer.sourceAccountId);
       const destAcc = this.accounts.find(a => a.id === this.quickTransfer.destinationAccountId);
       
       if (sourceAcc && destAcc) {
         sourceAcc.balance -= this.quickTransfer.amount;
+        if (sourceAcc.combinedBalance) {
+          sourceAcc.combinedBalance -= this.quickTransfer.amount;
+        }
+        
         destAcc.balance += this.quickTransfer.amount;
+        if (destAcc.combinedBalance) {
+          destAcc.combinedBalance += this.quickTransfer.amount;
+        }
+        
         this.calculateTotalBalance();
       }
       
-      // Auto-fermer après 3 secondes
       setTimeout(() => {
         this.closeQuickTransfer();
       }, 3000);
     }, 1500);
-
-    // Code pour un vrai appel API (décommenter quand prêt) :
-    /*
-    this.http.post(`${this.apiUrl}/transfers`, transferData, this.httpOptions)
-      .pipe(
-        tap(() => {
-          this.transferSuccess = true;
-          this.loadAccounts(); // Recharger les comptes
-          
-          setTimeout(() => {
-            this.closeQuickTransfer();
-          }, 3000);
-        }),
-        catchError(error => {
-          console.error('Erreur lors du transfert:', error);
-          this.errorMessage = 'Erreur lors du transfert. Veuillez réessayer.';
-          return of(null);
-        }),
-        finalize(() => {
-          this.isTransferring = false;
-        })
-      )
-      .subscribe();
-    */
   }
 
   /**
@@ -276,11 +316,13 @@ export class AccountsComponent implements OnInit {
 
   calculateTotalBalance(): void {
     this.totalBalance = this.accounts.reduce((total, account) => {
+      const accountBalance = account.combinedBalance || account.balance;
+      
       if (account.currency === this.selectedCurrency) {
-        return total + account.balance;
+        return total + accountBalance;
       }
       
-      // Conversion simple (à améliorer avec un service de taux de change)
+      // Conversion simple
       const rates: Record<string, number> = {
         'MAD': 1,
         'EUR': 10.8,
@@ -290,7 +332,7 @@ export class AccountsComponent implements OnInit {
       
       const fromRate = rates[account.currency] || 1;
       const toRate = rates[this.selectedCurrency] || 1;
-      const convertedAmount = (account.balance / fromRate) * toRate;
+      const convertedAmount = (accountBalance / fromRate) * toRate;
       
       return total + convertedAmount;
     }, 0);
@@ -346,9 +388,5 @@ export class AccountsComponent implements OnInit {
       currency: currency,
       minimumFractionDigits: 2
     }).format(value || 0);
-  }
-
-  refreshAccounts(): void {
-    this.loadAccounts();
   }
 }
