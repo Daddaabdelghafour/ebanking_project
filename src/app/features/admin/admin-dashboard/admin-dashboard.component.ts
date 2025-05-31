@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { catchError, forkJoin, of } from 'rxjs';
 import { finalize, map } from 'rxjs/operators';
@@ -48,7 +48,6 @@ interface ChartData {
 export class AdminDashboardComponent implements OnInit {
   currentDate = new Date();
   currentAdminName = 'Admin User';
-  
   // System statistics with proper typing
   systemStats: SystemStats = {
     totalUsers: 0,
@@ -98,7 +97,7 @@ export class AdminDashboardComponent implements OnInit {
   
   private apiUrl = 'http://localhost:8085/E-BANKING1/api';
   
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient, private router : Router) {}
 
   ngOnInit(): void {
     this.loadAllDashboardData();
@@ -211,6 +210,10 @@ export class AdminDashboardComponent implements OnInit {
     });
   }
 
+
+  navigateToStripeManagement(): void {
+  this.router.navigate(['/admin/stripe-management']);
+}
   loadChartData(): void {
     this.loading.charts = true;
     this.error.charts = false;
@@ -290,6 +293,7 @@ export class AdminDashboardComponent implements OnInit {
       new Date(client.createdAt).getTime() < Date.now() - 7 * 24 * 60 * 60 * 1000 // Older than 7 days
     ).length;
     
+    
     // Count inactive accounts
     const inactiveAccounts = data.accounts.filter((account: any) => 
       account.status === 'inactive' || !account.isActive
@@ -325,6 +329,7 @@ export class AdminDashboardComponent implements OnInit {
       icon: icon
     };
   }
+  
   
   private getMockActivities(): AdminActivity[] {
     return [

@@ -103,6 +103,11 @@ export const routes: Routes = [
         loadComponent: () => import('./features/admin/agent-management/agent-management.component')
           .then(c => c.AgentManagementComponent)
       },
+            {
+        path: 'stripe-management',
+        loadComponent: () => import('./features/admin/stripe-management/stripe-management.component')
+          .then(c => c.StripeManagementComponent)
+      },
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' }
     ]
   },
