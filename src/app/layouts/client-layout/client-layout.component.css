@@ -123,3 +123,244 @@ a:focus {
 .user-section-gradient {
   background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
 }
+
+/* Full height sidebar */
+aside {
+  height: 100vh !important;
+  min-height: 100vh !important;
+}
+
+/* Ensure sidebar content uses full height */
+aside .flex-1 {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Navigation section takes available space */
+nav {
+  flex: 1;
+  overflow-y: auto;
+}
+
+/* Loading spinner animation */
+.fa-spin {
+  animation: fa-spin 1s infinite linear;
+}
+
+@keyframes fa-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Hover effects */
+.hover\:bg-gray-50:hover {
+  background-color: #f9fafb;
+}
+
+.hover\:bg-blue-700:hover {
+  background-color: #1d4ed8;
+}
+
+/* Focus states */
+.focus\:ring-2:focus {
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+}
+
+.focus\:border-blue-500:focus {
+  border-color: #3b82f6;
+}
+
+/* Disabled states */
+.disabled\:opacity-50:disabled {
+  opacity: 0.5;
+}
+
+.disabled\:cursor-not-allowed:disabled {
+  cursor: not-allowed;
+}
+
+/* Transitions */
+.transition-colors {
+  transition: background-color 0.15s ease-in-out, color 0.15s ease-in-out;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 1024px) {
+  aside {
+    height: 100vh !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    z-index: 50 !important;
+  }
+}
+
+/* Ensure sidebar always fills viewport height */
+.sidebar-container {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Scrollable navigation area */
+.nav-scrollable {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Fix for mobile overlay */
+.mobile-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 40;
+}
+
+/* Ensure main content doesn't overlap */
+.main-content {
+  min-height: 100vh;
+}
+
+@media (min-width: 1024px) {
+  .main-content {
+    margin-left: 16rem; /* Default sidebar width */
+  }
+  
+  .main-content.collapsed {
+    margin-left: 4rem; /* Collapsed sidebar width */
+  }
+}
+
+/* Full height sidebar */
+aside {
+  height: 100vh !important;
+  min-height: 100vh !important;
+}
+
+/* Hamburger button styling */
+button svg {
+  display: block;
+}
+
+button:focus {
+  outline: none;
+}
+
+/* Mobile hamburger button */
+.lg\:hidden button {
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Desktop hamburger button */
+.lg\:block button {
+  min-width: 40px;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Ensure sidebar content uses full height */
+aside .flex-1 {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Navigation section takes available space */
+nav {
+  flex: 1;
+  overflow-y: auto;
+}
+
+/* Hover effects */
+.hover\:bg-gray-50:hover {
+  background-color: #f9fafb;
+}
+
+.hover\:bg-blue-700:hover {
+  background-color: #1d4ed8;
+}
+
+.hover\:bg-gray-100:hover {
+  background-color: #f3f4f6;
+}
+
+/* Focus states */
+.focus\:ring-2:focus {
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+}
+
+.focus\:border-blue-500:focus {
+  border-color: #3b82f6;
+}
+
+/* Transitions */
+.transition-colors {
+  transition: background-color 0.15s ease-in-out, color 0.15s ease-in-out;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 1024px) {
+  aside {
+    height: 100vh !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    z-index: 50 !important;
+  }
+}
+
+/* Ensure sidebar always fills viewport height */
+.sidebar-container {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Scrollable navigation area */
+.nav-scrollable {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Fix for mobile overlay */
+.mobile-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 40;
+}
+
+/* Ensure main content doesn't overlap */
+.main-content {
+  min-height: 100vh;
+}
+
+@media (min-width: 1024px) {
+  .main-content {
+    margin-left: 16rem; /* Default sidebar width */
+  }
+  
+  .main-content.collapsed {
+    margin-left: 4rem; /* Collapsed sidebar width */
+  }
+}
+
+/* SVG icons */
+svg {
+  flex-shrink: 0;
+}

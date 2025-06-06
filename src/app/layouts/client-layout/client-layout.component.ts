@@ -35,7 +35,80 @@ export class ClientLayoutComponent implements OnInit {
   isLoading = true;
   showNotifications = false;
   showUserMenu = false;
+   isMobileMenuOpen = false;
+  showMobileOverlay = false;
+
+@HostListener('window:resize', ['$event'])
+  onResize(event: any): void {
+    // Auto-collapse sidebar on small screens
+    if (event.target.innerWidth < 1024) {
+      this.sidebarCollapsed = true;
+      this.isMobileMenuOpen = false;
+      this.showMobileOverlay = false;
+    }
+  }
+
+
+
+
+  getMobileSidebarClasses(): string {
+  const baseClasses = this.sidebarCollapsed ? 'w-16' : 'w-64';
   
+  // On mobile, handle menu open/close with full height
+  if (window.innerWidth < 1024) {
+    return this.isMobileMenuOpen 
+      ? 'w-64 translate-x-0 fixed h-screen z-50' 
+      : 'w-64 -translate-x-full fixed h-screen z-50';
+  }
+  
+  // On desktop, use normal sidebar behavior with full height
+  return `${baseClasses} fixed h-screen z-50`;
+}
+
+
+
+
+getMainContentClasses(): string {
+  if (window.innerWidth < 1024) {
+    return 'ml-0 min-h-screen'; // No margin on mobile
+  }
+  
+  return this.sidebarCollapsed 
+    ? 'ml-16 min-h-screen' 
+    : 'ml-64 min-h-screen';
+}
+
+
+
+
+  toggleMobileSidebar(): void {
+    if (window.innerWidth < 1024) {
+      this.isMobileMenuOpen = !this.isMobileMenuOpen;
+      this.showMobileOverlay = this.isMobileMenuOpen;
+    } else {
+      this.toggleDesktopSidebar();
+    }
+  }
+
+
+    toggleDesktopSidebar(): void {
+    this.sidebarCollapsed = !this.sidebarCollapsed;
+  }
+
+
+closeMobileSidebar(): void {
+    this.isMobileMenuOpen = false;
+    this.showMobileOverlay = false;
+  }
+
+
+   onMobileNavClick(): void {
+    if (window.innerWidth < 1024) {
+      this.closeMobileSidebar();
+    }
+  }
+
+
   // Navigation simplifiée et organisée
   sidebarItems: SidebarItem[] = [
     {

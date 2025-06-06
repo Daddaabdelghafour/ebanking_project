@@ -5,7 +5,15 @@ import { AgentLayoutComponent } from './layouts/agent-layout/agent-layout.compon
 
 export const routes: Routes = [
   // Client routes with the client layout
+  
+  
   {
+    path: 'welcome',
+    loadComponent: () => import('./features/landing-page/landing-page.component')
+      .then(c => c.LandingComponent)
+  },
+  
+  {  
     path: '',
     component: ClientLayoutComponent,
     children: [

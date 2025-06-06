@@ -59,8 +59,8 @@ interface ClientAccount {
 })
 export class StripeManagementComponent implements OnInit {
   // Focus on single user like client page
-  userId = 'f63a8753-6908-4130-a897-cf26f5f5d733';
-  clientId = 'fe6f2c00-b906-454a-b57d-f79c8e4f9da4';
+  userId = '31f102f4-f7ac-4dce-84bc-ed580a7661b9';
+  clientId = '65e418f7-1711-479b-8e32-3c780730640e';
   
   // Real user data from database
   client: any = null;

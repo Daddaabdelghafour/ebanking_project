@@ -1,0 +1,486 @@
+<div class="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+    <!-- Navigation -->
+    <nav class="bg-white/90 backdrop-blur-md shadow-sm fixed w-full top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <!-- Logo -->
+                <div class="flex items-center">
+                    <div class="flex-shrink-0 flex items-center">
+                        <div
+                            class="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
+                            <i
+                                class="fa-brands fa-bitcoin text-white text-xl"></i>
+                        </div>
+                        <h1
+                            class="ml-3 text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                            CryptoBank
+                        </h1>
+                    </div>
+                </div>
+
+                <!-- Desktop Navigation -->
+                <div class="hidden md:block">
+                    <div class="ml-10 flex items-baseline space-x-8">
+                        <a (click)="scrollToSection('features')"
+                            class="text-gray-700 hover:text-blue-600 px-3 py-2 text-sm font-medium cursor-pointer transition-colors">
+                            Fonctionnalités
+                        </a>
+                        <a (click)="scrollToSection('pricing')"
+                            class="text-gray-700 hover:text-blue-600 px-3 py-2 text-sm font-medium cursor-pointer transition-colors">
+                            Tarifs
+                        </a>
+                        <a (click)="scrollToSection('testimonials')"
+                            class="text-gray-700 hover:text-blue-600 px-3 py-2 text-sm font-medium cursor-pointer transition-colors">
+                            Témoignages
+                        </a>
+                        <a (click)="scrollToSection('contact')"
+                            class="text-gray-700 hover:text-blue-600 px-3 py-2 text-sm font-medium cursor-pointer transition-colors">
+                            Contact
+                        </a>
+                    </div>
+                </div>
+
+                <!-- CTA Buttons -->
+                <div class="hidden md:flex items-center space-x-4">
+                    <button routerLink="/login"
+                        class="text-gray-700 hover:text-blue-600 px-4 py-2 text-sm font-medium transition-colors">
+                        Connexion
+                    </button>
+                    <button routerLink="/register"
+                        class="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2 rounded-lg text-sm font-medium hover:shadow-lg transform hover:scale-105 transition-all">
+                        Commencer
+                    </button>
+                </div>
+
+                <!-- Mobile menu button -->
+                <div class="md:hidden">
+                    <button class="text-gray-700 hover:text-blue-600 p-2">
+                        <i class="fa-solid fa-bars text-xl"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="pt-20 pb-16 sm:pt-24 sm:pb-20">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="lg:grid lg:grid-cols-12 lg:gap-16 items-center">
+                <!-- Hero Content -->
+                <div class="lg:col-span-6"
+                    [class.animate-fade-in-up]="isVisible">
+                    <h1
+                        class="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 leading-tight">
+                        Votre
+                        <span
+                            class="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                            portefeuille crypto
+                        </span>
+                        nouvelle génération
+                    </h1>
+
+                    <p
+                        class="mt-6 text-lg sm:text-xl text-gray-600 leading-relaxed">
+                        Achetez, vendez et gérez vos crypto-monnaies en toute
+                        sécurité.
+                        Interface intuitive, analyses avancées et support 24/7.
+                    </p>
+
+                    <div class="mt-8 flex flex-col sm:flex-row gap-4">
+                        <button routerLink="/register"
+                            class="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-4 rounded-xl text-lg font-semibold hover:shadow-xl transform hover:scale-105 transition-all flex items-center justify-center">
+                            <i class="fa-solid fa-rocket mr-2"></i>
+                            Commencer gratuitement
+                        </button>
+                        <button (click)="scrollToSection('features')"
+                            class="border-2 border-blue-600 text-blue-600 px-8 py-4 rounded-xl text-lg font-semibold hover:bg-blue-50 transition-all flex items-center justify-center">
+                            <i class="fa-solid fa-play mr-2"></i>
+                            Voir la démo
+                        </button>
+                    </div>
+
+                    <!-- Stats -->
+                    <div class="mt-12 grid grid-cols-2 lg:grid-cols-4 gap-6">
+                        <div *ngFor="let stat of stats" class="text-center">
+                            <div class="text-2xl font-bold text-gray-900">{{
+                                stat.value }}</div>
+                            <div class="text-sm text-gray-600">{{ stat.label
+                                }}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Hero Visual -->
+                <div class="lg:col-span-6 mt-12 lg:mt-0"
+                    [class.animate-fade-in-right]="isVisible">
+                    <!-- Live Crypto Prices Widget -->
+                    <div
+                        class="bg-white rounded-2xl shadow-2xl p-6 backdrop-blur-lg">
+                        <div class="flex items-center justify-between mb-6">
+                            <h3 class="text-lg font-semibold text-gray-900">Prix
+                                en temps réel</h3>
+                            <div
+                                class="flex items-center text-green-500 text-sm">
+                                <div
+                                    class="w-2 h-2 bg-green-500 rounded-full animate-pulse mr-2"></div>
+                                Live
+                            </div>
+                        </div>
+
+                        <div class="space-y-4">
+                            <div *ngFor="let crypto of cryptoPrices"
+                                class="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors">
+                                <div class="flex items-center">
+                                    <div
+                                        class="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center mr-3">
+                                        <i [class]="crypto.icon"
+                                            class="text-lg"></i>
+                                    </div>
+                                    <div>
+                                        <div
+                                            class="font-medium text-gray-900">{{
+                                            crypto.symbol }}</div>
+                                        <div class="text-sm text-gray-500">{{
+                                            crypto.name }}</div>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="font-semibold text-gray-900">
+                                        {{ crypto.price |
+                                        currency:'EUR':'symbol':'1.2-2':'fr' }}
+                                    </div>
+                                    <div class="flex items-center text-sm"
+                                        [class]="getChangeClass(crypto.change)">
+                                        <i
+                                            [class]="getChangeIcon(crypto.change)"
+                                            class="mr-1"></i>
+                                        {{ crypto.change }}%
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Mini Chart Placeholder -->
+                        <div
+                            class="mt-6 h-32 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg flex items-center justify-center">
+                            <div class="text-center text-gray-500">
+                                <i
+                                    class="fa-solid fa-chart-line text-3xl mb-2"></i>
+                                <p class="text-sm">Graphiques interactifs</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="py-16 sm:py-20 bg-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16">
+                <h2 class="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+                    Pourquoi choisir CryptoBank ?
+                </h2>
+                <p class="text-lg text-gray-600 max-w-3xl mx-auto">
+                    Découvrez les fonctionnalités qui font de notre plateforme
+                    le choix préféré des investisseurs crypto.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <div *ngFor="let feature of features; let i = index"
+                    class="group p-6 rounded-2xl border border-gray-200 hover:shadow-xl transition-all duration-300 hover:border-blue-200"
+                    [class.animate-fade-in-up]="isVisible"
+                    [style.animation-delay]="(i * 100) + 'ms'">
+                    <div
+                        class="w-12 h-12 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform"
+                        [ngClass]="'bg-' + feature.color + '-100'">
+                        <i
+                            [class]="feature.icon + ' text-' + feature.color + '-600'"
+                            class="text-xl"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-900 mb-3">{{
+                        feature.title }}</h3>
+                    <p class="text-gray-600 leading-relaxed">{{
+                        feature.description }}</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Pricing Section -->
+    <section id="pricing" class="py-16 sm:py-20 bg-gray-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16">
+                <h2 class="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+                    Tarifs transparents
+                </h2>
+                <p class="text-lg text-gray-600">
+                    Commencez gratuitement, évoluez selon vos besoins
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- Free Plan -->
+                <div
+                    class="bg-white rounded-2xl shadow-lg p-8 border border-gray-200">
+                    <div class="text-center">
+                        <h3
+                            class="text-xl font-semibold text-gray-900 mb-2">Starter</h3>
+                        <div
+                            class="text-4xl font-bold text-gray-900 mb-1">Gratuit</div>
+                        <p class="text-gray-600 mb-6">Pour débuter</p>
+                    </div>
+                    <ul class="space-y-4 mb-8">
+                        <li class="flex items-center">
+                            <i
+                                class="fa-solid fa-check text-green-500 mr-3"></i>
+                            <span class="text-gray-600">5 transactions par
+                                mois</span>
+                        </li>
+                        <li class="flex items-center">
+                            <i
+                                class="fa-solid fa-check text-green-500 mr-3"></i>
+                            <span class="text-gray-600">3 crypto-monnaies</span>
+                        </li>
+                        <li class="flex items-center">
+                            <i
+                                class="fa-solid fa-check text-green-500 mr-3"></i>
+                            <span class="text-gray-600">Support email</span>
+                        </li>
+                    </ul>
+                    <button
+                        class="w-full bg-gray-100 text-gray-900 py-3 rounded-lg font-semibold hover:bg-gray-200 transition-colors">
+                        Commencer
+                    </button>
+                </div>
+
+                <!-- Pro Plan -->
+                <div
+                    class="bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl shadow-xl p-8 text-white transform scale-105">
+                    <div class="text-center">
+                        <div
+                            class="bg-white text-blue-600 text-sm font-semibold px-3 py-1 rounded-full inline-block mb-4">
+                            Populaire
+                        </div>
+                        <h3 class="text-xl font-semibold mb-2">Pro</h3>
+                        <div class="text-4xl font-bold mb-1">€29</div>
+                        <p class="text-blue-100 mb-6">par mois</p>
+                    </div>
+                    <ul class="space-y-4 mb-8">
+                        <li class="flex items-center">
+                            <i class="fa-solid fa-check text-white mr-3"></i>
+                            <span class="text-blue-100">Transactions
+                                illimitées</span>
+                        </li>
+                        <li class="flex items-center">
+                            <i class="fa-solid fa-check text-white mr-3"></i>
+                            <span class="text-blue-100">15+
+                                crypto-monnaies</span>
+                        </li>
+                        <li class="flex items-center">
+                            <i class="fa-solid fa-check text-white mr-3"></i>
+                            <span class="text-blue-100">Analyses avancées</span>
+                        </li>
+                        <li class="flex items-center">
+                            <i class="fa-solid fa-check text-white mr-3"></i>
+                            <span class="text-blue-100">Support
+                                prioritaire</span>
+                        </li>
+                    </ul>
+                    <button
+                        class="w-full bg-white text-blue-600 py-3 rounded-lg font-semibold hover:bg-gray-50 transition-colors">
+                        Commencer l'essai
+                    </button>
+                </div>
+
+                <!-- Enterprise Plan -->
+                <div
+                    class="bg-white rounded-2xl shadow-lg p-8 border border-gray-200">
+                    <div class="text-center">
+                        <h3
+                            class="text-xl font-semibold text-gray-900 mb-2">Enterprise</h3>
+                        <div class="text-4xl font-bold text-gray-900 mb-1">Sur
+                            mesure</div>
+                        <p class="text-gray-600 mb-6">Pour les entreprises</p>
+                    </div>
+                    <ul class="space-y-4 mb-8">
+                        <li class="flex items-center">
+                            <i
+                                class="fa-solid fa-check text-green-500 mr-3"></i>
+                            <span class="text-gray-600">API personnalisée</span>
+                        </li>
+                        <li class="flex items-center">
+                            <i
+                                class="fa-solid fa-check text-green-500 mr-3"></i>
+                            <span class="text-gray-600">Support dédié</span>
+                        </li>
+                        <li class="flex items-center">
+                            <i
+                                class="fa-solid fa-check text-green-500 mr-3"></i>
+                            <span class="text-gray-600">Conformité
+                                avancée</span>
+                        </li>
+                    </ul>
+                    <button
+                        class="w-full bg-gray-900 text-white py-3 rounded-lg font-semibold hover:bg-gray-800 transition-colors">
+                        Nous contacter
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Testimonials Section -->
+    <section id="testimonials" class="py-16 sm:py-20 bg-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16">
+                <h2 class="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+                    Ce que disent nos utilisateurs
+                </h2>
+                <p class="text-lg text-gray-600">
+                    Plus de 50 000 utilisateurs nous font confiance
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div *ngFor="let testimonial of testimonials; let i = index"
+                    class="bg-gray-50 rounded-2xl p-6 border border-gray-200"
+                    [class.animate-fade-in-up]="isVisible"
+                    [style.animation-delay]="(i * 200) + 'ms'">
+                    <div class="flex items-center mb-4">
+                        <img [src]="testimonial.avatar"
+                            [alt]="testimonial.name"
+                            class="w-12 h-12 rounded-full mr-4">
+                        <div>
+                            <h4 class="font-semibold text-gray-900">{{
+                                testimonial.name }}</h4>
+                            <p class="text-sm text-gray-600">{{ testimonial.role
+                                }}</p>
+                        </div>
+                    </div>
+                    <p class="text-gray-700 mb-4">{{ testimonial.content }}</p>
+                    <div class="flex">
+                        <i *ngFor="let star of [1,2,3,4,5]"
+                            class="fa-solid fa-star text-yellow-400 mr-1"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section
+        class="py-16 sm:py-20 bg-gradient-to-r from-blue-600 to-purple-600">
+        <div class="max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8">
+            <h2 class="text-3xl sm:text-4xl font-bold text-white mb-6">
+                Prêt à commencer votre aventure crypto ?
+            </h2>
+            <p class="text-xl text-blue-100 mb-8">
+                Rejoignez des milliers d'investisseurs qui font confiance à
+                CryptoBank
+            </p>
+            <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                <button routerLink="/register"
+                    class="bg-white text-blue-600 px-8 py-4 rounded-xl text-lg font-semibold hover:shadow-xl transform hover:scale-105 transition-all">
+                    <i class="fa-solid fa-rocket mr-2"></i>
+                    Créer un compte gratuit
+                </button>
+                <button (click)="scrollToSection('contact')"
+                    class="border-2 border-white text-white px-8 py-4 rounded-xl text-lg font-semibold hover:bg-white hover:text-blue-600 transition-all">
+                    <i class="fa-solid fa-phone mr-2"></i>
+                    Parler à un expert
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer id="contact" class="bg-gray-900 text-white py-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+                <!-- Company Info -->
+                <div class="md:col-span-2">
+                    <div class="flex items-center mb-6">
+                        <div
+                            class="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
+                            <i
+                                class="fa-brands fa-bitcoin text-white text-xl"></i>
+                        </div>
+                        <h3 class="ml-3 text-xl font-bold">CryptoBank</h3>
+                    </div>
+                    <p class="text-gray-400 mb-6 max-w-md">
+                        La plateforme crypto nouvelle génération qui rend
+                        l'investissement
+                        accessible à tous avec sécurité et simplicité.
+                    </p>
+                    <div class="flex space-x-4">
+                        <a href="#"
+                            class="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center hover:bg-blue-600 transition-colors">
+                            <i class="fa-brands fa-twitter"></i>
+                        </a>
+                        <a href="#"
+                            class="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center hover:bg-blue-600 transition-colors">
+                            <i class="fa-brands fa-linkedin"></i>
+                        </a>
+                        <a href="#"
+                            class="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center hover:bg-blue-600 transition-colors">
+                            <i class="fa-brands fa-discord"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Quick Links -->
+                <div>
+                    <h4 class="text-lg font-semibold mb-6">Liens rapides</h4>
+                    <ul class="space-y-3">
+                        <li><a href="#"
+                                class="text-gray-400 hover:text-white transition-colors">À
+                                propos</a></li>
+                        <li><a href="#"
+                                class="text-gray-400 hover:text-white transition-colors">Sécurité</a></li>
+                        <li><a href="#"
+                                class="text-gray-400 hover:text-white transition-colors">API</a></li>
+                        <li><a href="#"
+                                class="text-gray-400 hover:text-white transition-colors">Blog</a></li>
+                    </ul>
+                </div>
+
+                <!-- Support -->
+                <div>
+                    <h4 class="text-lg font-semibold mb-6">Support</h4>
+                    <ul class="space-y-3">
+                        <li><a href="#"
+                                class="text-gray-400 hover:text-white transition-colors">Centre
+                                d'aide</a></li>
+                        <li><a href="#"
+                                class="text-gray-400 hover:text-white transition-colors">Contact</a></li>
+                        <li><a href="#"
+                                class="text-gray-400 hover:text-white transition-colors">Status</a></li>
+                        <li><a href="#"
+                                class="text-gray-400 hover:text-white transition-colors">Communauté</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div
+                class="border-t border-gray-800 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center">
+                <p class="text-gray-400 text-sm">
+                    © 2024 CryptoBank. Tous droits réservés.
+                </p>
+                <div class="flex space-x-6 mt-4 md:mt-0">
+                    <a href="#"
+                        class="text-gray-400 hover:text-white text-sm transition-colors">Politique
+                        de confidentialité</a>
+                    <a href="#"
+                        class="text-gray-400 hover:text-white text-sm transition-colors">Conditions
+                        d'utilisation</a>
+                    <a href="#"
+                        class="text-gray-400 hover:text-white text-sm transition-colors">Mentions
+                        légales</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+</div>

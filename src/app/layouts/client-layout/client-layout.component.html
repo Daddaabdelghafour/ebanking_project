@@ -1,25 +1,38 @@
 <div class="min-h-screen bg-gray-50 flex">
 
+  <!-- Mobile Sidebar Overlay -->
+  <div *ngIf="showMobileOverlay"
+    (click)="closeMobileSidebar()"
+    class="mobile-overlay lg:hidden"></div>
+
   <!-- Sidebar -->
-  <aside [class]="sidebarCollapsed ? 'w-16' : 'w-64'"
-    class="bg-white shadow-lg transition-all duration-300 ease-in-out fixed h-full z-30 border-r border-gray-200">
+  <aside [class]="getMobileSidebarClasses()"
+    class="bg-white shadow-lg transition-all duration-300 ease-in-out sidebar-container border-r border-gray-200 lg:relative lg:translate-x-0">
 
     <!-- Logo Section -->
-    <div class="p-4 border-b border-gray-200">
-      <div class="flex items-center space-x-3">
-        <div
-          class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-          <i class="fa-solid fa-university text-white text-sm"></i>
+    <div class="p-4 border-b border-gray-200 flex-shrink-0">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+          <div
+            class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+            <i class="fas fa-university text-white text-sm"></i>
+          </div>
+          <div *ngIf="!sidebarCollapsed || isMobileMenuOpen" class="flex-1">
+            <h1 class="text-lg font-bold text-gray-900">E-Banking</h1>
+            <p class="text-xs text-gray-500">Espace Client</p>
+          </div>
         </div>
-        <div *ngIf="!sidebarCollapsed" class="flex-1">
-          <h1 class="text-lg font-bold text-gray-900">E-Banking</h1>
-          <p class="text-xs text-gray-500">Espace Client</p>
-        </div>
+
+        <!-- Mobile Close Button -->
+        <button (click)="closeMobileSidebar()"
+          class="lg:hidden p-2 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors">
+          <i class="fas fa-times text-lg"></i>
+        </button>
       </div>
     </div>
 
-    <!-- Navigation -->
-    <nav class="p-2 space-y-1 flex-1 overflow-y-auto">
+    <!-- Navigation - Takes remaining space -->
+    <nav class="nav-scrollable p-2 space-y-1">
       <ng-container *ngFor="let item of sidebarItems">
 
         <!-- Divider -->
@@ -28,17 +41,19 @@
         <!-- Navigation Item -->
         <a *ngIf="!item.divider"
           [routerLink]="item.route"
+          (click)="onMobileNavClick()"
           routerLinkActive="bg-blue-50 text-blue-600 border-r-2 border-blue-600"
           [routerLinkActiveOptions]="{exact: item.route === ''}"
           class="flex items-center px-3 py-2 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-100 transition-colors group">
 
           <i [class]="item.icon + ' w-5 text-center'"
-            [class.mr-3]="!sidebarCollapsed"></i>
+            [class.mr-3]="!sidebarCollapsed || isMobileMenuOpen"></i>
 
-          <span *ngIf="!sidebarCollapsed" class="flex-1">{{ item.label }}</span>
+          <span *ngIf="!sidebarCollapsed || isMobileMenuOpen" class="flex-1">{{
+            item.label }}</span>
 
           <!-- Badge -->
-          <span *ngIf="item.badge && !sidebarCollapsed"
+          <span *ngIf="item.badge && (!sidebarCollapsed || isMobileMenuOpen)"
             class="px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">
             {{ item.badge }}
           </span>
@@ -47,23 +62,67 @@
       </ng-container>
     </nav>
 
-    <!-- Logout Button -->
-    <div class="p-2 border-t border-gray-200">
+    <!-- Logout Button - Always at bottom -->
+    <div class="p-2 border-t border-gray-200 flex-shrink-0">
       <button (click)="logout()"
         class="w-full flex items-center px-3 py-2 text-sm font-medium text-red-600 rounded-lg hover:bg-red-50 transition-colors">
-        <i class="fa-solid fa-right-from-bracket w-5 text-center"
-          [class.mr-3]="!sidebarCollapsed"></i>
-        <span *ngIf="!sidebarCollapsed">Déconnexion</span>
+        <i class="fas fa-sign-out-alt w-5 text-center"
+          [class.mr-3]="!sidebarCollapsed || isMobileMenuOpen"></i>
+        <span *ngIf="!sidebarCollapsed || isMobileMenuOpen">Déconnexion</span>
       </button>
     </div>
 
   </aside>
 
   <!-- Main Content -->
-  <div [class]="sidebarCollapsed ? 'ml-16' : 'ml-64'"
-    class="flex-1 transition-all duration-300">
+  <div [class]="getMainContentClasses()"
+    class="flex-1 transition-all duration-300 main-content">
 
-    <!-- Top Navigation -->
+    <!-- Mobile Top Navigation Bar -->
+    <div
+      class="lg:hidden bg-white shadow-sm border-b border-gray-200 sticky top-0 z-30">
+      <div class="flex items-center justify-between px-4 py-3">
+
+        <!-- Mobile Hamburger Menu Button -->
+        <button (click)="toggleMobileSidebar()"
+          class="p-2 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor"
+            viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round"
+              stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+          </svg>
+        </button>
+
+        <!-- Mobile Logo/Title -->
+        <div class="flex items-center space-x-2">
+          <div
+            class="w-6 h-6 bg-blue-600 rounded flex items-center justify-center">
+            <i class="fas fa-university text-white text-xs"></i>
+          </div>
+          <span class="font-semibold text-gray-900">E-Banking</span>
+        </div>
+
+        <!-- Mobile User Avatar -->
+        <div
+          class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+          <span class="text-blue-600 font-medium text-sm">{{ getUserInitials()
+            }}</span>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Desktop Sidebar Toggle (Top Left) -->
+    <div class="hidden lg:block absolute top-4 left-4 z-20">
+      <button (click)="toggleDesktopSidebar()"
+        class="p-2 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-white shadow-sm border border-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor"
+          viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M4 6h16M4 12h16M4 18h16"></path>
+        </svg>
+      </button>
+    </div>
 
     <!-- Page Content -->
     <main class="p-4 sm:p-6 lg:p-8">
