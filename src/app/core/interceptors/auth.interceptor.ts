@@ -1,6 +1,6 @@
 import { HttpInterceptorFn, HttpRequest, HttpHandlerFn, HttpEvent, HttpErrorResponse } from '@angular/common/http';
-import { Observable, throwError } from 'rxjs';
-import { catchError } from 'rxjs/operators';
+import { Observable, from, throwError } from 'rxjs';
+import { catchError, switchMap } from 'rxjs/operators';
 import { inject } from '@angular/core';
 import { AuthService } from '../../services/auth/auth.service';
 
@@ -9,27 +9,26 @@ export const authInterceptor: HttpInterceptorFn = (
   next: HttpHandlerFn
 ): Observable<HttpEvent<unknown>> => {
   const authService = inject(AuthService);
-  
-  // Ajouter le token d'authentification si disponible
-  //const token = authService.getToken();
-  /*
-  if (token) {
-    req = req.clone({
-      setHeaders: {
-        Authorization: `Bearer ${token}`
+
+  // Attach Firebase ID token if available (async)
+  const token$ = from(authService.getIdToken());
+
+  return token$.pipe(
+    switchMap((token) => {
+      let cloned = req;
+      if (token) {
+        cloned = req.clone({
+          setHeaders: {
+            Authorization: `Bearer ${token}`
+          }
+        });
       }
-    });
-  }
-  */ 
-  // Continuer avec la requête modifiée
-  return next(req).pipe(
+      return next(cloned);
+    }),
     catchError((error: HttpErrorResponse) => {
-      // Gérer les erreurs 401 (non autorisé)
       if (error.status === 401) {
-        
+        // Could add refresh logic or redirect to login
       }
-      
-      // Propager l'erreur
       return throwError(() => error);
     })
   );

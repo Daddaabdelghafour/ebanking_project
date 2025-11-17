@@ -4,6 +4,14 @@ import { AdminLayoutComponent } from './layouts/admin-layout/admin-layout.compon
 import { AgentLayoutComponent } from './layouts/agent-layout/agent-layout.component';
 
 export const routes: Routes = [
+  {
+    path: 'auth/login',
+    loadComponent: () => import('./features/auth/login/login.component').then(m => m.LoginComponent)
+  },
+  {
+    path: 'demo',
+    loadComponent: () => import('./features/dashboard/dashboard.component').then(m => m.DashboardComponent)
+  },
   // Client routes with the client layout
   
   

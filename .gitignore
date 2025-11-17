@@ -1,3 +1,9 @@
+node_modules/
+dist/
+.env
+# Ignore environment secrets - keep example in repo, but do not commit real keys
+src/environments/environment.*.local.ts
+src/environments/environment.secrets.ts
 # Node modules
 node_modules/
 

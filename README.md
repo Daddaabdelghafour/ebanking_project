@@ -1,3 +1,49 @@
+# e-banking-app (Demo)
+
+This repository contains an Angular-based e-banking frontend scaffold with Firebase (Auth + Firestore) integration.
+
+Included:
+- Firebase environment placeholders (`src/environments/environment.ts`, `environment.prod.ts`)
+- AngularFire initialization in `src/app/app.config.ts`
+- `AuthService` using `@angular/fire/auth` for sign in / sign up / sign out (or mock fallback)
+- `AccountsService` and `TransactionsService` using Firestore (or mock fallback)
+- `LoginComponent` and a demo `DashboardComponent` to showcase the services
+- `auth` interceptor updated to attach Firebase ID tokens
+
+Quick start
+
+1. Install dependencies:
+```bash
+npm install
+```
+
+2. Configure Firebase (optional)
+- By default the repository ships with `src/environments/environment.ts` set to use mock data so there are no secrets in the repo.
+- To use a real Firebase project, copy `src/environments/environment.example.ts` to `src/environments/environment.ts`, fill the values and set `useMock: false`.
+
+Seeding / Mock data
+- The app includes an in-memory seeded dataset (users, accounts, transactions) used when `useMock: true`.
+- No external seeding step is required; the demo dashboard reads that mock data automatically.
+
+3. Run the dev server:
+```bash
+npm start
+```
+
+4. Open the demo pages:
+- Login: `http://localhost:4200/auth/login`
+- Demo dashboard (lists accounts/transactions): `http://localhost:4200/demo`
+
+
+Notes
+- The demo dashboard uses mock data shipped in `MockDataService` by default. You can modify the seeded arrays in `src/app/services/mock/mock-data.service.ts`.
+- If you switch to Firebase (set `useMock: false`), create documents in Firestore collections `accounts` and `transactions` or use the provided services to add data.
+To use server-side REST endpoints instead of Firebase, scaffold an Express API inside `src/server.ts`.
+
+Next recommended steps
+- Add environment-specific Firebase configuration via CI or environment variables.
+- Add proper role-based access control in `AuthGuard`.
+- Add unit tests for services and components.
 # 🏦 E-Banking Application
 
 <p align="center">
